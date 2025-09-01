@@ -37,11 +37,12 @@ export function StartLearningDialog({
   const [mainGoal, setMainGoal] = useState("");
   const [objectives, setObjectives] = useState<string[]>([]);
   const [currentObjective, setCurrentObjective] = useState("");
-  const [topics, setTopics] = useState<string[]>([]);
   
-  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [topics, setTopics] = useState<string[]>([]);
   const [currentTopic, setCurrentTopic] = useState("");
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const topicInputRef = useRef<HTMLInputElement>(null);
+
 
   const handleStart = () => {
     if (mainGoal.trim()) {
@@ -80,26 +81,30 @@ export function StartLearningDialog({
   };
   
   const handleTopicSelect = useCallback((topic: string) => {
-    if (topic && !topics.includes(topic)) {
-      setTopics(prev => [...prev, topic]);
+    const trimmedTopic = topic.trim();
+    if (trimmedTopic && !topics.includes(trimmedTopic)) {
+      setTopics(prev => [...prev, trimmedTopic]);
     }
     setCurrentTopic("");
     setPopoverOpen(false);
-    // Keep focus on the input field for seamless entry of next topic
-    topicInputRef.current?.focus();
+    setTimeout(() => {
+      topicInputRef.current?.focus();
+    }, 0);
   }, [topics]);
 
   const handleTopicInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Backspace' && event.currentTarget.value === '' && topics.length > 0) {
       event.preventDefault();
       handleRemoveTopic(topics[topics.length - 1]);
+    } else if (event.key === 'Enter' && currentTopic.trim() && filteredTopics.length === 0) {
+        event.preventDefault();
+        handleTopicSelect(currentTopic);
     }
   };
-
+  
   const filteredTopics = allTopics.filter(topic => 
     !topics.includes(topic) && topic.toLowerCase().includes(currentTopic.toLowerCase())
   );
-  
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -123,35 +128,37 @@ export function StartLearningDialog({
             />
           </div>
           
-          <div className="space-y-2">
+           <div className="space-y-2">
             <Label>{t('topics')}</Label>
-             <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
               <PopoverTrigger asChild>
-                 <div
-                    className="flex flex-wrap items-center gap-2 rounded-md border border-input p-1 pl-2 bg-transparent cursor-text min-h-11"
-                    onClick={() => topicInputRef.current?.focus()}
+                <div
+                  className="flex flex-wrap items-center gap-2 rounded-md border border-input p-1 pl-2 bg-transparent cursor-text min-h-11"
+                  onClick={() => topicInputRef.current?.focus()}
                 >
-                    {topics.map((topic) => (
-                      <Badge key={topic} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
-                        {topic}
-                        <button className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2" onClick={() => handleRemoveTopic(topic)}>
-                          <XIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-                          <span className="sr-only">Remove {topic}</span>
-                        </button>
-                      </Badge>
-                    ))}
-                    <Command>
-                       <CommandInput
-                        ref={topicInputRef}
-                        id="topics"
-                        placeholder={t('addTopicPlaceholder')}
-                        onFocus={() => setPopoverOpen(true)}
-                        onKeyDown={handleTopicInputKeyDown}
-                        value={currentTopic}
-                        onValueChange={setCurrentTopic}
-                        className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1 min-w-[120px]"
-                    />
-                    </Command>
+                  {topics.map((topic) => (
+                    <Badge key={topic} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
+                      {topic}
+                      <button
+                        className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        onClick={() => handleRemoveTopic(topic)}
+                      >
+                        <XIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                        <span className="sr-only">Remove {topic}</span>
+                      </button>
+                    </Badge>
+                  ))}
+                  <Input
+                    ref={topicInputRef}
+                    id="topics"
+                    placeholder={t('addTopicPlaceholder')}
+                    value={currentTopic}
+                    onValueChange={setCurrentTopic}
+                    onChange={(e) => setCurrentTopic(e.target.value)}
+                    onKeyDown={handleTopicInputKeyDown}
+                    onFocus={() => setPopoverOpen(true)}
+                    className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1 min-w-[120px]"
+                  />
                 </div>
               </PopoverTrigger>
               <PopoverContent asChild className="w-[--radix-popover-trigger-width] p-0">
@@ -179,20 +186,20 @@ export function StartLearningDialog({
                         ))}
                       </CommandGroup>
                     )}
-                     <CommandGroup>
-                         {currentTopic.trim() && !filteredTopics.includes(currentTopic.trim()) && !topics.includes(currentTopic.trim()) && (
+                     {currentTopic.trim() && !allTopics.includes(currentTopic.trim()) && !topics.includes(currentTopic.trim()) && (
+                      <CommandGroup>
                           <CommandItem
                             onSelect={() => handleTopicSelect(currentTopic.trim())}
                             className="cursor-pointer"
                           >
                            {t('add')} "{currentTopic.trim()}"
                           </CommandItem>
-                        )}
-                    </CommandGroup>
+                      </CommandGroup>
+                    )}
                   </CommandList>
                 </Command>
               </PopoverContent>
-             </Popover>
+            </Popover>
           </div>
 
           <div className="space-y-2">
