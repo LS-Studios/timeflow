@@ -10,7 +10,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, YAxis, Cell, LineCh
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Clock, Coffee, Target, BookOpen, BarChart2, CheckCircle, Circle, Percent, Edit } from "lucide-react";
+import { Search, Clock, Coffee, Target, BookOpen, BarChart2, CheckCircle, Circle, Percent, Edit, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { DayHistory, Session, LearningObjective } from "@/lib/types";
@@ -26,6 +26,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { EditLearningDialog } from "@/components/edit-learning-dialog";
+import { EditWorkDialog } from "@/components/edit-work-dialog";
+import { Timeline } from "@/components/timeline";
 
 
 const workBreakdownChartConfig = {
@@ -60,60 +62,56 @@ export default function AnalyticsPage() {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [sessionToEdit, setSessionToEdit] = useState<Session | null>(null);
   
+  const [selectedDay, setSelectedDay] = useState<DayHistory | null>(null);
+  const [workSessionToEdit, setWorkSessionToEdit] = useState<Session | null>(null);
+
+  const refreshData = () => {
+    const mode = settings.mode;
+    const relevantSessions = storageService.getSessions(mode);
+
+    const groupedByDay: { [key: string]: Session[] } = {};
+    relevantSessions.forEach(session => {
+        const dayKey = format(new Date(session.start), 'yyyy-MM-dd');
+        if (!groupedByDay[dayKey]) {
+            groupedByDay[dayKey] = [];
+        }
+        groupedByDay[dayKey].push(session);
+    });
+
+    const finalHistory: DayHistory[] = Object.keys(groupedByDay).map(dayKey => ({
+        id: dayKey,
+        date: dayKey,
+        sessions: groupedByDay[dayKey].sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+    })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    setGroupedHistory(finalHistory);
+    setAllTopics(storageService.getAllTopics());
+    setIsLoading(false);
+  }
+  
   useEffect(() => {
     if (!settings) return;
     setIsLoading(true);
-    
-    const loadData = () => {
-      const relevantSessions = storageService.getSessions(settings.mode);
-
-      // Group sessions by day
-      const groupedByDay: { [key: string]: Session[] } = {};
-      relevantSessions.forEach(session => {
-          const dayKey = format(new Date(session.start), 'yyyy-MM-dd');
-          if (!groupedByDay[dayKey]) {
-              groupedByDay[dayKey] = [];
-          }
-          groupedByDay[dayKey].push(session);
-      });
-
-      const finalHistory: DayHistory[] = Object.keys(groupedByDay).map(dayKey => ({
-          id: dayKey,
-          date: dayKey,
-          sessions: groupedByDay[dayKey]
-      })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
-      setGroupedHistory(finalHistory);
-      setAllTopics(storageService.getAllTopics());
-      setIsLoading(false);
-    }
-    
-    loadData();
+    refreshData();
   }, [settings.mode, settings]);
   
   const handleUpdateSession = (updatedSession: Session) => {
-    const allSessions = storageService.getSessions('learning');
+    const allSessions = storageService.getSessions(settings.mode);
     const sessionIndex = allSessions.findIndex(s => s.id === updatedSession.id);
     
     if (sessionIndex > -1) {
       allSessions[sessionIndex] = updatedSession;
-      storageService.saveSessions('learning', allSessions);
+      storageService.saveSessions(settings.mode, allSessions);
       
-      // Refresh the view
-      const updatedHistory = [...groupedHistory];
-      for (const day of updatedHistory) {
-        const historySessionIndex = day.sessions.findIndex(s => s.id === updatedSession.id);
-        if (historySessionIndex > -1) {
-           day.sessions[historySessionIndex] = updatedSession;
-           break;
-        }
+      refreshData();
+      
+      if(settings.mode === 'learning') {
+         setSelectedSession(updatedSession);
       }
-      setGroupedHistory(updatedHistory);
-      setSelectedSession(updatedSession); // Update the detail view as well
-      setAllTopics(storageService.getAllTopics()); // Update topics list
     }
     
-    setSessionToEdit(null); // Close the edit dialog
+    setSessionToEdit(null);
+    setWorkSessionToEdit(null);
   }
 
   const formatDate = (dateString: string) => {
@@ -343,7 +341,7 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle>{t('history')}</CardTitle>
-            <CardDescription>{t('historyDescription')}</CardDescription>
+            <CardDescription>{t('historyDescriptionWork')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="relative mb-4">
@@ -355,34 +353,8 @@ export default function AnalyticsPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            {/* Mobile View: List of Cards */}
-            <div className="md:hidden space-y-4">
-              {filteredHistory.map((day) => {
-                  const { workMs, breakMs } = getDurations(day.sessions);
-                  const overtimeMs = workMs - ((settings.dailyGoal || 8) * 60 * 60 * 1000);
-                  return (
-                    <Card key={day.id} className="p-4">
-                      <div className="flex justify-between items-center mb-4">
-                        <p className="font-medium">{formatDate(day.date)}</p>
-                        <OvertimeBadge overtimeMs={overtimeMs} />
-                      </div>
-                      <div className="flex justify-around text-center text-sm gap-8">
-                        <div>
-                          <p className="text-muted-foreground">{t('workDuration')}</p>
-                          <p className="font-semibold flex items-center gap-1 justify-center"><Clock className="h-4 w-4" /> {formatDuration(workMs)}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">{t('breakDuration')}</p>
-                          <p className="font-semibold flex items-center gap-1 justify-center"><Coffee className="h-4 w-4" /> {formatDuration(breakMs)}</p>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-              })}
-            </div>
-
-            {/* Desktop View: Table */}
-            <div className="hidden md:block border rounded-md">
+            
+            <div className="border rounded-md">
               <Table>
                   <TableHeader>
                     <TableRow>
@@ -390,6 +362,7 @@ export default function AnalyticsPage() {
                       <TableHead>{t('workDuration')}</TableHead>
                       <TableHead>{t('breakDuration')}</TableHead>
                       <TableHead className="text-right">{t('overtime')}</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -397,7 +370,7 @@ export default function AnalyticsPage() {
                       const { workMs, breakMs } = getDurations(day.sessions);
                       const overtimeMs = workMs - ((settings.dailyGoal || 8) * 60 * 60 * 1000);
                       return (
-                        <TableRow key={day.id}>
+                        <TableRow key={day.id} onClick={() => setSelectedDay(day)} className="cursor-pointer">
                           <TableCell className="font-medium">{formatDate(day.date)}</TableCell>
                           <TableCell>{formatDuration(workMs)}</TableCell>
                           <TableCell>{formatDuration(breakMs)}</TableCell>
@@ -406,6 +379,7 @@ export default function AnalyticsPage() {
                                 <OvertimeBadge overtimeMs={overtimeMs} />
                             </div>
                           </TableCell>
+                          <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
                         </TableRow>
                       );
                     })}
@@ -530,8 +504,8 @@ export default function AnalyticsPage() {
               <CardDescription>{t('averageSessionSuccessDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center h-[160px]">
-              <div className={cn("text-5xl font-bold text-primary flex items-center gap-2")}>
-                {averageCompletion}<Percent className="h-10 w-10" />
+              <div className={cn("text-2xl sm:text-4xl md:text-5xl font-bold text-primary flex items-center gap-2")}>
+                {averageCompletion}<Percent className="h-6 w-6 sm:h-8 sm:h-8 md:h-10 md:w-10" />
               </div>
             </CardContent>
           </Card>
@@ -632,6 +606,29 @@ export default function AnalyticsPage() {
       </Dialog>
     )
   }
+  
+  const WorkDayDetailDialog = () => {
+    if (!selectedDay) return null;
+    
+    return (
+      <Dialog open={!!selectedDay} onOpenChange={() => setSelectedDay(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t('detailsFor')} {formatDate(selectedDay.date)}</DialogTitle>
+            <DialogDescription>{t('editWorkDayDescription')}</DialogDescription>
+          </DialogHeader>
+          <div className="py-4 max-h-[60vh] overflow-y-auto">
+             <Timeline 
+                sessions={selectedDay.sessions} 
+                isWorkDayEnded={true} 
+                showEditButtons={true} 
+                onEditSession={(session) => setWorkSessionToEdit(session)} 
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+    )
+  }
 
   return (
     <div className="container max-w-5xl py-8 mx-auto px-4">
@@ -656,10 +653,14 @@ export default function AnalyticsPage() {
         session={sessionToEdit}
         allTopics={allTopics}
       />
+      
+      <WorkDayDetailDialog />
+      <EditWorkDialog
+        isOpen={!!workSessionToEdit}
+        onOpenChange={(isOpen) => !isOpen && setWorkSessionToEdit(null)}
+        onSave={handleUpdateSession}
+        session={workSessionToEdit}
+      />
     </div>
   );
 }
-
-    
-
-    

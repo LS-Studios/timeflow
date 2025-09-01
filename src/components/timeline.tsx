@@ -4,15 +4,18 @@
 import { useState, useEffect } from "react";
 import type { Session } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Briefcase, Coffee, Flag, Flame, PersonStanding, Wind, Pencil, Brain, Target } from "lucide-react";
+import { Briefcase, Coffee, Flag, Flame, PersonStanding, Wind, Pencil, Brain, Target, Edit } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-provider";
+import { Button } from "./ui/button";
 
 
 interface TimelineProps {
   sessions: Session[];
   isWorkDayEnded?: boolean;
+  showEditButtons?: boolean;
+  onEditSession?: (session: Session) => void;
 }
 
 function formatTime(date: Date | null) {
@@ -51,7 +54,7 @@ function getIconForNote(note: string | undefined, t: (key: string) => string) {
 }
 
 
-export function Timeline({ sessions, isWorkDayEnded = false }: TimelineProps) {
+export function Timeline({ sessions, isWorkDayEnded = false, showEditButtons = false, onEditSession }: TimelineProps) {
   const { t } = useTranslation();
   const { settings } = useSettings();
   const [now, setNow] = useState(Date.now());
@@ -89,7 +92,7 @@ export function Timeline({ sessions, isWorkDayEnded = false }: TimelineProps) {
   
   // Don't show the "Day ended" pause session while the day is considered ended.
   // It only becomes relevant history if the user continues working.
-  const sessionsToDisplay = isWorkDayEnded ? sessions.slice(0, -1) : sessions;
+  const sessionsToDisplay = isWorkDayEnded && !showEditButtons ? sessions.filter(s => s.note !== 'Day ended') : sessions;
 
 
   return (
@@ -119,10 +122,15 @@ export function Timeline({ sessions, isWorkDayEnded = false }: TimelineProps) {
                     <div className="flex-1 pl-6">
                       <div className="flex items-center gap-2">
                           {session.type === 'work' ? (settings.mode === 'learning' ? <Brain className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />) : <PauseIcon className="w-4 h-4" />}
-                          <span className="font-semibold">{formatTime(session.start)}</span>
+                          <span className="font-semibold">{formatTime(session.start)} - {session.end ? formatTime(session.end) : 'Ongoing'}</span>
                           <span className="text-muted-foreground text-sm">
                            ({session.end ? formatDuration(session.start, session.end) : formatOngoingDuration(session.start, now)})
                           </span>
+                           {showEditButtons && onEditSession && (
+                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEditSession(session)}>
+                                <Edit className="h-3 w-3" />
+                             </Button>
+                           )}
                       </div>
                       
                       {session.type === 'work' && session.learningGoal && (

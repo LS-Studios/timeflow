@@ -64,6 +64,7 @@ const translations: Record<Language, Translations> = {
     last30days: "in the last 30 days",
     history: "History",
     historyDescription: "A log of all your past work days.",
+    historyDescriptionWork: "A log of all your past work days. Click a row for details.",
     searchHistory: "Search by date...",
     searchHistoryLearning: "Search by goal, objective, or topic...",
     date: "Date",
@@ -110,7 +111,14 @@ const translations: Record<Language, Translations> = {
     editLearningSessionDescription: "Adjust the details of your completed session.",
     saveChanges: "Save Changes",
     add: "Add",
-    noResults: "No results found."
+    noResults: "No results found.",
+    detailsFor: "Details for",
+    editWorkDayDescription: "Here you can see the timeline of your day and edit individual sessions.",
+    editSession: "Edit Session",
+    editSessionDescription: "Adjust the start and end times or the note for this session.",
+    startTime: "Start Time",
+    endTime: "End Time",
+    note: "Note",
   },
   de: {
     pomodoro: 'Pomodoro',
@@ -165,6 +173,7 @@ const translations: Record<Language, Translations> = {
     last30days: "in den letzten 30 Tagen",
     history: "Verlauf",
     historyDescription: "Ein Protokoll all Ihrer vergangenen Arbeitstage.",
+    historyDescriptionWork: "Ein Protokoll all Ihrer vergangenen Arbeitstage. Klicken Sie auf eine Zeile für Details.",
     searchHistory: "Nach Datum suchen...",
     searchHistoryLearning: "Nach Ziel, Lernziel oder Thema suchen...",
     date: "Datum",
@@ -211,7 +220,14 @@ const translations: Record<Language, Translations> = {
     editLearningSessionDescription: "Passen Sie die Details Ihrer abgeschlossenen Sitzung an.",
     saveChanges: "Änderungen speichern",
     add: "Hinzufügen",
-    noResults: "Keine Ergebnisse gefunden."
+    noResults: "Keine Ergebnisse gefunden.",
+    detailsFor: "Details für",
+    editWorkDayDescription: "Hier sehen Sie den Zeitverlauf Ihres Tages und können einzelne Sitzungen bearbeiten.",
+    editSession: "Sitzung bearbeiten",
+    editSessionDescription: "Passen Sie die Start- und Endzeiten oder die Notiz für diese Sitzung an.",
+    startTime: "Startzeit",
+    endTime: "Endzeit",
+    note: "Notiz",
   },
 };
 
@@ -248,5 +264,3 @@ export function useTranslation() {
   }
   return context;
 }
-
-    
