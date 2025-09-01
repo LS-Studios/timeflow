@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { createContext, useState, useContext, ReactNode, useMemo, useEffect, useCallback } from 'react';
@@ -33,7 +34,6 @@ const defaultSettings: AppSettings = {
     mode: 'work',
     dailyGoal: 8,
     weeklyGoal: 40,
-    organizationName: undefined,
 };
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
