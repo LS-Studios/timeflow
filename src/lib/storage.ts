@@ -14,6 +14,7 @@ interface StorageService {
     saveDayHistory(history: DayHistory): void;
     getDayHistory(dateKey: string): DayHistory | null;
     getAllHistory(): DayHistory[];
+    getAllTopics(): string[];
     clearDayHistory(dateKey: string): void;
 }
 
@@ -81,6 +82,19 @@ class LocalStorageService implements StorageService {
         // Sort by date descending
         return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
+    
+    getAllTopics(): string[] {
+        const allHistory = this.getAllHistory();
+        const topics = new Set<string>();
+        allHistory.forEach(day => {
+            day.sessions.forEach(session => {
+                if (session.topics) {
+                    session.topics.forEach(topic => topics.add(topic));
+                }
+            })
+        })
+        return Array.from(topics);
+    }
 
     clearDayHistory(dateKey: string): void {
         if (!this.isLocalStorageAvailable()) return;
@@ -91,3 +105,5 @@ class LocalStorageService implements StorageService {
 
 // Export a singleton instance of the service
 export const storageService: StorageService = new LocalStorageService();
+
+    

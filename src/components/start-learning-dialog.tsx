@@ -1,5 +1,5 @@
 
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useTranslation } from "@/lib/i18n.tsx";
 import { Brain, Check, ChevronsUpDown, X as XIcon } from "lucide-react";
-import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import {
   Command,
@@ -29,6 +28,7 @@ import {
 } from "@/components/ui/popover"
 import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
+import { storageService } from "@/lib/storage";
 
 
 const PREDEFINED_TOPICS = [
@@ -55,10 +55,27 @@ export function StartLearningDialog({
   const { t } = useTranslation();
   const [goal, setGoal] = useState("");
   const [topics, setTopics] = useState<string[]>([]);
+  const [availableTopics, setAvailableTopics] = useState(PREDEFINED_TOPICS);
   
   // State for the combobox
   const [open, setOpen] = useState(false)
   const [inputValue, setInputValue] = useState("")
+
+  useEffect(() => {
+    if (isOpen) {
+      const allPastTopics = storageService.getAllTopics();
+      const newTopics = allPastTopics.map(t => ({ value: t.toLowerCase(), label: t}));
+      
+      // Combine and remove duplicates
+      const combined = [...PREDEFINED_TOPICS, ...newTopics];
+      const uniqueTopics = combined.filter((topic, index, self) => 
+        index === self.findIndex((t) => (
+          t.value === topic.value
+        ))
+      );
+      setAvailableTopics(uniqueTopics);
+    }
+  }, [isOpen]);
 
   const handleStart = () => {
     if (goal.trim()) {
@@ -140,7 +157,7 @@ export function StartLearningDialog({
                       <CommandList>
                         <CommandEmpty>{t('noTopicsFound')}</CommandEmpty>
                         <CommandGroup>
-                          {PREDEFINED_TOPICS.map((topic) => (
+                          {availableTopics.map((topic) => (
                             <CommandItem
                               key={topic.value}
                               value={topic.value}
@@ -165,7 +182,7 @@ export function StartLearningDialog({
                     <div className="flex flex-wrap gap-2 pt-2">
                         {topics.map(topic => (
                              <Badge key={topic} variant="secondary" className="pl-3 pr-1 py-1 text-sm">
-                                {PREDEFINED_TOPICS.find(t => t.value === topic)?.label || topic}
+                                {availableTopics.find(t => t.value === topic)?.label || topic}
                                 <button onClick={() => handleTopicRemove(topic)} className="ml-1.5 p-0.5 rounded-full hover:bg-background/50">
                                     <XIcon className="h-3 w-3" />
                                     <span className="sr-only">Remove {topic}</span>
@@ -185,3 +202,6 @@ export function StartLearningDialog({
 }
 
 
+
+
+    

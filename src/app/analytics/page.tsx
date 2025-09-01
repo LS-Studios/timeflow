@@ -30,10 +30,12 @@ const breakTypeChartConfig = {
 
 const learningFocusChartConfig = {
   sessions: { label: "Sessions" },
-  React: { label: "React", color: "hsl(var(--chart-1))" },
-  TypeScript: { label: "TypeScript", color: "hsl(var(--chart-2))" },
-  Figma: { label: "Figma", color: "hsl(var(--chart-3))" },
-  Go: { label: "Go", color: "hsl(var(--chart-4))" },
+  react: { label: "React", color: "hsl(var(--chart-1))" },
+  typescript: { label: "TypeScript", color: "hsl(var(--chart-2))" },
+  figma: { label: "Figma", color: "hsl(var(--chart-3))" },
+  go: { label: "Go", color: "hsl(var(--chart-4))" },
+  nextjs: { label: "Next.js", color: "hsl(var(--chart-5))" },
+  deutsch: { label: "Deutsch", color: "hsl(var(--chart-1))" },
 } satisfies ChartConfig;
 
 const completionChartConfig = {
@@ -320,24 +322,26 @@ export default function AnalyticsPage() {
     const learningFocusData = allLearningSessions
       .flatMap(s => s.topics || [])
       .reduce((acc, topic) => {
-          acc[topic] = (acc[topic] || 0) + 1;
+          const key = topic.toLowerCase();
+          acc[key] = (acc[key] || 0) + 1;
           return acc;
       }, {} as Record<string, number>);
       
-    const learningFocusChartData = Object.entries(learningFocusData).map(([topic, sessions]) => ({ topic, sessions }));
+    const learningFocusChartData = Object.entries(learningFocusData)
+        .map(([topic, sessions]) => ({ topic, sessions }))
+        .sort((a,b) => b.sessions - a.sessions);
 
     const completionOverTimeData = history
         .map(day => {
             const learningSession = day.sessions.find(s => s.learningGoal && s.completionPercentage !== undefined);
             return learningSession ? { date: day.date, completion: learningSession.completionPercentage } : null;
         })
-        .filter(Boolean)
-        .map(item => item!);
+        .filter((item): item is { date: string; completion: number } => item !== null);
 
 
     return (
       <>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
           <Card>
             <CardHeader>
               <CardTitle>{t('learningFocus')}</CardTitle>
@@ -354,7 +358,7 @@ export default function AnalyticsPage() {
                     tickMargin={10}
                     axisLine={false}
                     // Capitalize topic
-                    tickFormatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
+                    tickFormatter={(value) => learningFocusChartConfig[value as keyof typeof learningFocusChartConfig]?.label || (value.charAt(0).toUpperCase() + value.slice(1))}
                   />
                   <ChartTooltip
                     cursor={false}
@@ -362,7 +366,7 @@ export default function AnalyticsPage() {
                   />
                   <Bar dataKey="sessions" layout="vertical" radius={5}>
                     {learningFocusChartData.map((entry) => (
-                        <Cell key={`cell-${entry.topic}`} fill={learningFocusChartConfig[entry.topic as keyof typeof learningFocusChartConfig]?.color || '#8884d8'} />
+                        <Cell key={`cell-${entry.topic}`} fill={learningFocusChartConfig[entry.topic as keyof typeof learningFocusChartConfig]?.color || 'hsl(var(--muted))'} />
                       ))}
                   </Bar>
                 </BarChart>
@@ -472,3 +476,5 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
+    
