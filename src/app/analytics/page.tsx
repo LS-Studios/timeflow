@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { DayHistory, Session } from "@/lib/types";
 import { storageService } from "@/lib/storage";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const workBreakdownChartConfig = {
   work: { label: "Work", color: "hsl(var(--primary))" },
@@ -49,8 +50,10 @@ export default function AnalyticsPage() {
   const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState("");
   const [history, setHistory] = useState<DayHistory[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
+    setIsLoading(true);
     const allHistory = storageService.getAllHistory();
     // Filter history based on mode
     const filtered = allHistory.filter(day => {
@@ -64,6 +67,7 @@ export default function AnalyticsPage() {
         return hasWorkSessions && !isLearningDay;
     });
     setHistory(filtered.reverse());
+    setIsLoading(false);
   }, [settings.mode]);
   
 
@@ -138,6 +142,41 @@ export default function AnalyticsPage() {
       <p className="text-sm">{message}</p>
     </div>
   )
+
+  const AnalyticsSkeleton = () => (
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <Card>
+          <CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader>
+          <CardContent className="flex items-center justify-center"><Skeleton className="h-[200px] w-[200px] rounded-full" /></CardContent>
+        </Card>
+        <Card>
+           <CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader>
+           <CardContent className="space-y-4 pt-2">
+             <Skeleton className="h-8 w-full" />
+             <Skeleton className="h-8 w-full" />
+             <Skeleton className="h-8 w-full" />
+             <Skeleton className="h-8 w-full" />
+           </CardContent>
+        </Card>
+         <Card>
+           <CardHeader><Skeleton className="h-6 w-1/2" /><Skeleton className="h-4 w-3/4 mt-2" /></CardHeader>
+           <CardContent className="flex items-center justify-center h-[160px]"><Skeleton className="h-12 w-1/2" /></CardContent>
+        </Card>
+      </div>
+      <Card>
+        <CardHeader><Skeleton className="h-6 w-1/4" /><Skeleton className="h-4 w-1/2 mt-2" /></CardHeader>
+        <CardContent>
+          <div className="relative mb-4"><Skeleton className="h-10 w-full" /></div>
+          <div className="space-y-4">
+            <Skeleton className="h-20 w-full rounded-md" />
+            <Skeleton className="h-20 w-full rounded-md" />
+            <Skeleton className="h-20 w-full rounded-md" />
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
 
   const renderWorkAnalytics = () => {
      if (history.length === 0) {
@@ -487,8 +526,16 @@ export default function AnalyticsPage() {
         {settings.mode === 'work' ? t('analyticsDescription') : t('learningAnalyticsDescription')}
       </p>
 
-      {settings.mode === 'work' ? renderWorkAnalytics() : renderLearningAnalytics()}
+      {isLoading ? (
+        <AnalyticsSkeleton />
+      ) : settings.mode === 'work' ? (
+        renderWorkAnalytics()
+      ) : (
+        renderLearningAnalytics()
+      )}
 
     </div>
   );
 }
+
+    

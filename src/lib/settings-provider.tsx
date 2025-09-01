@@ -9,6 +9,7 @@ import { Language, useTranslation } from './i18n';
 
 interface SettingsContextType {
   settings: AppSettings;
+  isLoaded: boolean;
   setMode: (mode: AppMode) => void;
   setTheme: (theme: AppTheme) => void;
   setLanguage: (language: Language) => void;
@@ -72,15 +73,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({
     settings,
+    isLoaded,
     setMode,
     setTheme,
     setLanguage,
     setWorkGoals
-  }), [settings, setMode, setTheme, setLanguage, setWorkGoals]);
-
-  if (!isLoaded) {
-      return null;
-  }
+  }), [settings, isLoaded, setMode, setTheme, setLanguage, setWorkGoals]);
+  
 
   return (
     <SettingsContext.Provider value={value}>
@@ -96,3 +95,5 @@ export function useSettings() {
   }
   return context;
 }
+
+    

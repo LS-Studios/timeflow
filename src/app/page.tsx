@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Home() {
   const {
@@ -44,6 +45,7 @@ export default function Home() {
   const [isEndLearningDialogOpen, setEndLearningDialogOpen] = useState(false);
   const [isResetDialogOpen, setResetDialogOpen] = useState(false);
   const [isEndWorkDialogOpen, setEndWorkDialogOpen] = useState(false);
+  const [isTimelineLoading, setIsTimelineLoading] = useState(true);
 
   const [sessions, setSessions] = useState<Session[]>([]);
   
@@ -51,6 +53,7 @@ export default function Home() {
 
   // Load sessions from storage on mount
   useEffect(() => {
+    setIsTimelineLoading(true);
     const todayKey = format(new Date(), 'yyyy-MM-dd');
     const loadedHistory = storageService.getDayHistory(todayKey);
     if (loadedHistory) {
@@ -66,6 +69,7 @@ export default function Home() {
       const { newCurrentTime } = calculateDurations(parsedSessions);
       setTime(Math.floor(newCurrentTime / 1000));
     }
+    setIsTimelineLoading(false);
   }, [setTime]);
 
   // Persist sessions whenever they change
@@ -222,6 +226,14 @@ export default function Home() {
       return { newWorkTime, newPauseTime, newCurrentTime };
   };
 
+  const TimelineSkeleton = () => (
+    <div className="w-full max-w-md mx-auto mt-8 space-y-4">
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-10 w-full" />
+    </div>
+  );
+
 
   return (
     <>
@@ -244,11 +256,13 @@ export default function Home() {
           />
         </motion.div>
         
-        {sessions.length > 0 && (
+        {isTimelineLoading ? (
+          <TimelineSkeleton />
+        ) : sessions.length > 0 ? (
           <div className="w-full max-w-md mx-auto mt-8">
             <Timeline sessions={sessions} />
           </div>
-        )}
+        ) : null}
 
       </div>
       
@@ -306,3 +320,5 @@ export default function Home() {
     </>
   );
 }
+
+    
