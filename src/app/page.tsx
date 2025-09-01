@@ -48,6 +48,7 @@ export default function Home() {
   const [isStartLearningDialogOpen, setStartLearningDialogOpen] = useState(false);
   const [isEndLearningDialogOpen, setEndLearningDialogOpen] = useState(false);
   const [isResetDialogOpen, setResetDialogOpen] = useState(false);
+  const [sessionToEnd, setSessionToEnd] = useState<Session | null>(null);
   
   const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [todaySessions, setTodaySessions] = useState<Session[]>([]);
@@ -246,45 +247,45 @@ export default function Home() {
 
   const handleEnd = () => {
     const now = new Date();
-    if (isActive) {
-        updateLastSession({ end: now });
-    }
-    pause();
+    
+    const lastSession = [...todaySessions].reverse().find(s => !s.end);
 
-    const lastSession = todaySessions.find(s => !s.end && s.type === 'work');
-    if (settings.mode === 'learning' && lastSession) {
+    if (settings.mode === 'learning' && lastSession && lastSession.type === 'work') {
+      setSessionToEnd(lastSession);
       setEndLearningDialogOpen(true);
     } else {
+      if (isActive) {
+          updateLastSession({ end: now });
+      }
       addSession({ type: 'pause', start: now, end: now, note: 'Day ended' });
+      pause();
       setIsWorkDayEnded(true);
     }
   }
   
   const handleContinueWork = () => {
-    setIsWorkDayEnded(false);
-    // End the "Day ended" pause and start a new work session immediately
     const now = new Date();
+    // End the "Day ended" pause
     updateLastSession({ end: now });
+    // Start a new work session immediately
     addSession({ type: 'work', start: now, end: null });
     start();
+    setIsWorkDayEnded(false);
   }
 
   const endLearningSession = (updatedObjectives: LearningObjective[], totalCompletion: number) => {
      setAllSessions(prevAll => {
+        if (!sessionToEnd) return prevAll;
         const newAll = [...prevAll];
-        // Find the last active learning session to update it
-        const lastLearningSessionIndex = newAll.map(s => s.type === 'work' && !!s.learningGoal).lastIndexOf(true);
+        const sessionIndex = newAll.findIndex(s => s.id === sessionToEnd.id);
         
-        if (lastLearningSessionIndex !== -1) {
-            const sessionToUpdate = newAll[lastLearningSessionIndex];
-            if (!sessionToUpdate.end) { // Only update if it hasn't been ended
-                 newAll[lastLearningSessionIndex] = { 
-                    ...sessionToUpdate,
-                    end: new Date(),
-                    learningObjectives: updatedObjectives,
-                    completionPercentage: totalCompletion,
-                };
-            }
+        if (sessionIndex !== -1) {
+             newAll[sessionIndex] = { 
+                ...newAll[sessionIndex],
+                end: new Date(),
+                learningObjectives: updatedObjectives,
+                completionPercentage: totalCompletion,
+            };
         }
         return newAll;
      });
@@ -294,6 +295,7 @@ export default function Home() {
     reset(TIMER_TYPES.stopwatch);
     setTodaySessions([]);
     setEndLearningDialogOpen(false);
+    setSessionToEnd(null);
   }
 
   const handleSaveNote = (note: string) => {
@@ -305,8 +307,6 @@ export default function Home() {
     return acc + (new Date(session.end).getTime() - new Date(session.start).getTime());
   }, 0);
   
-  const activeLearningSessionObjectives = todaySessions.find(s => s.type === 'work' && !s.end && s.learningObjectives)?.learningObjectives || [];
-
   return (
     <>
       <div className="flex-1 w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
@@ -383,9 +383,12 @@ export default function Home() {
       />
       <EndLearningDialog
         isOpen={isEndLearningDialogOpen}
-        onOpenChange={setEndLearningDialogOpen}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setSessionToEnd(null);
+          setEndLearningDialogOpen(isOpen);
+        }}
         onEnd={endLearningSession}
-        objectives={activeLearningSessionObjectives}
+        session={sessionToEnd}
       />
       
       <AlertDialog open={isResetDialogOpen} onOpenChange={setResetDialogOpen}>

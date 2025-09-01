@@ -19,7 +19,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useTranslation } from "@/lib/i18n.tsx";
-import type { LearningObjective } from "@/lib/types";
+import type { LearningObjective, Session } from "@/lib/types";
 import { Target, CheckCircle2 } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { cn } from "@/lib/utils";
@@ -28,24 +28,24 @@ interface EndLearningDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onEnd: (updatedObjectives: LearningObjective[], totalCompletion: number) => void;
-  objectives: LearningObjective[];
+  session: Session | null;
 }
 
 export function EndLearningDialog({
   isOpen,
   onOpenChange,
   onEnd,
-  objectives,
+  session,
 }: EndLearningDialogProps) {
   const { t } = useTranslation();
   const [internalObjectives, setInternalObjectives] = useState<LearningObjective[]>([]);
 
   useEffect(() => {
-    // When the dialog opens, initialize its internal state with the objectives from the session
-    if (isOpen) {
-      setInternalObjectives(objectives.map(obj => ({ ...obj })));
+    // When the dialog opens with a valid session, initialize its internal state
+    if (isOpen && session?.learningObjectives) {
+      setInternalObjectives(session.learningObjectives.map(obj => ({ ...obj })));
     }
-  }, [isOpen, objectives]);
+  }, [isOpen, session]);
 
   const handleObjectiveChange = (index: number, completion: number) => {
     const newObjectives = [...internalObjectives];
@@ -67,12 +67,12 @@ export function EndLearningDialog({
 
   const handleEnd = () => {
     onEnd(internalObjectives, totalCompletion);
-    onOpenChange(false);
   };
   
   const handleOpenChange = (open: boolean) => {
     if (!open) {
-       // Reset state when closing without saving if needed
+       // Reset internal state when closing
+       setInternalObjectives([]);
     }
     onOpenChange(open);
   };
@@ -83,7 +83,7 @@ export function EndLearningDialog({
         <DialogHeader>
            <div className="flex items-center gap-2 mb-2">
             <Target className="h-6 w-6" />
-            <DialogTitle>{t('endLearningSession')}</DialogTitle>
+            <DialogTitle>{session?.learningGoal || t('endLearningSession')}</DialogTitle>
           </div>
           <DialogDescription>
             {t('endLearningSessionDescription')}
