@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-provider";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -85,7 +85,7 @@ export default function AnalyticsPage() {
 
   const isInOrganization = !!settings.organizationName;
 
-  const refreshData = () => {
+  const refreshData = useCallback(() => {
     const mode = settings.mode;
     const relevantSessions = storageService.getSessions(mode);
 
@@ -107,13 +107,13 @@ export default function AnalyticsPage() {
     setGroupedHistory(finalHistory);
     setAllTopics(storageService.getAllTopics());
     setIsLoading(false);
-  }
+  }, [settings.mode]);
   
   useEffect(() => {
     if (!settings) return;
     setIsLoading(true);
     refreshData();
-  }, [settings.mode, settings]);
+  }, [settings.mode, settings, refreshData]);
 
   useEffect(() => {
     if (selectedDay) {
@@ -128,6 +128,7 @@ export default function AnalyticsPage() {
 
   const updateAllSessions = (newSessions: Session[], mode: 'work' | 'learning') => {
       storageService.saveSessions(mode, newSessions);
+      // After saving, refresh the data to show the latest state
       refreshData();
   }
   
@@ -161,24 +162,29 @@ export default function AnalyticsPage() {
     const { session, index } = sessionToDelete;
     let newPendingSessions = [...pendingDaySessions];
 
-    const isFirstWorkSession = newPendingSessions.filter(s => s.type === 'work').findIndex(s => s.id === session.id) === 0;
+    // Check if it's the very first work session of the day
+    const isFirstWorkSession = newPendingSessions.filter(s => s.type === 'work')[0]?.id === session.id;
 
     if (session.type === 'work' && isFirstWorkSession) {
+        console.warn("Cannot delete the first work session of the day.");
         setSessionToDelete(null);
         return;
     }
     
     if (session.type === 'pause' && index > 0 && index < newPendingSessions.length - 1) {
-        const precedingWorkSession = newPendingSessions[index - 1];
-        const followingWorkSession = newPendingSessions[index + 1];
+        const precedingSession = newPendingSessions[index - 1];
+        const followingSession = newPendingSessions[index + 1];
 
-        if (precedingWorkSession.type === 'work' && followingWorkSession.type === 'work') {
-            precedingWorkSession.end = followingWorkSession.start;
-            newPendingSessions.splice(index, 2); 
+        // If a pause is between two work sessions, merge them
+        if (precedingSession.type === 'work' && followingSession.type === 'work') {
+            precedingSession.end = followingSession.end; // Extend the end time
+            newPendingSessions.splice(index, 2); // Remove pause and the second work session
         } else {
+            // If it's a pause at the end or not between two work sessions, just remove it
             newPendingSessions.splice(index, 1);
         }
     } else {
+        // Standard deletion for other cases (e.g., a work session that is not the first one)
         newPendingSessions.splice(index, 1);
     }
     
@@ -194,14 +200,17 @@ export default function AnalyticsPage() {
         console.log("Requesting change for day:", selectedDay.date);
         console.log("Reason:", changeRequestReason);
         console.log("New session data:", pendingDaySessions);
+        // In a real app, this would send a request to a backend.
+        // Here, we just log it and close the dialog without saving.
         setSelectedDay(null);
         return;
     }
 
-    let allSessions = storageService.getSessions('work');
+    // Get all work sessions EXCEPT for the day being edited
+    let allSessions = storageService.getSessions('work')
+      .filter(s => format(new Date(s.start), 'yyyy-MM-dd') !== selectedDay.date);
 
-    allSessions = allSessions.filter(s => format(new Date(s.start), 'yyyy-MM-dd') !== selectedDay.date);
-
+    // Add the updated sessions for the edited day
     const updatedSessions = [...allSessions, ...pendingDaySessions];
     
     updateAllSessions(updatedSessions, 'work');
@@ -706,7 +715,7 @@ export default function AnalyticsPage() {
     )
   }
   
-  const WorkDayDetailDialog = () => {
+  const WorkDayDetailDialog = useCallback(() => {
     if (!selectedDay) return null;
     
     return (
@@ -751,7 +760,7 @@ export default function AnalyticsPage() {
         </DialogContent>
       </Dialog>
     )
-  }
+  }, [selectedDay, pendingDaySessions, hasPendingChanges, isInOrganization, changeRequestReason, t]);
 
   const DeleteSessionDialog = () => {
     return (
