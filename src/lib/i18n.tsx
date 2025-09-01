@@ -116,7 +116,6 @@ const translations: Record<Language, Translations> = {
     editWorkDayDescription: "Here you can see the timeline of your day and edit individual sessions.",
     editSession: "Edit Session",
     editSessionDescription: "Adjust the start and end times or the note for this session.",
-    editSessionDescriptionOrg: "Submit a request to your administrator to change session times.",
     startTime: "Start Time",
     endTime: "End Time",
     note: "Note",
@@ -136,7 +135,9 @@ const translations: Record<Language, Translations> = {
     leaveOrganizationConfirmation: "Are you sure you want to leave your organization? You will need to be re-invited to join again.",
     confirmLeave: "Yes, leave",
     connectedTo: "Connected to",
-    requestChange: "Request Change"
+    requestChange: "Request Change",
+    reasonForChange: "Reason for change",
+    reasonForChangePlaceholder: "Please describe why you are requesting this change...",
   },
   de: {
     pomodoro: 'Pomodoro',
@@ -243,7 +244,6 @@ const translations: Record<Language, Translations> = {
     editWorkDayDescription: "Hier sehen Sie den Zeitverlauf Ihres Tages und können einzelne Sitzungen bearbeiten.",
     editSession: "Sitzung bearbeiten",
     editSessionDescription: "Passen Sie die Start- und Endzeiten oder die Notiz für diese Sitzung an.",
-    editSessionDescriptionOrg: "Senden Sie eine Anfrage an Ihren Administrator, um Sitzungszeiten zu ändern.",
     startTime: "Startzeit",
     endTime: "Endzeit",
     note: "Notiz",
@@ -263,7 +263,9 @@ const translations: Record<Language, Translations> = {
     leaveOrganizationConfirmation: "Möchten Sie Ihre Organisation wirklich verlassen? Sie müssen erneut eingeladen werden, um wieder beizutreten.",
     confirmLeave: "Ja, verlassen",
     connectedTo: "Verbunden mit",
-    requestChange: "Änderung anfragen"
+    requestChange: "Änderung anfragen",
+    reasonForChange: "Grund für die Änderung",
+    reasonForChangePlaceholder: "Bitte beschreiben Sie, warum Sie diese Änderung beantragen...",
   },
 };
 
