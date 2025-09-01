@@ -101,10 +101,16 @@ const translations: Record<Language, Translations> = {
     modeChangeWarning: "A session is currently running. Switching modes will end the current session and save it. Do you want to proceed?",
     confirmModeChange: "Yes, switch mode",
     topics: "Topics / Labels",
-    addTopicPlaceholder: "Add a topic and press Enter...",
+    addTopicPlaceholder: "Add or find a topic...",
     averageSessionSuccess: "Average Session Success",
     averageSessionSuccessDescription: "Average completion rate across all sessions.",
     noTopicsYet: "No topics recorded yet. Add some in your next session!",
+    edit: "Edit",
+    editLearningSession: "Edit Learning Session",
+    editLearningSessionDescription: "Adjust the details of your completed session.",
+    saveChanges: "Save Changes",
+    add: "Add",
+    noResults: "No results found."
   },
   de: {
     pomodoro: 'Pomodoro',
@@ -196,10 +202,16 @@ const translations: Record<Language, Translations> = {
     modeChangeWarning: "Eine Sitzung läuft gerade. Wenn Sie den Modus wechseln, wird die aktuelle Sitzung beendet und gespeichert. Möchten Sie fortfahren?",
     confirmModeChange: "Ja, Modus wechseln",
     topics: "Themen / Labels",
-    addTopicPlaceholder: "Thema eingeben und Enter drücken...",
+    addTopicPlaceholder: "Thema hinzufügen oder suchen...",
     averageSessionSuccess: "Ø Sitzungserfolg",
     averageSessionSuccessDescription: "Durchschnittlicher Abschlussgrad aller Sitzungen.",
     noTopicsYet: "Noch keine Themen erfasst. Füge welche in deiner nächsten Sitzung hinzu!",
+    edit: "Bearbeiten",
+    editLearningSession: "Lernsitzung bearbeiten",
+    editLearningSessionDescription: "Passen Sie die Details Ihrer abgeschlossenen Sitzung an.",
+    saveChanges: "Änderungen speichern",
+    add: "Hinzufügen",
+    noResults: "Keine Ergebnisse gefunden."
   },
 };
 
@@ -236,3 +248,5 @@ export function useTranslation() {
   }
   return context;
 }
+
+    

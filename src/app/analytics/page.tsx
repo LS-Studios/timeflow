@@ -10,19 +10,22 @@ import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, YAxis, Cell, LineCh
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Clock, Coffee, Target, BookOpen, BarChart2, CheckCircle, Circle, Percent } from "lucide-react";
+import { Search, Clock, Coffee, Target, BookOpen, BarChart2, CheckCircle, Circle, Percent, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { DayHistory, Session, LearningObjective } from "@/lib/types";
 import { storageService } from "@/lib/storage";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { EditLearningDialog } from "@/components/edit-learning-dialog";
 
 
 const workBreakdownChartConfig = {
@@ -52,34 +55,66 @@ export default function AnalyticsPage() {
   const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState("");
   const [groupedHistory, setGroupedHistory] = useState<DayHistory[]>([]);
+  const [allTopics, setAllTopics] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [sessionToEdit, setSessionToEdit] = useState<Session | null>(null);
   
   useEffect(() => {
     if (!settings) return;
     setIsLoading(true);
-    const relevantSessions = storageService.getSessions(settings.mode);
-
-    // Group sessions by day
-    const groupedByDay: { [key: string]: Session[] } = {};
-    relevantSessions.forEach(session => {
-        const dayKey = format(new Date(session.start), 'yyyy-MM-dd');
-        if (!groupedByDay[dayKey]) {
-            groupedByDay[dayKey] = [];
-        }
-        groupedByDay[dayKey].push(session);
-    });
-
-    const finalHistory: DayHistory[] = Object.keys(groupedByDay).map(dayKey => ({
-        id: dayKey,
-        date: dayKey,
-        sessions: groupedByDay[dayKey]
-    })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
-    setGroupedHistory(finalHistory);
-    setIsLoading(false);
+    const loadData = () => {
+      const relevantSessions = storageService.getSessions(settings.mode);
+
+      // Group sessions by day
+      const groupedByDay: { [key: string]: Session[] } = {};
+      relevantSessions.forEach(session => {
+          const dayKey = format(new Date(session.start), 'yyyy-MM-dd');
+          if (!groupedByDay[dayKey]) {
+              groupedByDay[dayKey] = [];
+          }
+          groupedByDay[dayKey].push(session);
+      });
+
+      const finalHistory: DayHistory[] = Object.keys(groupedByDay).map(dayKey => ({
+          id: dayKey,
+          date: dayKey,
+          sessions: groupedByDay[dayKey]
+      })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      setGroupedHistory(finalHistory);
+      setAllTopics(storageService.getAllTopics());
+      setIsLoading(false);
+    }
+    
+    loadData();
   }, [settings.mode, settings]);
   
+  const handleUpdateSession = (updatedSession: Session) => {
+    const allSessions = storageService.getSessions('learning');
+    const sessionIndex = allSessions.findIndex(s => s.id === updatedSession.id);
+    
+    if (sessionIndex > -1) {
+      allSessions[sessionIndex] = updatedSession;
+      storageService.saveSessions('learning', allSessions);
+      
+      // Refresh the view
+      const updatedHistory = [...groupedHistory];
+      for (const day of updatedHistory) {
+        const historySessionIndex = day.sessions.findIndex(s => s.id === updatedSession.id);
+        if (historySessionIndex > -1) {
+           day.sessions[historySessionIndex] = updatedSession;
+           break;
+        }
+      }
+      setGroupedHistory(updatedHistory);
+      setSelectedSession(updatedSession); // Update the detail view as well
+      setAllTopics(storageService.getAllTopics()); // Update topics list
+    }
+    
+    setSessionToEdit(null); // Close the edit dialog
+  }
 
   const formatDate = (dateString: string) => {
     try {
@@ -562,6 +597,11 @@ export default function AnalyticsPage() {
 
     const { learningGoal, learningObjectives = [], completionPercentage } = selectedSession;
 
+    const handleEditClick = () => {
+      setSessionToEdit(selectedSession);
+      setSelectedSession(null);
+    }
+
     return (
       <Dialog open={!!selectedSession} onOpenChange={() => setSelectedSession(null)}>
         <DialogContent>
@@ -582,6 +622,12 @@ export default function AnalyticsPage() {
             <span className="font-semibold">{t('totalCompletion')}</span>
             <span className="text-xl font-bold text-primary">{completionPercentage}%</span>
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleEditClick}>
+              <Edit className="mr-2 h-4 w-4" />
+              {t('edit')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     )
@@ -603,8 +649,17 @@ export default function AnalyticsPage() {
       )}
       
       <LearningSessionDetailDialog />
+      <EditLearningDialog
+        isOpen={!!sessionToEdit}
+        onOpenChange={(isOpen) => !isOpen && setSessionToEdit(null)}
+        onSave={handleUpdateSession}
+        session={sessionToEdit}
+        allTopics={allTopics}
+      />
     </div>
   );
 }
+
+    
 
     
