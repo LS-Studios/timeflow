@@ -36,8 +36,8 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <LanguageProvider>
-            <SettingsProvider>
-              <AuthProvider>
+            <AuthProvider>
+              <SettingsProvider>
                 <div className="min-h-screen flex flex-col">
                   <Header />
                   <main className="flex-1 flex flex-col">
@@ -45,8 +45,8 @@ export default function RootLayout({
                   </main>
                   <Toaster />
                 </div>
-              </AuthProvider>
-            </SettingsProvider>
+              </SettingsProvider>
+            </AuthProvider>
           </LanguageProvider>
         </ThemeProvider>
       </body>
