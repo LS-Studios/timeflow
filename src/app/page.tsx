@@ -87,11 +87,10 @@ export default function Home() {
       }));
       setSessions(parsedSessions);
       
-      const { newCurrentTime } = calculateDurations(parsedSessions);
-      setTime(Math.floor(newCurrentTime / 1000));
-      
       const lastSession = parsedSessions[parsedSessions.length - 1];
       if (lastSession && !lastSession.end) {
+         const { newCurrentTime } = calculateDurations(parsedSessions);
+         setTime(Math.floor(newCurrentTime / 1000));
         if (lastSession.type === 'work') {
           start();
         } else if (lastSession.type === 'pause') {
@@ -224,8 +223,11 @@ export default function Home() {
       sessions: finalSessions
     });
 
+    // Clear state for a fresh start
+    storageService.clearDayHistory(todayKey); // This was missing
     setSessions([]);
     reset(TIMER_TYPES.stopwatch);
+
     setEndWorkDialogOpen(false);
     setEndLearningDialogOpen(false);
   }
@@ -353,3 +355,5 @@ export default function Home() {
     </>
   );
 }
+
+    
