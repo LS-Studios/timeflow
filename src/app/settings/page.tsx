@@ -1,3 +1,5 @@
+"use client";
+
 import { SettingsForm } from "@/components/settings-form";
 import { useTranslation } from "@/lib/i18n.tsx";
 
