@@ -79,14 +79,15 @@ export function StartLearningDialog({
     setTopics(topics.filter((topic) => topic !== topicToRemove));
   };
   
-  const handleTopicSelect = (topic: string) => {
+  const handleTopicSelect = useCallback((topic: string) => {
     if (topic && !topics.includes(topic)) {
       setTopics(prev => [...prev, topic]);
     }
     setCurrentTopic("");
     setPopoverOpen(false);
+    // Keep focus on the input field for seamless entry of next topic
     topicInputRef.current?.focus();
-  }
+  }, [topics]);
 
   const handleTopicInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Backspace' && event.currentTarget.value === '' && topics.length > 0) {
@@ -128,6 +129,7 @@ export function StartLearningDialog({
               <PopoverTrigger asChild>
                  <div
                     className="flex flex-wrap items-center gap-2 rounded-md border border-input p-1 pl-2 bg-transparent cursor-text min-h-11"
+                    onClick={() => topicInputRef.current?.focus()}
                 >
                     {topics.map((topic) => (
                       <Badge key={topic} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
@@ -138,25 +140,22 @@ export function StartLearningDialog({
                         </button>
                       </Badge>
                     ))}
-                    <Input
+                    <Command>
+                       <CommandInput
                         ref={topicInputRef}
                         id="topics"
                         placeholder={t('addTopicPlaceholder')}
                         onFocus={() => setPopoverOpen(true)}
                         onKeyDown={handleTopicInputKeyDown}
                         value={currentTopic}
-                        onChange={(e) => setCurrentTopic(e.target.value)}
+                        onValueChange={setCurrentTopic}
                         className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1 min-w-[120px]"
                     />
+                    </Command>
                 </div>
               </PopoverTrigger>
               <PopoverContent asChild className="w-[--radix-popover-trigger-width] p-0">
                 <Command>
-                  <CommandInput 
-                    placeholder={t('addTopicPlaceholder')}
-                    value={currentTopic}
-                    onValueChange={setCurrentTopic}
-                  />
                   <CommandList>
                     <CommandEmpty>
                        <CommandItem
