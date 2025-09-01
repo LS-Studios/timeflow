@@ -7,12 +7,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
 
 interface ProfileDialogProps {
   isOpen: boolean;
@@ -45,7 +43,7 @@ export function ProfileDialog({
         <div className="flex flex-col gap-2 pt-4">
             <Button variant="destructive" onClick={onLogout} className="w-full">
               <LogOut className="mr-2 h-4 w-4" />
-              Log Out
+              {t('logout')}
             </Button>
         </div>
       </DialogContent>

@@ -8,6 +8,7 @@ import { LoginDialog } from '@/components/login-dialog';
 import { ProfileDialog } from '@/components/profile-dialog';
 import { storageService, type UserAccount } from './storage';
 import { ref, set } from "firebase/database";
+import { useTranslation } from './i18n';
 
 type User = {
   uid: string;
@@ -30,6 +31,24 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const mapFirebaseError = (errorCode: string): string => {
+  switch (errorCode) {
+    case 'auth/invalid-email':
+      return 'errorInvalidEmail';
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return 'errorInvalidCredential';
+    case 'auth/email-already-in-use':
+      return 'errorEmailInUse';
+    case 'auth/weak-password':
+      return 'errorWeakPassword';
+    default:
+      return 'errorGeneric';
+  }
+};
+
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -86,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signInWithEmailAndPassword(auth, email, password);
       return { success: true, message: 'Login successful' };
     } catch (error: any) {
-      return { success: false, message: error.message || 'Invalid email or password.' };
+      return { success: false, message: mapFirebaseError(error.code) };
     }
   }, []);
 
@@ -103,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return { success: true, message: 'Registration successful' };
     } catch (error: any) {
-        return { success: false, message: error.message || 'Registration failed.' };
+        return { success: false, message: mapFirebaseError(error.code) };
     }
   }, []);
   
@@ -150,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       {isLoginRequired && <LoginDialog />}
       
-      {user && (
+      {user && user.uid !== 'guest' && (
         <ProfileDialog 
           isOpen={isProfileDialogOpen} 
           onOpenChange={setProfileDialogOpen}

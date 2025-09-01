@@ -18,6 +18,7 @@ import { useTranslation } from "@/lib/i18n";
 import { Separator } from "./ui/separator";
 import { useAuth } from "@/lib/auth-provider";
 import { Alert, AlertDescription } from "./ui/alert";
+import { PasswordStrength } from "./password-strength";
 
 export function LoginDialog() {
   const { t } = useTranslation();
@@ -41,13 +42,13 @@ export function LoginDialog() {
     let result;
     if (mode === 'login') {
       if (!email || !password) {
-        setError("Please enter email and password.");
+        setError(t('errorFillAllFields'));
         return;
       }
       result = await login(email, password);
     } else { // register
       if (!name || !email || !password) {
-        setError("Please fill in all fields.");
+        setError(t('errorFillAllFields'));
         return;
       }
       result = await register(name, email, password);
@@ -78,23 +79,23 @@ export function LoginDialog() {
         <DialogHeader className="items-center text-center">
           <Logo />
           <DialogTitle className="text-2xl pt-4">
-            {mode === 'login' ? 'Welcome back' : 'Create your account'}
+            {mode === 'login' ? t('welcomeBack') : t('createAccount')}
           </DialogTitle>
           <DialogDescription>
-            {mode === 'login' ? 'Enter your credentials to access your account.' : 'Fill in the details below to get started.'}
+            {mode === 'login' ? t('loginDescription') : t('registerDescription')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
           {mode === 'register' && (
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">{t('name')}</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="name"
                   type="text"
-                  placeholder="e.g. Max Mustermann"
+                  placeholder={t('namePlaceholder')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="pl-9"
@@ -104,7 +105,7 @@ export function LoginDialog() {
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t('email')}</Label>
             <div className="relative">
               <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -119,7 +120,7 @@ export function LoginDialog() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t('password')}</Label>
             <div className="relative">
                <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -132,13 +133,14 @@ export function LoginDialog() {
               />
             </div>
           </div>
+          {mode === 'register' && <PasswordStrength password={password} />}
         </div>
         
         {error && (
             <Alert variant="destructive">
                 <AlertDescription className="flex items-center justify-center gap-2">
                    <AlertTriangle className="h-4 w-4"/>
-                   <span className="text-xs">{error}</span>
+                   <span className="text-xs">{t(error)}</span>
                 </AlertDescription>
             </Alert>
         )}
@@ -146,20 +148,20 @@ export function LoginDialog() {
         <div className="flex flex-col gap-2">
           <Button onClick={handleSubmit} className="w-full">
             <LogIn className="mr-2 h-4 w-4" />
-            {mode === 'login' ? 'Login' : 'Create Account'}
+            {mode === 'login' ? t('login') : t('createAccount')}
           </Button>
            <Button onClick={handleGuestLogin} className="w-full" variant="outline">
             <HardDrive className="mr-2 h-4 w-4" />
-            Use without synchronization
+            {t('useWithoutSync')}
           </Button>
         </div>
         
         <Separator className="mt-4" />
         
         <div className="text-center text-sm">
-            {mode === 'login' ? "Don't have an account?" : "Already have an account?"}
+            {mode === 'login' ? t('noAccount') : t('hasAccount')}
             <Button variant="link" className="pl-1.5" onClick={toggleMode}>
-                {mode === 'login' ? "Sign up" : "Log in"}
+                {mode === 'login' ? t('signUp') : t('login')}
             </Button>
         </div>
 
