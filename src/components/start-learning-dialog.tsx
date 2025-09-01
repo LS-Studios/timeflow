@@ -79,40 +79,26 @@ export function StartLearningDialog({
     setTopics(topics.filter((topic) => topic !== topicToRemove));
   };
   
-  const handleTopicKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter' && currentTopic.trim() !== '') {
-      event.preventDefault();
-      const newTopic = currentTopic.trim();
-      if (!topics.includes(newTopic)) {
-        setTopics([...topics, newTopic]);
-      }
-      setCurrentTopic("");
-      // Keep popover open to add more
-      return;
-    }
-     if (event.key === 'Backspace' && currentTopic === '' && topics.length > 0) {
-      event.preventDefault();
-      handleRemoveTopic(topics[topics.length - 1]);
-    }
-  };
-  
   const handleTopicSelect = (topic: string) => {
     if (topic && !topics.includes(topic)) {
       setTopics(prev => [...prev, topic]);
     }
     setCurrentTopic("");
+    setPopoverOpen(false);
     topicInputRef.current?.focus();
   }
+
+  const handleTopicInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Backspace' && event.currentTarget.value === '' && topics.length > 0) {
+      event.preventDefault();
+      handleRemoveTopic(topics[topics.length - 1]);
+    }
+  };
 
   const filteredTopics = allTopics.filter(topic => 
     !topics.includes(topic) && topic.toLowerCase().includes(currentTopic.toLowerCase())
   );
   
-  const handleBlur = useCallback(() => {
-    // We need a tiny delay, because the blur event happens before the onSelect event
-    // on a CommandItem. So if we close the popover immediately, the onSelect is never fired.
-    setTimeout(() => setPopoverOpen(false), 100);
-  }, []);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -142,10 +128,9 @@ export function StartLearningDialog({
               <PopoverTrigger asChild>
                  <div
                     className="flex flex-wrap items-center gap-2 rounded-md border border-input p-1 pl-2 bg-transparent cursor-text min-h-11"
-                    onClick={() => topicInputRef.current?.focus()}
                 >
-                    {topics.map((topic, index) => (
-                      <Badge key={index} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
+                    {topics.map((topic) => (
+                      <Badge key={topic} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
                         {topic}
                         <button className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2" onClick={() => handleRemoveTopic(topic)}>
                           <XIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
@@ -157,11 +142,9 @@ export function StartLearningDialog({
                         ref={topicInputRef}
                         id="topics"
                         placeholder={t('addTopicPlaceholder')}
-                        value={currentTopic}
-                        onValueChange={setCurrentTopic}
-                        onKeyDown={handleTopicKeyDown}
                         onFocus={() => setPopoverOpen(true)}
-                        onBlur={handleBlur}
+                        onKeyDown={handleTopicInputKeyDown}
+                        value={currentTopic}
                         onChange={(e) => setCurrentTopic(e.target.value)}
                         className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1 min-w-[120px]"
                     />
@@ -169,9 +152,22 @@ export function StartLearningDialog({
               </PopoverTrigger>
               <PopoverContent asChild className="w-[--radix-popover-trigger-width] p-0">
                 <Command>
-                  {/* The CommandInput was incorrectly placed before */}
+                  <CommandInput 
+                    placeholder={t('addTopicPlaceholder')}
+                    value={currentTopic}
+                    onValueChange={setCurrentTopic}
+                  />
                   <CommandList>
-                    {(filteredTopics.length > 0 || currentTopic.trim()) ? (
+                    <CommandEmpty>
+                       <CommandItem
+                          onSelect={() => handleTopicSelect(currentTopic.trim())}
+                          className="cursor-pointer"
+                          disabled={!currentTopic.trim()}
+                        >
+                          {t('add')} "{currentTopic.trim()}"
+                        </CommandItem>
+                    </CommandEmpty>
+                    {(filteredTopics.length > 0) && (
                       <CommandGroup>
                         {filteredTopics.map((topic) => (
                           <CommandItem
@@ -182,6 +178,9 @@ export function StartLearningDialog({
                             {topic}
                           </CommandItem>
                         ))}
+                      </CommandGroup>
+                    )}
+                     <CommandGroup>
                          {currentTopic.trim() && !filteredTopics.includes(currentTopic.trim()) && !topics.includes(currentTopic.trim()) && (
                           <CommandItem
                             onSelect={() => handleTopicSelect(currentTopic.trim())}
@@ -190,10 +189,7 @@ export function StartLearningDialog({
                            {t('add')} "{currentTopic.trim()}"
                           </CommandItem>
                         )}
-                      </CommandGroup>
-                    ) : (
-                      <CommandEmpty>No results found.</CommandEmpty>
-                    )}
+                    </CommandGroup>
                   </CommandList>
                 </Command>
               </PopoverContent>
