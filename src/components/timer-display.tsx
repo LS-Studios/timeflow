@@ -10,17 +10,10 @@ const formatTime = (time: number) => {
   const minutes = Math.floor((time % 3600) / 60);
   const seconds = time % 60;
   
-  if (hours > 0) {
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
-      2,
-      "0"
-    )}:${String(seconds).padStart(2, "0")}`;
-  }
-
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
     2,
     "0"
-  )}`;
+  )}:${String(seconds).padStart(2, "0")}`;
 };
 
 export function TimerDisplay({ time, isActive }: TimerDisplayProps) {
