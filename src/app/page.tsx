@@ -302,6 +302,9 @@ export default function Home() {
         return newAll;
      });
 
+    // Refresh topics so the new ones are available immediately
+    setAllTopics(storageService.getAllTopics());
+
     // Reset UI for the next session
     reset(TIMER_TYPES.stopwatch);
     setTodaySessions([]);
