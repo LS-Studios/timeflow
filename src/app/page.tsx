@@ -79,23 +79,14 @@ export default function Home() {
     if (!settingsLoaded) return;
     setIsLoading(true);
     
-    // For learning mode, always start fresh on page load.
-    if (settings.mode === 'learning') {
-        setAllSessions(storageService.getSessions('learning'));
-        setAllTopics(storageService.getAllTopics());
-        setTodaySessions([]);
-        reset(TIMER_TYPES.stopwatch);
-        setIsLoading(false);
-        return;
-    }
-
     const loadedSessions = storageService.getSessions(settings.mode);
     setAllSessions(loadedSessions);
+    setAllTopics(storageService.getAllTopics());
 
     const lastSession = loadedSessions.length > 0 ? loadedSessions[loadedSessions.length - 1] : null;
 
     // Auto-reset if the last session was on a previous day and is finished.
-    if (lastSession && lastSession.end && isBefore(new Date(lastSession.start), startOfDay(new Date()))) {
+    if (settings.mode === 'work' && lastSession && lastSession.end && isBefore(new Date(lastSession.start), startOfDay(new Date()))) {
       setTodaySessions([]);
       reset(TIMER_TYPES.stopwatch);
       setIsWorkDayEnded(false);
@@ -137,7 +128,10 @@ export default function Home() {
           pause();
         }
       } else { // No active session
-        pause();
+        // For learning mode, if all sessions are ended, we don't pause, we just idle.
+        if (settings.mode !== 'learning' || !allSessionsEnded) {
+            pause();
+        }
       }
     } else {
       // No sessions for today, reset timer
@@ -168,11 +162,14 @@ export default function Home() {
         newAllSessions[lastSessionIndex] = { ...newAllSessions[lastSessionIndex], ...updates };
         
         setTodaySessions(prevToday => {
-            const todayIndex = prevToday.findIndex(s => s.id === newAllSessions[lastSessionIndex].id);
-            if (todayIndex !== -1) {
-                const newTodaySessions = [...prevToday];
-                newTodaySessions[todayIndex] = newAllSessions[lastSessionIndex];
-                return newTodaySessions;
+            if (prevToday.length === 0) return prevToday;
+            const newTodaySessions = [...prevToday];
+            const todayIndex = newTodaySessions.length - 1;
+            
+            // Ensure we are updating the correct session by ID
+            if(newTodaySessions[todayIndex].id === newAllSessions[lastSessionIndex].id) {
+               newTodaySessions[todayIndex] = newAllSessions[lastSessionIndex];
+               return newTodaySessions;
             }
             return prevToday;
         });
