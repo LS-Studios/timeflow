@@ -11,10 +11,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/lib/i18n.tsx";
-import { Brain, X as XIcon, Plus, Hash, ListOrdered } from "lucide-react";
+import { Brain, X as XIcon, Plus, Hash, GripVertical } from "lucide-react";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
+import { Reorder } from "framer-motion";
+
 
 interface StartLearningDialogProps {
   isOpen: boolean;
@@ -106,7 +108,7 @@ export function StartLearningDialog({
           <div className="space-y-2">
             <Label htmlFor="topics">{t('topics')}</Label>
             <div 
-              className="flex flex-wrap items-center gap-2 rounded-md border border-input p-2 bg-background cursor-text"
+              className="flex flex-wrap items-center gap-2 rounded-md border border-input p-2 bg-background cursor-text min-h-11"
               onClick={() => topicInputRef.current?.focus()}
             >
                 {topics.map((topic, index) => (
@@ -134,18 +136,20 @@ export function StartLearningDialog({
           <div className="space-y-2">
             <Label htmlFor="objectives">{t('learningObjectives')}</Label>
              {objectives.length > 0 && (
-                <div className="space-y-2 rounded-md border p-3 bg-muted/50">
+                <Reorder.Group axis="y" values={objectives} onReorder={setObjectives} className="space-y-2">
                   {objectives.map((obj, index) => (
-                    <div key={index} className="flex items-center gap-2 group">
-                      <ListOrdered className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="flex-1 text-sm">{obj}</span>
-                      <button className="rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveObjective(index)}>
-                        <XIcon className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                        <span className="sr-only">Remove {obj}</span>
-                      </button>
-                    </div>
+                    <Reorder.Item key={obj} value={obj}>
+                      <div className="flex items-center gap-2 group p-2.5 rounded-md border bg-muted/50 shadow-sm">
+                        <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab group-hover:opacity-100 opacity-50 transition-opacity" />
+                        <span className="flex-1 text-sm">{obj}</span>
+                        <button className="rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 opacity-50 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveObjective(index)}>
+                          <XIcon className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                          <span className="sr-only">Remove {obj}</span>
+                        </button>
+                      </div>
+                    </Reorder.Item>
                   ))}
-                </div>
+                </Reorder.Group>
             )}
             <Input
               id="objectives"
@@ -166,4 +170,3 @@ export function StartLearningDialog({
     </Dialog>
   );
 }
-
