@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -13,6 +14,17 @@ import { TIMER_TYPES } from "@/lib/constants";
 import { useTranslation } from "@/lib/i18n.tsx";
 import { Timeline } from "@/components/timeline";
 import type { Session } from "@/lib/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function Home() {
   const {
@@ -28,6 +40,8 @@ export default function Home() {
   const [isPauseNoteDialogOpen, setPauseNoteDialogOpen] = useState(false);
   const [isStartLearningDialogOpen, setStartLearningDialogOpen] = useState(false);
   const [isEndLearningDialogOpen, setEndLearningDialogOpen] = useState(false);
+  const [isResetDialogOpen, setResetDialogOpen] = useState(false);
+  const [isEndWorkDialogOpen, setEndWorkDialogOpen] = useState(false);
 
   const [sessions, setSessions] = useState<Session[]>([]);
   
@@ -78,15 +92,20 @@ export default function Home() {
   };
   
   const handleReset = () => {
+    setResetDialogOpen(true);
+  };
+
+  const confirmReset = () => {
     reset(TIMER_TYPES.stopwatch);
     setSessions([]);
-  };
+    setResetDialogOpen(false);
+  }
   
   const handleGenericEnd = () => {
     if (mode === 'learning' && sessions.some(s => s.type === 'work')) {
        setEndLearningDialogOpen(true);
     } else {
-      endWorkDay();
+      setEndWorkDialogOpen(true);
     }
   }
 
@@ -105,6 +124,7 @@ export default function Home() {
     // Reset everything for the next day
     setSessions([]);
     reset(TIMER_TYPES.stopwatch);
+    setEndWorkDialogOpen(false);
   }
 
   const handleEndLearning = (completionPercentage: number) => {
@@ -193,6 +213,41 @@ export default function Home() {
         onOpenChange={setEndLearningDialogOpen}
         onEnd={handleEndLearning}
       />
+      
+      <AlertDialog open={isResetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('areYouSure')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('resetConfirmation')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmReset}>
+              {t('confirmReset')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      <AlertDialog open={isEndWorkDialogOpen} onOpenChange={setEndWorkDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('areYouSureEndDay')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('endDayConfirmation')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={endWorkDay} className="bg-primary hover:bg-primary/90">
+              {t('confirmEndDay')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </>
   );
 }

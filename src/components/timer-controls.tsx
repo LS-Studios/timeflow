@@ -1,20 +1,10 @@
+
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, RotateCcw, Flag } from "lucide-react";
 import { useTranslation } from "@/lib/i18n.tsx";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 interface TimerControlsProps {
   isActive: boolean;
@@ -42,32 +32,15 @@ export function TimerControls({
   const { t } = useTranslation();
   return (
     <div className="flex items-center justify-center gap-4 h-16">
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-14 w-14"
-            aria-label={t('reset')}
-          >
-            <RotateCcw className="h-7 w-7 text-muted-foreground" />
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('areYouSure')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('resetConfirmation')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={onReset}>
-              {t('confirmReset')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-14 w-14"
+        aria-label={t('reset')}
+        onClick={onReset}
+      >
+        <RotateCcw className="h-7 w-7 text-muted-foreground" />
+      </Button>
 
       <AnimatePresence mode="wait">
         {!isActive && (
@@ -110,32 +83,15 @@ export function TimerControls({
         )}
       </AnimatePresence>
 
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-           <Button
-            variant="ghost"
-            size="icon"
-            className="h-14 w-14"
-            aria-label={t('endDay')}
-          >
-            <Flag className="h-7 w-7 text-muted-foreground" />
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('areYouSureEndDay')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('endDayConfirmation')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={onEnd} className="bg-primary hover:bg-primary/90">
-              {t('confirmEndDay')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-14 w-14"
+        aria-label={t('endDay')}
+        onClick={onEnd}
+      >
+        <Flag className="h-7 w-7 text-muted-foreground" />
+      </Button>
     </div>
   );
 }
