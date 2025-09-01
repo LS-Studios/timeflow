@@ -76,6 +76,10 @@ export function EndLearningDialog({
     }
     onOpenChange(open);
   };
+  
+  const hasMadeProgress = useMemo(() => {
+    return internalObjectives.some(obj => obj.completed > 0);
+  }, [internalObjectives]);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -138,7 +142,7 @@ export function EndLearningDialog({
         </div>
 
         <DialogFooter className="mt-2">
-          <Button onClick={handleEnd} className="w-full">
+          <Button onClick={handleEnd} className="w-full" disabled={!hasMadeProgress}>
             <CheckCircle2 className="mr-2 h-4 w-4" />
             {t('saveAndEnd')}
           </Button>
