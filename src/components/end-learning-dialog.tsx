@@ -22,6 +22,7 @@ import { useTranslation } from "@/lib/i18n.tsx";
 import type { LearningObjective } from "@/lib/types";
 import { Target, CheckCircle2 } from "lucide-react";
 import { Separator } from "./ui/separator";
+import { cn } from "@/lib/utils";
 
 interface EndLearningDialogProps {
   isOpen: boolean;
@@ -83,16 +84,22 @@ export function EndLearningDialog({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+        <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto pr-2">
             {internalObjectives.map((obj, index) => (
-              <div key={index} className="flex items-center justify-between gap-4 p-3 rounded-lg border bg-background">
-                <div className="flex items-center gap-3">
+              <div 
+                key={index} 
+                className={cn(
+                  "flex items-center justify-between gap-4 p-3 rounded-lg border transition-colors",
+                  obj.completed === 100 ? "bg-green-500/10 border-green-500/30" : "bg-background"
+                )}
+              >
+                <div className="flex items-center gap-3 flex-1">
                    <Checkbox
                     id={`obj-${index}`}
                     checked={obj.completed === 100}
                     onCheckedChange={(checked) => handleObjectiveChange(index, checked ? 100 : 0)}
                   />
-                  <Label htmlFor={`obj-${index}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1">
+                  <Label htmlFor={`obj-${index}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer">
                       {obj.text}
                   </Label>
                 </div>
@@ -119,12 +126,12 @@ export function EndLearningDialog({
         
         <Separator />
 
-        <div className="flex justify-between items-center p-2 rounded-lg bg-muted/50">
+        <div className="flex justify-between items-center p-3 rounded-lg bg-muted mt-2">
             <span className="font-semibold">{t('totalCompletion')}</span>
             <span className="text-2xl font-bold text-primary">{totalCompletion}%</span>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="mt-2">
           <Button onClick={handleEnd} className="w-full">
             <CheckCircle2 className="mr-2 h-4 w-4" />
             {t('saveAndEnd')}
