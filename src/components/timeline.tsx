@@ -38,7 +38,7 @@ export function Timeline({ sessions }: TimelineProps) {
 
   return (
     <div className="space-y-8 relative pl-6">
-       <div className="absolute top-0 left-[11px] h-full w-px bg-border"></div>
+       <div className="absolute top-0 left-[11px] h-full w-px bg-border -translate-x-1/2"></div>
       <AnimatePresence initial={false}>
         {sessions.map((session, index) => (
           <motion.div
@@ -49,7 +49,7 @@ export function Timeline({ sessions }: TimelineProps) {
             transition={{ duration: 0.3 }}
             className="flex items-start"
           >
-            <div className="absolute left-0 top-0.5">
+            <div className="absolute left-[11px] top-1 -translate-x-1/2">
               <div
                 className={cn(
                   "w-4 h-4 rounded-full z-10 bg-background border-2",
@@ -82,7 +82,7 @@ export function Timeline({ sessions }: TimelineProps) {
             transition={{ delay: 0.3 }}
             className="flex items-start"
          >
-           <div className="absolute left-0 top-0.5">
+           <div className="absolute left-[11px] top-1 -translate-x-1/2">
              <div className="w-4 h-4 rounded-full bg-border z-10 opacity-50"></div>
            </div>
           <div className="flex-1 opacity-50">
