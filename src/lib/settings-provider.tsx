@@ -8,15 +8,20 @@ import { storageService } from './storage';
 import { Language, useTranslation } from './i18n';
 
 type TimerResetCallback = () => void;
+type TimerIsActiveCallback = (isActive: boolean) => void;
+type EndCurrentSessionCallback = () => void;
 
 interface SettingsContextType {
   settings: AppSettings;
   isLoaded: boolean;
+  timerIsActive: boolean;
   setMode: (mode: AppMode) => void;
   setTheme: (theme: AppTheme) => void;
   setLanguage: (language: Language) => void;
   setWorkGoals: (goals: { dailyGoal?: number; weeklyGoal?: number }) => void;
   setTimerResetCallback: (callback: TimerResetCallback) => void;
+  setTimerIsActiveCallback: (isActive: boolean) => void;
+  setEndCurrentSessionCallback: (callback: EndCurrentSessionCallback) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -34,7 +39,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const { setTheme: applyTheme } = useTheme();
   const { setLanguage: applyLanguage } = useTranslation();
+
+  const [timerIsActive, setTimerIsActive] = useState(false);
   const [timerResetCallback, setTimerResetCallback] = useState<TimerResetCallback | null>(null);
+  const [endCurrentSessionCallback, setEndCurrentSessionCallback] = useState<EndCurrentSessionCallback | null>(null);
+
 
   // Load settings from storage on initial mount
   useEffect(() => {
@@ -55,13 +64,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [settings, isLoaded, applyTheme, applyLanguage]);
 
   const setMode = useCallback((mode: AppMode) => {
-    setSettings(prev => {
-        if(prev.mode !== mode && timerResetCallback) {
-            timerResetCallback();
-        }
-        return { ...prev, mode };
-    });
-  }, [timerResetCallback]);
+    if (settings.mode === mode) return;
+
+    if(endCurrentSessionCallback) {
+        endCurrentSessionCallback();
+    }
+    setSettings(prev => ({ ...prev, mode }));
+  }, [settings.mode, endCurrentSessionCallback]);
+
 
   const setTheme = useCallback((theme: AppTheme) => {
     setSettings(prev => ({ ...prev, theme }));
@@ -83,16 +93,23 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setTimerResetCallback(() => callback);
   }, []);
 
+  const setEndSessionCallback = useCallback((callback: EndCurrentSessionCallback) => {
+      setEndCurrentSessionCallback(() => callback);
+  }, []);
+
 
   const value = useMemo(() => ({
     settings,
     isLoaded,
+    timerIsActive,
     setMode,
     setTheme,
     setLanguage,
     setWorkGoals,
     setTimerResetCallback: setResetCallback,
-  }), [settings, isLoaded, setMode, setTheme, setLanguage, setWorkGoals, setResetCallback]);
+    setTimerIsActiveCallback: setTimerIsActive,
+    setEndCurrentSessionCallback: setEndSessionCallback
+  }), [settings, isLoaded, timerIsActive, setMode, setTheme, setLanguage, setWorkGoals, setResetCallback, setEndSessionCallback]);
   
 
   return (

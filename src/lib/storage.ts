@@ -1,10 +1,10 @@
 
 "use client";
-import type { AppSettings, Session } from "./types";
-import { format } from "date-fns";
+import type { AppSettings, Session, AppMode } from "./types";
 
 const SETTINGS_KEY = 'timeflow_settings';
-const SESSIONS_KEY = 'timeflow_sessions';
+const WORK_SESSIONS_KEY = 'timeflow_work_sessions';
+const LEARNING_SESSIONS_KEY = 'timeflow_learning_sessions';
 
 /**
  * An interface for a service that handles data persistence.
@@ -13,9 +13,9 @@ interface StorageService {
     saveSettings(settings: AppSettings): void;
     getSettings(): AppSettings | null;
     
-    // Session-based storage
-    getAllSessions(): Session[];
-    saveAllSessions(sessions: Session[]): void;
+    // Mode-dependent session storage
+    getSessions(mode: AppMode): Session[];
+    saveSessions(mode: AppMode, sessions: Session[]): void;
     
     // Derived data getters
     getAllTopics(): string[];
@@ -51,9 +51,10 @@ class LocalStorageService implements StorageService {
         return settingsJson ? JSON.parse(settingsJson) : null;
     }
     
-    getAllSessions(): Session[] {
+    getSessions(mode: AppMode): Session[] {
         if (!this.isLocalStorageAvailable()) return [];
-        const sessionsJson = localStorage.getItem(SESSIONS_KEY);
+        const key = mode === 'work' ? WORK_SESSIONS_KEY : LEARNING_SESSIONS_KEY;
+        const sessionsJson = localStorage.getItem(key);
         if (!sessionsJson) return [];
         
         const parsed = JSON.parse(sessionsJson);
@@ -65,13 +66,17 @@ class LocalStorageService implements StorageService {
         }));
     }
 
-    saveAllSessions(sessions: Session[]): void {
+    saveSessions(mode: AppMode, sessions: Session[]): void {
         if (!this.isLocalStorageAvailable()) return;
-        localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+        const key = mode === 'work' ? WORK_SESSIONS_KEY : LEARNING_SESSIONS_KEY;
+        localStorage.setItem(key, JSON.stringify(sessions));
     }
 
     getAllTopics(): string[] {
-        const allSessions = this.getAllSessions();
+        const workSessions = this.getSessions('work');
+        const learningSessions = this.getSessions('learning');
+        const allSessions = [...workSessions, ...learningSessions];
+
         const topics = new Set<string>();
         allSessions.forEach(session => {
             if (session.topics) {
@@ -83,7 +88,8 @@ class LocalStorageService implements StorageService {
 
     clearAllHistory(): void {
         if (!this.isLocalStorageAvailable()) return;
-        localStorage.removeItem(SESSIONS_KEY);
+        localStorage.removeItem(WORK_SESSIONS_KEY);
+        localStorage.removeItem(LEARNING_SESSIONS_KEY);
     }
 }
 

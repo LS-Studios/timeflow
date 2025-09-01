@@ -97,6 +97,8 @@ const translations: Record<Language, Translations> = {
     workDayEnded: "Work day ended",
     workDayEndedDescription: "Your time has been saved. Well done!",
     continueWorking: "Continue working",
+    modeChangeWarning: "A session is currently running. Switching modes will end the current session and save it. Do you want to proceed?",
+    confirmModeChange: "Yes, switch mode",
   },
   de: {
     pomodoro: 'Pomodoro',
@@ -185,6 +187,8 @@ const translations: Record<Language, Translations> = {
     workDayEnded: "Arbeitstag beendet",
     workDayEndedDescription: "Deine Zeit wurde gespeichert. Gut gemacht!",
     continueWorking: "Weiterarbeiten",
+    modeChangeWarning: "Eine Sitzung läuft gerade. Wenn Sie den Modus wechseln, wird die aktuelle Sitzung beendet und gespeichert. Möchten Sie fortfahren?",
+    confirmModeChange: "Ja, Modus wechseln",
   },
 };
 

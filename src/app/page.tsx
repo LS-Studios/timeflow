@@ -42,7 +42,7 @@ export default function Home() {
     reset,
   } = useTimer(TIMER_TYPES.stopwatch);
   
-  const { settings, isLoaded: settingsLoaded, setTimerResetCallback } = useSettings();
+  const { settings, isLoaded: settingsLoaded, setTimerResetCallback, setTimerIsActiveCallback, setEndCurrentSessionCallback } = useSettings();
   const [isPauseNoteDialogOpen, setPauseNoteDialogOpen] = useState(false);
   const [isStartLearningDialogOpen, setStartLearningDialogOpen] = useState(false);
   const [isEndLearningDialogOpen, setEndLearningDialogOpen] = useState(false);
@@ -60,25 +60,27 @@ export default function Home() {
     setTodaySessions([]);
     setAllSessions(prev => prev.filter(s => !isToday(new Date(s.start))));
     reset(TIMER_TYPES.stopwatch);
+    setIsWorkDayEnded(false);
   }, [reset]);
 
   useEffect(() => {
     setTimerResetCallback(clearTimerState);
-  }, [clearTimerState, setTimerResetCallback]);
+    setTimerIsActiveCallback(isActive || isPaused);
+  }, [clearTimerState, setTimerResetCallback, isActive, isPaused, setTimerIsActiveCallback]);
 
-  // Load all sessions from storage on mount and restore timer state
+
+  // Load sessions from storage on mode change or initial load
   useEffect(() => {
     if (!settingsLoaded) return;
     setIsLoading(true);
     
-    const loadedSessions = storageService.getAllSessions();
+    const loadedSessions = storageService.getSessions(settings.mode);
     const lastSession = loadedSessions.length > 0 ? loadedSessions[loadedSessions.length - 1] : null;
 
-    if (lastSession && !lastSession.end) {
-      // A session is still running, restore state regardless of the day.
-    } else if (lastSession && lastSession.end && isBefore(new Date(lastSession.start), startOfDay(new Date()))) {
-      // The last session is finished and was on a previous day. Reset for a new day.
+    // Auto-reset if the last session was on a previous day and is finished.
+    if (lastSession && lastSession.end && isBefore(new Date(lastSession.start), startOfDay(new Date()))) {
       setTodaySessions([]);
+      setAllSessions(loadedSessions);
       reset(TIMER_TYPES.stopwatch);
       setIsLoading(false);
       return;
@@ -91,46 +93,50 @@ export default function Home() {
     if (sessionsForToday.length > 0) {
       const lastTodaySession = sessionsForToday[sessionsForToday.length - 1];
 
+      // Check if work day should be considered "ended"
       const allSessionsEnded = sessionsForToday.every(s => s.end !== null);
       if (settings.mode === 'work' && allSessionsEnded && lastTodaySession) {
          setIsWorkDayEnded(true);
+      } else {
+        setIsWorkDayEnded(false);
       }
       
       let totalTimeTodayMs = 0;
-      let activeWorkSession = false;
-      let pausedSession = false;
-
       sessionsForToday.forEach(session => {
           if (!session.start) return;
-          const startTime = new Date(session.start).getTime();
+          // For ongoing sessions, calculate time until now
           const endTime = session.end ? new Date(session.end).getTime() : Date.now();
-          const duration = endTime - startTime;
+          const duration = endTime - new Date(session.start).getTime();
           
-          if (session.type === 'work' || (settings.mode === 'learning' && session.learningGoal)) {
+          if (session.type === 'work') {
             totalTimeTodayMs += duration;
           }
       });
       setTime(Math.floor(totalTimeTodayMs / 1000));
 
       if(lastTodaySession && !lastTodaySession.end) {
-        if (lastTodaySession.type === 'work' || (settings.mode === 'learning' && lastTodaySession.learningGoal)) {
+        if (lastTodaySession.type === 'work') {
           start();
-        } else {
+        } else { // It's a pause
           pause();
         }
-      } else {
+      } else { // No active session
         pause();
       }
+    } else {
+      // No sessions for today, reset timer
+      reset(TIMER_TYPES.stopwatch);
+      setIsWorkDayEnded(false);
     }
     
     setIsLoading(false);
   }, [settingsLoaded, settings.mode, setTime, start, pause, reset]);
 
-  // Persist all sessions whenever they change
+  // Persist all sessions whenever they change for the current mode
   useEffect(() => {
     if (isLoading) return; 
-    storageService.saveAllSessions(allSessions);
-  }, [allSessions, isLoading]);
+    storageService.saveSessions(settings.mode, allSessions);
+  }, [allSessions, isLoading, settings.mode]);
 
   const addSession = (session: Omit<Session, 'id'>) => {
     const newSession: Session = { ...session, id: new Date().toISOString() + Math.random() };
@@ -166,6 +172,7 @@ export default function Home() {
     }
     
     const now = new Date();
+    // If resuming from a pause, end the pause session
     if (isPaused) { 
       updateLastSession({ end: now });
     }
@@ -195,15 +202,16 @@ export default function Home() {
   };
 
   const confirmReset = () => {
-    const yesterdayAndBefore = allSessions.filter(s => !isToday(new Date(s.start)));
-    setAllSessions(yesterdayAndBefore);
+    // Keep past history, only clear today's sessions for the current mode
+    const pastSessions = allSessions.filter(s => !isToday(new Date(s.start)));
+    setAllSessions(pastSessions);
     setTodaySessions([]);
     reset(TIMER_TYPES.stopwatch);
     setIsWorkDayEnded(false);
     setResetDialogOpen(false);
   }
 
-  const handleEnd = () => {
+  const endCurrentSessionAndPause = useCallback(() => {
     const now = new Date();
     if (isActive || isPaused) {
       const lastSession = allSessions[allSessions.length-1];
@@ -211,29 +219,39 @@ export default function Home() {
         updateLastSession({ end: now });
       }
     }
-    
+    pause();
+  }, [allSessions, isActive, isPaused, pause]);
+
+  useEffect(() => {
+    setEndCurrentSessionCallback(endCurrentSessionAndPause);
+  }, [endCurrentSessionAndPause, setEndCurrentSessionCallback]);
+
+
+  const handleEnd = () => {
+    endCurrentSessionAndPause();
     if (settings.mode === 'learning' && todaySessions.some(s => s.learningGoal)) {
       setEndLearningDialogOpen(true);
     } else {
       setIsWorkDayEnded(true);
-      pause();
     }
   }
   
   const handleContinueWork = () => {
     setIsWorkDayEnded(false);
-    // Timer is already paused, user can just press start
+    // User can now press start to resume
   }
 
   const endLearningSession = (completionPercentage: number) => {
      setAllSessions(prevAll => {
         const newAll = [...prevAll];
-        const lastLearningIndex = newAll.map(s => s.learningGoal ? true : false).lastIndexOf(true);
+        // Find the last session that was a learning session and update it
+        const lastLearningIndex = newAll.map(s => !!s.learningGoal).lastIndexOf(true);
         if (lastLearningIndex !== -1) {
             newAll[lastLearningIndex] = { ...newAll[lastLearningIndex], completionPercentage };
         }
         return newAll;
      });
+    // Don't reset everything, just prepare for a new session
     pause();
     reset(TIMER_TYPES.stopwatch);
     setEndLearningDialogOpen(false);
@@ -283,7 +301,7 @@ export default function Home() {
                 <Skeleton className="min-w-[9rem] h-16 rounded-full" />
                 <Skeleton className="h-14 w-14 rounded-full" />
              </div>
-          ) : !isWorkDayEnded ? (
+          ) : !isWorkDayEnded || settings.mode === 'learning' ? (
              <TimerControls
                 isActive={isActive}
                 isPaused={isPaused}
