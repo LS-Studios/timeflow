@@ -135,7 +135,7 @@ export function LoginDialog() {
         </div>
         
         {error && (
-            <Alert variant="destructive" className="py-2">
+            <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4"/>
                 <AlertDescription className="text-xs">
                   {error}
