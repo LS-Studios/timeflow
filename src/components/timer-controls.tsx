@@ -68,7 +68,8 @@ export function TimerControls({
           >
             <Button
               size="lg"
-              className="min-w-[9rem] h-16 rounded-full text-2xl font-bold bg-accent hover:bg-accent/90"
+              variant="destructive"
+              className="min-w-[9rem] h-16 rounded-full text-2xl font-bold"
               onClick={onPause}
               aria-label={t('pause')}
             >
