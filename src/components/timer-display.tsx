@@ -1,3 +1,4 @@
+
 "use client";
 
 import { motion } from "framer-motion";
@@ -50,7 +51,7 @@ export function TimerDisplay({ time, isActive, isPaused }: TimerDisplayProps) {
         />
       </motion.svg>
       <div
-        className="text-5xl sm:text-6xl font-bold font-mono text-center tabular-nums"
+        className="text-5xl sm:text-6xl font-bold font-mono text-center tabular-nums text-muted-foreground"
       >
         {formatTime(time)}
       </div>
