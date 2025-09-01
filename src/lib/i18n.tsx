@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useState, useContext, ReactNode, useCallback } from 'react';
@@ -90,6 +91,9 @@ const translations: Record<Language, Translations> = {
     completion: "Completion",
     learningFocus: "Learning Focus",
     completionOverTime: "Completion over Time",
+    notEnoughData: "Not enough data yet",
+    noHistoryDescriptionWork: "Start tracking your work time to see your analytics here.",
+    noHistoryDescriptionLearning: "Start a learning session to see your progress here.",
   },
   de: {
     pomodoro: 'Pomodoro',
@@ -172,6 +176,9 @@ const translations: Record<Language, Translations> = {
     completion: "Erreicht",
     learningFocus: "Lernfokus",
     completionOverTime: "Zielerreichung im Zeitverlauf",
+    notEnoughData: "Noch nicht genügend Daten",
+    noHistoryDescriptionWork: "Starte eine Arbeitssitzung, um deine Analysen hier zu sehen.",
+    noHistoryDescriptionLearning: "Starte eine Lernsitzung, um deine Fortschritte hier zu sehen.",
   },
 };
 

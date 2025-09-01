@@ -10,7 +10,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, YAxis, Cell, LineCh
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Clock, Coffee, Target, BookOpen } from "lucide-react";
+import { Search, Clock, Coffee, Target, BookOpen, BarChart2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { DayHistory, Session } from "@/lib/types";
@@ -131,7 +131,18 @@ export default function AnalyticsPage() {
     )
   }
 
+  const NoDataPlaceholder = ({ message }: { message: string }) => (
+    <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
+      <BarChart2 className="h-10 w-10 mb-4" />
+      <p className="font-semibold">{t('notEnoughData')}</p>
+      <p className="text-sm">{message}</p>
+    </div>
+  )
+
   const renderWorkAnalytics = () => {
+     if (history.length === 0) {
+      return <NoDataPlaceholder message={t('noHistoryDescriptionWork')} />
+    }
     // Aggregate data for charts
     const totalWorkMs = history.reduce((acc, day) => acc + getDurations(day.sessions).workMs, 0);
     const totalBreakMs = history.reduce((acc, day) => acc + getDurations(day.sessions).breakMs, 0);
@@ -318,6 +329,10 @@ export default function AnalyticsPage() {
   )};
   
   const renderLearningAnalytics = () => {
+    if (history.length === 0) {
+      return <NoDataPlaceholder message={t('noHistoryDescriptionLearning')} />
+    }
+
     // Aggregate learning data
     const allLearningSessions = history.flatMap(day => day.sessions.filter(s => s.learningGoal));
     const learningFocusData = allLearningSessions
