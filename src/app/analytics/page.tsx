@@ -116,9 +116,7 @@ export default function AnalyticsPage() {
   }, [settings.mode, settings]);
 
   useEffect(() => {
-    // When a day is selected, initialize the pending sessions state
     if (selectedDay) {
-        // Deep copy to avoid direct mutation
         setPendingDaySessions(JSON.parse(JSON.stringify(selectedDay.sessions)));
         setHasPendingChanges(false);
         setChangeRequestReason("");
@@ -128,18 +126,18 @@ export default function AnalyticsPage() {
   }, [selectedDay]);
 
 
-  const updateAllSessions = (newSessions: Session[]) => {
-      storageService.saveSessions(settings.mode, newSessions);
+  const updateAllSessions = (newSessions: Session[], mode: 'work' | 'learning') => {
+      storageService.saveSessions(mode, newSessions);
       refreshData();
   }
   
   const handleUpdateLearningSession = (updatedSession: Session) => {
-    const allSessions = storageService.getSessions(settings.mode);
+    const allSessions = storageService.getSessions('learning');
     const sessionIndex = allSessions.findIndex(s => s.id === updatedSession.id);
     
     if (sessionIndex > -1) {
       allSessions[sessionIndex] = updatedSession;
-      updateAllSessions(allSessions);
+      updateAllSessions(allSessions, 'learning');
       setSelectedSession(updatedSession);
     }
     
@@ -165,13 +163,11 @@ export default function AnalyticsPage() {
 
     const isFirstWorkSession = newPendingSessions.filter(s => s.type === 'work').findIndex(s => s.id === session.id) === 0;
 
-    // Prevent deletion of the very first work session of the day
     if (session.type === 'work' && isFirstWorkSession) {
         setSessionToDelete(null);
         return;
     }
     
-    // If it's a pause, merge the surrounding work sessions if they exist
     if (session.type === 'pause' && index > 0 && index < newPendingSessions.length - 1) {
         const precedingWorkSession = newPendingSessions[index - 1];
         const followingWorkSession = newPendingSessions[index + 1];
@@ -195,29 +191,25 @@ export default function AnalyticsPage() {
     if (!selectedDay || !hasPendingChanges) return;
 
     if (isInOrganization) {
-        // Here you would send the request to the admin with `pendingDaySessions` and `changeRequestReason`.
-        // For now, we'll just log it and close the dialog without saving.
         console.log("Requesting change for day:", selectedDay.date);
         console.log("Reason:", changeRequestReason);
         console.log("New session data:", pendingDaySessions);
-        setSelectedDay(null); // Close the dialog
+        setSelectedDay(null);
         return;
     }
 
-    let allSessions = storageService.getSessions(settings.mode);
+    let allSessions = storageService.getSessions('work');
 
-    // Filter out all sessions from the original day
     allSessions = allSessions.filter(s => format(new Date(s.start), 'yyyy-MM-dd') !== selectedDay.date);
 
-    // Add the modified sessions back
     const updatedSessions = [...allSessions, ...pendingDaySessions];
     
-    updateAllSessions(updatedSessions);
-    setSelectedDay(null); // Close the dialog
+    updateAllSessions(updatedSessions, 'work');
+    setSelectedDay(null);
   }
 
   const handleCancelDayChanges = () => {
-    setSelectedDay(null); // Just close the dialog, changes are discarded
+    setSelectedDay(null);
   }
 
 
@@ -249,7 +241,7 @@ export default function AnalyticsPage() {
         if (s.type === 'work') {
           workMs += duration;
         } else {
-          breakMs += breakMs;
+          breakMs += duration;
         }
       }
     });
