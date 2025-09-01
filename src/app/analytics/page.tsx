@@ -10,7 +10,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, YAxis, Cell, LineCh
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Clock, Coffee, Target, BookOpen, BarChart2, CheckCircle, Circle, Percent, Edit, ChevronRight, Save, Send } from "lucide-react";
+import { Search, Clock, Coffee, Target, BookOpen, BarChart2, CheckCircle, Circle, Percent, Edit, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { DayHistory, Session, LearningObjective } from "@/lib/types";
@@ -38,9 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EditLearningDialog } from "@/components/edit-learning-dialog";
 import { EditWorkDialog } from "@/components/edit-work-dialog";
-import { Timeline } from "@/components/timeline";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
+import { WorkDayDetailDialog } from "@/components/work-day-detail-dialog";
 
 
 const workBreakdownChartConfig = {
@@ -75,13 +73,7 @@ export default function AnalyticsPage() {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [sessionToEdit, setSessionToEdit] = useState<Session | null>(null);
   
-  const [selectedDay, setSelectedDay] = useState<DayHistory | null>(null);
-  const [pendingDaySessions, setPendingDaySessions] = useState<Session[]>([]);
-  const [hasPendingChanges, setHasPendingChanges] = useState(false);
-  const [changeRequestReason, setChangeRequestReason] = useState("");
-
-  const [workSessionToEdit, setWorkSessionToEdit] = useState<Session | null>(null);
-  const [sessionToDelete, setSessionToDelete] = useState<{session: Session, index: number} | null>(null);
+  const [dayToEdit, setDayToEdit] = useState<DayHistory | null>(null);
 
   const isInOrganization = !!settings.organizationName;
 
@@ -115,18 +107,7 @@ export default function AnalyticsPage() {
     refreshData();
   }, [settings.mode, settings, refreshData]);
 
-  useEffect(() => {
-    if (selectedDay) {
-        setPendingDaySessions(JSON.parse(JSON.stringify(selectedDay.sessions)));
-        setHasPendingChanges(false);
-        setChangeRequestReason("");
-    } else {
-        setPendingDaySessions([]);
-    }
-  }, [selectedDay]);
-
-
-  const updateAllSessions = (newSessions: Session[], mode: 'work' | 'learning') => {
+  const updateAndRefresh = (newSessions: Session[], mode: 'work' | 'learning') => {
       storageService.saveSessions(mode, newSessions);
       // After saving, refresh the data to show the latest state
       refreshData();
@@ -138,89 +119,37 @@ export default function AnalyticsPage() {
     
     if (sessionIndex > -1) {
       allSessions[sessionIndex] = updatedSession;
-      updateAllSessions(allSessions, 'learning');
+      updateAndRefresh(allSessions, 'learning');
       setSelectedSession(updatedSession);
     }
     
     setSessionToEdit(null);
   }
 
-  const handleUpdateWorkSession = (updatedSession: Session) => {
-    const sessionIndex = pendingDaySessions.findIndex(s => s.id === updatedSession.id);
-    if(sessionIndex !== -1) {
-        const newPendingSessions = [...pendingDaySessions];
-        newPendingSessions[sessionIndex] = updatedSession;
-        setPendingDaySessions(newPendingSessions);
-        setHasPendingChanges(true);
-    }
-    setWorkSessionToEdit(null);
-  }
 
-  const handleDeleteSession = () => {
-    if (!sessionToDelete) return;
-
-    const { session, index } = sessionToDelete;
-    let newPendingSessions = [...pendingDaySessions];
-
-    // Check if it's the very first work session of the day
-    const isFirstWorkSession = newPendingSessions.filter(s => s.type === 'work')[0]?.id === session.id;
-
-    if (session.type === 'work' && isFirstWorkSession) {
-        console.warn("Cannot delete the first work session of the day.");
-        setSessionToDelete(null);
-        return;
-    }
-    
-    if (session.type === 'pause' && index > 0 && index < newPendingSessions.length - 1) {
-        const precedingSession = newPendingSessions[index - 1];
-        const followingSession = newPendingSessions[index + 1];
-
-        // If a pause is between two work sessions, merge them
-        if (precedingSession.type === 'work' && followingSession.type === 'work') {
-            precedingSession.end = followingSession.end; // Extend the end time
-            newPendingSessions.splice(index, 2); // Remove pause and the second work session
-        } else {
-            // If it's a pause at the end or not between two work sessions, just remove it
-            newPendingSessions.splice(index, 1);
-        }
-    } else {
-        // Standard deletion for other cases (e.g., a work session that is not the first one)
-        newPendingSessions.splice(index, 1);
-    }
-    
-    setPendingDaySessions(newPendingSessions);
-    setHasPendingChanges(true);
-    setSessionToDelete(null);
-  };
-
-  const handleSaveDayChanges = () => {
-    if (!selectedDay || !hasPendingChanges) return;
-
-    if (isInOrganization) {
-        console.log("Requesting change for day:", selectedDay.date);
-        console.log("Reason:", changeRequestReason);
-        console.log("New session data:", pendingDaySessions);
-        // In a real app, this would send a request to a backend.
-        // Here, we just log it and close the dialog without saving.
-        setSelectedDay(null);
-        return;
-    }
+  const handleSaveDayChanges = (pendingSessions: Session[]) => {
+    if (!dayToEdit) return;
 
     // Get all work sessions EXCEPT for the day being edited
     let allSessions = storageService.getSessions('work')
-      .filter(s => format(new Date(s.start), 'yyyy-MM-dd') !== selectedDay.date);
+      .filter(s => format(new Date(s.start), 'yyyy-MM-dd') !== dayToEdit.date);
 
     // Add the updated sessions for the edited day
-    const updatedSessions = [...allSessions, ...pendingDaySessions];
+    const updatedSessions = [...allSessions, ...pendingSessions];
     
-    updateAllSessions(updatedSessions, 'work');
-    setSelectedDay(null);
+    updateAndRefresh(updatedSessions, 'work');
+    setDayToEdit(null);
   }
 
-  const handleCancelDayChanges = () => {
-    setSelectedDay(null);
+  const handleRequestChange = (pendingSessions: Session[], reason: string) => {
+     if (!dayToEdit) return;
+     console.log("Requesting change for day:", dayToEdit.date);
+     console.log("Reason:", reason);
+     console.log("New session data:", pendingSessions);
+     // In a real app, this would send a request to a backend.
+     // Here, we just log it and close the dialog without saving.
+     setDayToEdit(null);
   }
-
 
   const formatDate = (dateString: string) => {
     try {
@@ -478,7 +407,7 @@ export default function AnalyticsPage() {
                       const { workMs, breakMs } = getDurations(day.sessions);
                       const overtimeMs = workMs - ((settings.dailyGoal || 8) * 60 * 60 * 1000);
                       return (
-                        <TableRow key={day.id} onClick={() => setSelectedDay(day)} className="cursor-pointer">
+                        <TableRow key={day.id} onClick={() => setDayToEdit(day)} className="cursor-pointer">
                           <TableCell className="font-medium">{formatDate(day.date)}</TableCell>
                           <TableCell>{formatDuration(workMs)}</TableCell>
                           <TableCell>{formatDuration(breakMs)}</TableCell>
@@ -714,70 +643,6 @@ export default function AnalyticsPage() {
       </Dialog>
     )
   }
-  
-  const WorkDayDetailDialog = useCallback(() => {
-    if (!selectedDay) return null;
-    
-    return (
-      <Dialog open={!!selectedDay} onOpenChange={() => setSelectedDay(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{t('detailsFor')} {formatDate(selectedDay.date)}</DialogTitle>
-            <DialogDescription>{t('editWorkDayDescription')}</DialogDescription>
-          </DialogHeader>
-          <div className="py-4 max-h-[60vh] overflow-y-auto">
-             <Timeline 
-                sessions={pendingDaySessions} 
-                isWorkDayEnded={true} 
-                showEditButtons={true} 
-                onEditSession={(session) => setWorkSessionToEdit(session)}
-                onDeleteSession={(session, index) => setSessionToDelete({session, index})}
-            />
-          </div>
-           {hasPendingChanges && (
-            <>
-              <Separator />
-               {isInOrganization && (
-                <div className="grid gap-2 mt-4">
-                  <Label htmlFor="change-reason">{t('reasonForChange')}</Label>
-                  <Textarea 
-                    id="change-reason"
-                    placeholder={t('reasonForChangePlaceholder')}
-                    value={changeRequestReason}
-                    onChange={(e) => setChangeRequestReason(e.target.value)}
-                  />
-                </div>
-              )}
-              <DialogFooter className="mt-4">
-                <Button variant="outline" onClick={handleCancelDayChanges}>{t('cancel')}</Button>
-                <Button onClick={handleSaveDayChanges} disabled={isInOrganization && !changeRequestReason.trim()}>
-                  {isInOrganization ? <Send className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
-                  {isInOrganization ? t('requestChange') : t('saveChanges')}
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-    )
-  }, [selectedDay, pendingDaySessions, hasPendingChanges, isInOrganization, changeRequestReason, t]);
-
-  const DeleteSessionDialog = () => {
-    return (
-      <AlertDialog open={!!sessionToDelete} onOpenChange={() => setSessionToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('areYouSure')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('deleteSessionConfirmation')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteSession}>{t('confirmDeleteSession')}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    )
-  }
 
   return (
     <div className="container max-w-5xl py-8 mx-auto px-4">
@@ -803,14 +668,14 @@ export default function AnalyticsPage() {
         allTopics={allTopics}
       />
       
-      <WorkDayDetailDialog />
-      <EditWorkDialog
-        isOpen={!!workSessionToEdit}
-        onOpenChange={(isOpen) => !isOpen && setWorkSessionToEdit(null)}
-        onSave={handleUpdateWorkSession}
-        session={workSessionToEdit}
+      <WorkDayDetailDialog
+        day={dayToEdit}
+        isOpen={!!dayToEdit}
+        onOpenChange={() => setDayToEdit(null)}
+        onSave={handleSaveDayChanges}
+        onRequestChange={handleRequestChange}
+        isInOrganization={isInOrganization}
       />
-      <DeleteSessionDialog />
     </div>
   );
 }
