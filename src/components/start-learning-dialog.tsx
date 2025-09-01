@@ -1,5 +1,5 @@
 
-import { useState, KeyboardEvent, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/lib/i18n.tsx";
-import { Brain, X as XIcon, Plus, GripVertical } from "lucide-react";
+import { Brain, X as XIcon, Plus, GripVertical, Check, ListOrdered } from "lucide-react";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
 import { Reorder } from "framer-motion";
@@ -38,34 +38,35 @@ export function StartLearningDialog({
   const [objectives, setObjectives] = useState<string[]>([]);
   const [currentObjective, setCurrentObjective] = useState("");
   
-  const [topics, setTopics] = useState<string[]>([]);
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [popoverOpen, setPopoverOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
 
   const handleStart = () => {
     if (mainGoal.trim()) {
       const finalObjectives = currentObjective.trim() ? [...objectives, currentObjective.trim()] : objectives;
-      onStart(mainGoal.trim(), finalObjectives, topics);
+      onStart(mainGoal.trim(), finalObjectives, selectedTopics);
       onOpenChange(false);
     }
   };
 
+  // Reset state on close
   const handleOpenChange = (open: boolean) => {
     if (!open) {
-      // Reset state on close
       setMainGoal("");
       setObjectives([]);
       setCurrentObjective("");
-      setTopics([]);
+      setSelectedTopics([]);
       setInputValue("");
       setPopoverOpen(false);
     }
     onOpenChange(open);
   };
   
-  const handleObjectiveKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleObjectiveKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && currentObjective.trim()) {
       e.preventDefault();
       setObjectives([...objectives, currentObjective.trim()]);
@@ -78,29 +79,28 @@ export function StartLearningDialog({
   };
 
   const handleRemoveTopic = (topicToRemove: string) => {
-    setTopics(topics.filter((topic) => topic !== topicToRemove));
+    setSelectedTopics(selectedTopics.filter((topic) => topic !== topicToRemove));
   };
   
-  const handleSelectTopic = useCallback((topic: string) => {
+  const handleTopicSelect = useCallback((topic: string) => {
     const trimmedTopic = topic.trim();
-    if (trimmedTopic && !topics.includes(trimmedTopic)) {
-      setTopics(prev => [...prev, trimmedTopic]);
+    if (trimmedTopic && !selectedTopics.includes(trimmedTopic)) {
+      setSelectedTopics(prev => [...prev, trimmedTopic]);
     }
     setInputValue("");
     setPopoverOpen(false);
     inputRef.current?.focus();
-  }, [topics]);
+  }, [selectedTopics]);
 
   const handleTopicInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Backspace' && inputValue === '' && topics.length > 0) {
+    if (event.key === 'Backspace' && inputValue === '' && selectedTopics.length > 0) {
       event.preventDefault();
-      handleRemoveTopic(topics[topics.length - 1]);
+      handleRemoveTopic(selectedTopics[selectedTopics.length - 1]);
     }
   };
   
-  // Filter available topics, excluding already selected ones
   const filteredTopics = allTopics.filter(topic => 
-    !topics.includes(topic) && topic.toLowerCase().includes(inputValue.toLowerCase())
+    !selectedTopics.includes(topic) && topic.toLowerCase().includes(inputValue.toLowerCase())
   );
 
   return (
@@ -127,19 +127,20 @@ export function StartLearningDialog({
           
            <div className="space-y-2">
             <Label>{t('topics')}</Label>
-            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+             <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
               <PopoverTrigger asChild>
                   <div
-                    className="flex flex-wrap items-center gap-2 rounded-md border border-input p-1 pl-2 bg-transparent cursor-text min-h-11"
+                    ref={containerRef}
+                    className="flex flex-wrap items-center gap-2 rounded-md border border-input p-2 bg-transparent cursor-text min-h-11"
                     onClick={() => inputRef.current?.focus()}
                   >
-                    {topics.map((topic) => (
+                    {selectedTopics.map((topic) => (
                       <Badge key={topic} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
                         {topic}
                         <button
                           className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
                           onClick={(e) => {
-                            e.stopPropagation(); // prevent popover from opening
+                            e.stopPropagation(); 
                             handleRemoveTopic(topic)
                           }}
                         >
@@ -148,17 +149,29 @@ export function StartLearningDialog({
                         </button>
                       </Badge>
                     ))}
-                    <Command className="flex-1 min-w-[120px]">
-                      <CommandInput
+                     <input
                         ref={inputRef}
-                        placeholder={topics.length > 0 ? '' : t('addTopicPlaceholder')}
+                        type="text"
+                        placeholder={selectedTopics.length > 0 ? '' : t('addTopicPlaceholder')}
                         value={inputValue}
-                        onValueChange={setInputValue}
+                        onChange={(e) => {
+                          setInputValue(e.target.value);
+                          if (!popoverOpen) {
+                            setPopoverOpen(true);
+                          }
+                        }}
                         onKeyDown={handleTopicInputKeyDown}
                         onFocus={() => setPopoverOpen(true)}
-                        className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0"
+                        onBlur={() => {
+                          // We need a small delay to allow for clicks on popover items
+                          setTimeout(() => {
+                            if (!containerRef.current?.contains(document.activeElement)) {
+                               setPopoverOpen(false);
+                            }
+                          }, 150);
+                        }}
+                        className="bg-transparent border-0 shadow-none h-6 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1 min-w-[120px] text-sm"
                       />
-                    </Command>
                   </div>
               </PopoverTrigger>
               <PopoverContent asChild className="w-[--radix-popover-trigger-width] p-0">
@@ -170,21 +183,22 @@ export function StartLearningDialog({
                         {filteredTopics.map((topic) => (
                         <CommandItem
                             key={topic}
-                            onSelect={() => handleSelectTopic(topic)}
+                            onSelect={() => handleTopicSelect(topic)}
                             className="cursor-pointer"
                         >
                             {topic}
+                             <Check className={cn("ml-auto h-4 w-4", selectedTopics.includes(topic) ? "opacity-100" : "opacity-0")} />
                         </CommandItem>
                         ))}
                     </CommandGroup>
                     
-                    {inputValue.trim() && !allTopics.some(t => t.toLowerCase() === inputValue.trim().toLowerCase()) && !topics.includes(inputValue.trim()) && (
+                    {inputValue.trim() && !allTopics.some(t => t.toLowerCase() === inputValue.trim().toLowerCase()) && !selectedTopics.includes(inputValue.trim()) && (
                       <CommandGroup>
                           <CommandItem
-                            onSelect={() => handleSelectTopic(inputValue.trim())}
+                            onSelect={() => handleTopicSelect(inputValue.trim())}
                             className="cursor-pointer"
                           >
-                           {t('add')} "{inputValue.trim()}"
+                           <Plus className="mr-2 h-4 w-4" /> {t('add')} "{inputValue.trim()}"
                           </CommandItem>
                       </CommandGroup>
                     )}
