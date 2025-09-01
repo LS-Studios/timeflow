@@ -18,25 +18,32 @@ const formatTime = (time: number) => {
   )}:${String(seconds).padStart(2, "0")}`;
 };
 
-const circlePath = "M 5,100 a 95,95 0 1,0 190,0 a 95,95 0 1,0 -190,0";
-const wavePath1 = "M 5,100 C 50,50 150,50 195,100 C 150,150 50,150 5,100 Z";
-const wavePath2 = "M 5,100 C 50,150 150,150 195,100 C 150,50 50,50 5,100 Z";
+const circlePath = "M 100, 5 a 95,95 0 1,1 0,190 a 95,95 0 1,1 0,-190";
+
+const morphPaths = [
+  "M100,5 C152.47,5,195,47.53,195,100 C195,152.47,152.47,195,100,195 C47.53,195,5,152.47,5,100 C5,71.5,23.5,47.5,50,30",
+  "M100,5 C128.5,23.5,152.5,47.5,170,75 C190,110,195,152.47,195,100 C195,47.53,152.47,5,100,5 C47.53,5,5,47.53,5,100",
+  "M100,5 C47.53,5,5,47.53,5,100 C5,152.47,47.53,195,100,195 C128.5,176.5,152.5,152.5,170,125",
+  "M100,5 C47.53,5,5,47.53,5,100 C5,128.5,23.5,152.5,50,170 C90,210,152.47,195,100,195 C47.53,195,5,152.47,5,100",
+  "M100,5 C152.47,5,195,47.53,195,100 C195,128.5,176.5,152.5,150,170 C110,210,47.53,195,100,195",
+];
+
 
 export function TimerDisplay({ time, isActive, isPaused }: TimerDisplayProps) {
   const isRunning = isActive && !isPaused;
 
   const pathVariants = {
     running: {
-      d: [wavePath1, wavePath2, wavePath1],
+      d: [...morphPaths, morphPaths[0]],
       transition: {
-        duration: 4,
+        duration: 8,
         ease: "easeInOut",
         repeat: Infinity,
       },
     },
     stopped: {
       d: circlePath,
-      transition: { duration: 0.5, ease: "easeOut" },
+      transition: { duration: 0.8, ease: "easeOut" },
     },
   };
 
