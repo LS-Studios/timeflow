@@ -3,11 +3,11 @@
 
 import React, { createContext, useState, useContext, ReactNode, useMemo, useEffect, useCallback } from 'react';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { LoginDialog } from '@/components/login-dialog';
 import { ProfileDialog } from '@/components/profile-dialog';
 import { storageService, type UserAccount } from './storage';
+import { ref, set } from "firebase/database";
 
 type User = {
   uid: string;
@@ -52,16 +52,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 email: 'guest@local.storage'
              });
         } else {
-            const userDocRef = doc(db, "users", firebaseUser.uid);
-            const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists()) {
+            const userData = await storageService.getUserAccount(firebaseUser.uid);
+            if (userData) {
                 setUser({
                     uid: firebaseUser.uid,
                     email: firebaseUser.email!,
-                    name: userDoc.data().name,
+                    name: userData.name,
                 });
             } else {
-                 // This case can happen if a user is created in Auth but not in Firestore.
+                 // This case can happen if a user is created in Auth but not in DB.
                  // We'll log them out to be safe.
                  await signOut(auth);
                  setUser(null);
@@ -96,8 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
 
-        // Store user's name in Firestore
-        await setDoc(doc(db, "users", firebaseUser.uid), {
+        // Store user's name in Realtime Database
+        await set(ref(db, `users/${firebaseUser.uid}/account`), {
             name: name,
             email: email,
         });
