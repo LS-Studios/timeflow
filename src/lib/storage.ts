@@ -1,11 +1,14 @@
 
 "use client";
-import { doc, getDoc, setDoc, collection, writeBatch } from "firebase/firestore";
+import { doc, getDoc, setDoc, getDocs, collection, writeBatch } from "firebase/firestore";
 import { db } from "./firebase";
 import type { AppSettings, Session, AppMode } from "./types";
+import { isToday, startOfDay } from 'date-fns';
 
-const SETTINGS_KEY = 'timeflow_settings';
-const LOCAL_SESSIONS_PREFIX = 'timeflow_local_sessions_';
+const LOCAL_SETTINGS_KEY = 'timeflow_guest_settings';
+const LOCAL_SESSIONS_PREFIX = 'timeflow_guest_sessions_';
+const GUEST_USER_KEY = 'timeflow_guest_user';
+
 
 export interface UserAccount {
     name: string;
@@ -28,6 +31,10 @@ interface StorageService {
 
     addPendingRequest(userId: string, date: string): Promise<void>;
     getPendingRequests(userId: string): Promise<string[]>;
+
+    getGuestUser(): { uid: string; name: string; email: string } | null;
+    saveGuestUser(user: { uid: string; name: string; email: string }): void;
+    clearGuestUser(): void;
 }
 
 class FirestoreStorageService implements StorageService {
@@ -36,8 +43,8 @@ class FirestoreStorageService implements StorageService {
         return doc(db, "users", userId, "data", "settings");
     }
 
-    private getSessionsCollectionRef(userId: string, mode: AppMode) {
-        return collection(db, "users", userId, "data", `${mode}Sessions`);
+    private getSessionsDocRef(userId: string, mode: AppMode) {
+        return doc(db, "users", userId, "data", `${mode}Sessions`);
     }
     
     private getPendingRequestsDocRef(userId: string) {
@@ -45,6 +52,22 @@ class FirestoreStorageService implements StorageService {
     }
 
     // --- Guest/Local mode functions ---
+    getGuestUser() {
+        if (typeof window === 'undefined') return null;
+        const userJson = localStorage.getItem(GUEST_USER_KEY);
+        return userJson ? JSON.parse(userJson) : null;
+    }
+    
+    saveGuestUser(user: { uid: string; name: string; email: string; }) {
+        if (typeof window === 'undefined') return;
+        localStorage.setItem(GUEST_USER_KEY, JSON.stringify(user));
+    }
+
+    clearGuestUser() {
+        if (typeof window === 'undefined') return;
+        localStorage.removeItem(GUEST_USER_KEY);
+    }
+
     private getLocalSessions(mode: AppMode): Session[] {
         if (typeof window === 'undefined') return [];
         const key = `${LOCAL_SESSIONS_PREFIX}${mode}`;
@@ -64,7 +87,7 @@ class FirestoreStorageService implements StorageService {
     async saveSettings(userId: string, settings: AppSettings): Promise<void> {
         if (userId === 'guest') {
              if (typeof window === 'undefined') return;
-             localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+             localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(settings));
              return;
         }
         const docRef = this.getSettingsDocRef(userId);
@@ -74,7 +97,7 @@ class FirestoreStorageService implements StorageService {
     async getSettings(userId: string): Promise<AppSettings | null> {
          if (userId === 'guest') {
             if (typeof window === 'undefined') return null;
-            const settingsJson = localStorage.getItem(SETTINGS_KEY);
+            const settingsJson = localStorage.getItem(LOCAL_SETTINGS_KEY);
             return settingsJson ? JSON.parse(settingsJson) : null;
         }
         const docRef = this.getSettingsDocRef(userId);
@@ -86,11 +109,19 @@ class FirestoreStorageService implements StorageService {
         if (userId === 'guest') {
             return this.getLocalSessions(mode);
         }
-
-        // For real users, we are not implementing the full session fetch from Firestore
-        // in this step to keep the changes manageable. This would be the next step.
-        // Returning an empty array for now for authenticated users.
-        console.warn(`Firestore getSessions for user ${userId} is not fully implemented. Returning empty array.`);
+        const docRef = this.getSessionsDocRef(userId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            const sessions = data.sessions || [];
+            // Timestamps are stored in Firestore, convert them back to Date objects
+            return sessions.map((s: any) => ({
+                ...s,
+                start: s.start.toDate(),
+                end: s.end ? s.end.toDate() : null,
+            }));
+        }
         return [];
     }
 
@@ -99,27 +130,22 @@ class FirestoreStorageService implements StorageService {
             this.saveLocalSessions(mode, sessions);
             return;
         }
-
-        // For real users, we are not implementing the full session save to Firestore
-        // in this step. This is a complex operation (batch write).
-        console.warn(`Firestore saveSessions for user ${userId} is not fully implemented.`);
+        // Save all sessions for the mode in a single document
+        const docRef = this.getSessionsDocRef(userId, mode);
+        await setDoc(docRef, { sessions });
     }
 
     async getAllTopics(userId: string): Promise<string[]> {
-        if (userId === 'guest') {
-             const workSessions = this.getLocalSessions('work');
-             const learningSessions = this.getLocalSessions('learning');
-             const allSessions = [...workSessions, ...learningSessions];
-             const topics = new Set<string>();
-             allSessions.forEach(session => {
-                 if (session.topics) {
-                     session.topics.forEach(topic => topics.add(topic));
-                 }
-             });
-             return Array.from(topics);
-        }
-        // Firestore implementation would require querying sessions.
-        return [];
+        const workSessions = await this.getSessions(userId, 'work');
+        const learningSessions = await this.getSessions(userId, 'learning');
+        const allSessions = [...workSessions, ...learningSessions];
+        const topics = new Set<string>();
+        allSessions.forEach(session => {
+            if (session.topics) {
+                session.topics.forEach(topic => topics.add(topic));
+            }
+        });
+        return Array.from(topics);
     }
     
     async addPendingRequest(userId: string, date: string): Promise<void> {

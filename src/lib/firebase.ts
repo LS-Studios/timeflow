@@ -16,21 +16,16 @@ let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 
-// This guard clause prevents the app from crashing if the env vars are missing.
-// In a real app, you'd want to throw an error here.
 if (firebaseConfig.apiKey) {
-    // Initialize Firebase
-    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    auth = getAuth(app);
-    db = getFirestore(app);
+  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  auth = getAuth(app);
+  db = getFirestore(app);
 } else {
-    // Provide dummy objects if Firebase is not configured
-    console.warn("Firebase config is missing, using dummy services. Please check your .env.local file.");
-    app = {} as FirebaseApp;
-    auth = {} as Auth;
-    db = {} as Firestore;
+  console.error("Firebase config is missing, using dummy services. Please check your environment variables.");
+  // Use dummy objects to prevent app from crashing on import
+  app = {} as FirebaseApp;
+  auth = {} as Auth;
+  db = {} as Firestore;
 }
 
-
 export { app, auth, db };
-

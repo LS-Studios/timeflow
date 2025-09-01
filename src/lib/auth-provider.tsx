@@ -38,11 +38,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Use onAuthStateChanged to manage user session
   useEffect(() => {
+    // Check if auth object is valid before subscribing
+    if (!auth || Object.keys(auth).length === 0) {
+      setIsLoading(false);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         if (firebaseUser.isAnonymous) {
              setUser({
-                uid: firebaseUser.uid,
+                uid: 'guest', // Keep local guest UID
                 name: 'Guest User',
                 email: 'guest@local.storage'
              });
@@ -63,7 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         }
       } else {
-        setUser(null);
+        const guestUser = storageService.getGuestUser();
+        if (guestUser) {
+          setUser(guestUser);
+        } else {
+          setUser(null);
+        }
       }
       setIsLoading(false);
     });
@@ -99,19 +109,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
   
   const loginAsGuest = useCallback(() => {
-     // For a true "guest" mode that doesn't persist across reloads without firebase,
-     // we just set a temporary local state. With firebase, we could use anonymous auth.
-    setUser({ uid: 'guest', name: 'Guest User', email: 'guest@local.storage' });
+    const guestUser: User = { uid: 'guest', name: 'Guest User', email: 'guest@local.storage' };
+    storageService.saveGuestUser(guestUser);
+    setUser(guestUser);
   }, []);
 
   const logout = useCallback(async () => {
     try {
-      await signOut(auth);
+      if (user?.uid === 'guest') {
+        storageService.clearGuestUser();
+        setUser(null);
+      } else {
+        await signOut(auth);
+      }
       setProfileDialogOpen(false);
     } catch (error) {
       console.error("Error signing out: ", error);
     }
-  }, []);
+  }, [user]);
 
   const openProfileDialog = useCallback(() => {
     setProfileDialogOpen(true);
@@ -136,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       {isLoginRequired && <LoginDialog />}
       
-      {user && user.uid !== 'guest' && (
+      {user && (
         <ProfileDialog 
           isOpen={isProfileDialogOpen} 
           onOpenChange={setProfileDialogOpen}
