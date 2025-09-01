@@ -26,12 +26,19 @@ function formatTime(date: Date | null) {
 
 function formatDuration(start: Date, end: Date) {
   const diff = (new Date(end).getTime() - new Date(start).getTime()) / 1000; // in seconds
-  const minutes = Math.floor(diff / 60);
+  if (diff < 0) return '0 sec';
+  
+  const hours = Math.floor(diff / 3600);
+  const minutes = Math.floor((diff % 3600) / 60);
   const seconds = Math.round(diff % 60);
-  if (minutes > 0) {
-    return `${minutes} min ${seconds} sec`;
-  }
-  return `${seconds} sec`;
+
+  const parts = [];
+  if (hours > 0) parts.push(`${hours} hr`);
+  if (minutes > 0) parts.push(`${minutes} min`);
+  // Always show seconds if duration is less than a minute, or if there are seconds to show.
+  if (diff < 60 || seconds > 0) parts.push(`${seconds} sec`);
+  
+  return parts.length > 0 ? parts.join(' ') : '0 sec';
 }
 
 function formatOngoingDuration(start: Date, now: number) {
@@ -103,8 +110,10 @@ export function Timeline({ sessions, isWorkDayEnded = false, showEditButtons = f
         <div className="space-y-8">
             {sessionsToDisplay.map((session, index) => {
               const PauseIcon = getIconForNote(session.note, t);
-              const isFirstWorkSession = index === 0 && session.type === 'work';
-              const isDeletable = !isFirstWorkSession && session.note !== 'Day ended';
+              const isFirstWorkSession = sessions.filter(s => s.type === 'work').findIndex(s => s.id === session.id) === 0;
+
+              // Deletable if it's not the very first work session
+              const isDeletable = session.type === 'pause' || (session.type === 'work' && !isFirstWorkSession);
 
 
               return (
