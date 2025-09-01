@@ -33,12 +33,10 @@ import {
   AlertDialogDescription,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
-  AlertDialogFooter,
 } from "@/components/ui/alert-dialog";
 import { EditLearningDialog } from "@/components/edit-learning-dialog";
-import { EditWorkDialog } from "@/components/edit-work-dialog";
 import { WorkDayDetailDialog } from "@/components/work-day-detail-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 
 const workBreakdownChartConfig = {
@@ -66,6 +64,7 @@ const completionChartConfig = {
 export default function AnalyticsPage() {
   const { t, language } = useTranslation();
   const { settings } = useSettings();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [groupedHistory, setGroupedHistory] = useState<DayHistory[]>([]);
   const [allTopics, setAllTopics] = useState<string[]>([]);
@@ -148,6 +147,10 @@ export default function AnalyticsPage() {
      console.log("New session data:", pendingSessions);
      // In a real app, this would send a request to a backend.
      // Here, we just log it and close the dialog without saving.
+     toast({
+        title: t('requestSent'),
+        description: t('requestSentDescription'),
+     });
      setDayToEdit(null);
   }
 

@@ -138,6 +138,8 @@ const translations: Record<Language, Translations> = {
     requestChange: "Request Change",
     reasonForChange: "Reason for change",
     reasonForChangePlaceholder: "Please describe why you are requesting this change...",
+    requestSent: "Request Sent",
+    requestSentDescription: "Your change request has been submitted for review.",
   },
   de: {
     pomodoro: 'Pomodoro',
@@ -266,6 +268,8 @@ const translations: Record<Language, Translations> = {
     requestChange: "Änderung anfragen",
     reasonForChange: "Grund für die Änderung",
     reasonForChangePlaceholder: "Bitte beschreiben Sie, warum Sie diese Änderung beantragen...",
+    requestSent: "Anfrage gesendet",
+    requestSentDescription: "Ihre Änderungsanfrage wurde zur Überprüfung eingereicht.",
   },
 };
 
