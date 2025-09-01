@@ -52,6 +52,7 @@ export default function Home() {
   
   const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [todaySessions, setTodaySessions] = useState<Session[]>([]);
+  const [allTopics, setAllTopics] = useState<string[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isWorkDayEnded, setIsWorkDayEnded] = useState(false);
@@ -81,6 +82,7 @@ export default function Home() {
     // For learning mode, always start fresh on page load.
     if (settings.mode === 'learning') {
         setAllSessions(storageService.getSessions('learning'));
+        setAllTopics(storageService.getAllTopics());
         setTodaySessions([]);
         reset(TIMER_TYPES.stopwatch);
         setIsLoading(false);
@@ -250,18 +252,24 @@ export default function Home() {
     
     // Find the last active work session for today
     const lastSession = [...todaySessions].reverse().find(s => s.type === 'work' && !s.end);
-
+    
     if (settings.mode === 'learning' && lastSession) {
-      // First, "end" the session in the state
-      updateLastSession({ end: now });
-      // Then, pass this now-ended session to the dialog
+      // Pass this active session to the dialog
       setSessionToEnd(lastSession);
+      // Open the dialog
       setEndLearningDialogOpen(true);
+      // Immediately pause the timer, but DON'T end the session in the state yet.
+      // The dialog will be responsible for ending it.
+      pause();
     } else {
-      if (isActive) {
-          updateLastSession({ end: now });
+      if (isActive || isPaused) {
+        // End any active session (work or pause)
+        const currentLastSession = allSessions[allSessions.length-1];
+        if (currentLastSession && !currentLastSession.end) {
+            updateLastSession({ end: now });
+        }
       }
-      addSession({ type: 'pause', start: now, end: now, note: 'Day ended' });
+      addSession({ type: 'pause', start: now, end: null, note: 'Day ended' });
       pause();
       setIsWorkDayEnded(true);
     }
@@ -286,7 +294,7 @@ export default function Home() {
         if (sessionIndex !== -1) {
              newAll[sessionIndex] = { 
                 ...newAll[sessionIndex],
-                end: new Date(), // Re-affirm end time
+                end: new Date(), // End time is now
                 learningObjectives: updatedObjectives,
                 completionPercentage: totalCompletion,
             };
@@ -295,7 +303,6 @@ export default function Home() {
      });
 
     // Reset UI for the next session
-    pause();
     reset(TIMER_TYPES.stopwatch);
     setTodaySessions([]);
     setEndLearningDialogOpen(false);
@@ -384,11 +391,16 @@ export default function Home() {
         isOpen={isStartLearningDialogOpen}
         onOpenChange={setStartLearningDialogOpen}
         onStart={handleStartLearning}
+        allTopics={allTopics}
       />
       <EndLearningDialog
         isOpen={isEndLearningDialogOpen}
         onOpenChange={(isOpen) => {
-          if (!isOpen) setSessionToEnd(null);
+          if (!isOpen) {
+             setSessionToEnd(null);
+             // If dialog is closed without saving, we might need to resume the timer
+             if (isPaused && !isActive) start(); 
+          }
           setEndLearningDialogOpen(isOpen);
         }}
         onEnd={endLearningSession}

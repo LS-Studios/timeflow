@@ -1,5 +1,5 @@
 
-import { useState, KeyboardEvent, useRef } from "react";
+import { useState, KeyboardEvent, useRef, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,31 +11,36 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/lib/i18n.tsx";
-import { Brain, X as XIcon, Plus, Hash, GripVertical } from "lucide-react";
+import { Brain, X as XIcon, Plus, Hash, GripVertical, Check } from "lucide-react";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
-import { cn } from "@/lib/utils";
 import { Reorder } from "framer-motion";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 
 interface StartLearningDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onStart: (goal: string, objectives: string[], topics: string[]) => void;
+  allTopics: string[];
 }
 
 export function StartLearningDialog({
   isOpen,
   onOpenChange,
   onStart,
+  allTopics,
 }: StartLearningDialogProps) {
   const { t } = useTranslation();
   const [mainGoal, setMainGoal] = useState("");
   const [objectives, setObjectives] = useState<string[]>([]);
   const [currentObjective, setCurrentObjective] = useState("");
   const [topics, setTopics] = useState<string[]>([]);
+  
+  const [isPopoverOpen, setPopoverOpen] = useState(false);
   const [currentTopic, setCurrentTopic] = useState("");
-
   const topicInputRef = useRef<HTMLInputElement>(null);
 
   const handleStart = () => {
@@ -66,14 +71,6 @@ export function StartLearningDialog({
     }
   };
 
-  const handleTopicKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && currentTopic.trim()) {
-      e.preventDefault();
-      setTopics([...topics, currentTopic.trim()]);
-      setCurrentTopic("");
-    }
-  };
-
   const handleRemoveObjective = (indexToRemove: number) => {
     setObjectives(objectives.filter((_, index) => index !== indexToRemove));
   };
@@ -82,6 +79,27 @@ export function StartLearningDialog({
     setTopics(topics.filter((_, index) => index !== indexToRemove));
   };
 
+  const handleTopicKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' && currentTopic.trim() !== '') {
+      event.preventDefault();
+      if (!topics.includes(currentTopic.trim())) {
+        setTopics([...topics, currentTopic.trim()]);
+      }
+      setCurrentTopic("");
+    }
+  };
+
+  const handleSelectTopic = (topic: string) => {
+    if (!topics.includes(topic)) {
+      setTopics([...topics, topic]);
+    }
+    setCurrentTopic("");
+    setPopoverOpen(false);
+  }
+
+  const filteredTopics = allTopics.filter(topic => 
+    !topics.includes(topic) && topic.toLowerCase().includes(currentTopic.toLowerCase())
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -106,43 +124,75 @@ export function StartLearningDialog({
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="topics">{t('topics')}</Label>
-            <div 
-              className="flex flex-wrap items-center gap-2 rounded-md border border-input p-2 bg-background cursor-text min-h-11"
-              onClick={() => topicInputRef.current?.focus()}
-            >
-                {topics.map((topic, index) => (
-                  <Badge key={index} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
-                    <Hash className="h-3 w-3 mr-1" />
-                    {topic}
-                    <button className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2" onClick={() => handleRemoveTopic(index)}>
-                      <XIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-                      <span className="sr-only">Remove {topic}</span>
-                    </button>
-                  </Badge>
-                ))}
-              <Input
-                ref={topicInputRef}
-                id="topics"
-                placeholder={t('addTopicPlaceholder')}
-                value={currentTopic}
-                onChange={(e) => setCurrentTopic(e.target.value)}
-                onKeyDown={handleTopicKeyDown}
-                className="flex-1 bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0 min-w-[120px]"
-              />
-            </div>
+            <Label>{t('topics')}</Label>
+             <Popover open={isPopoverOpen} onOpenChange={setPopoverOpen}>
+              <PopoverTrigger asChild>
+                <div 
+                  className="flex flex-wrap items-center gap-2 rounded-md border border-input p-2 bg-background cursor-text min-h-11"
+                  onClick={() => topicInputRef.current?.focus()}
+                >
+                    {topics.map((topic, index) => (
+                      <Badge key={index} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
+                        {topic}
+                        <button className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2" onClick={() => handleRemoveTopic(index)}>
+                          <XIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                          <span className="sr-only">Remove {topic}</span>
+                        </button>
+                      </Badge>
+                    ))}
+                  <Input
+                    ref={topicInputRef}
+                    id="topics"
+                    placeholder={t('addTopicPlaceholder')}
+                    value={currentTopic}
+                    onChange={(e) => setCurrentTopic(e.target.value)}
+                    onKeyDown={handleTopicKeyDown}
+                    onFocus={() => setPopoverOpen(true)}
+                    className="flex-1 bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0 min-w-[120px]"
+                  />
+                </div>
+              </PopoverTrigger>
+               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <Command>
+                    <CommandInput 
+                      placeholder={t('searchHistoryLearning')}
+                      value={currentTopic}
+                      onValueChange={setCurrentTopic}
+                    />
+                    <CommandEmpty>
+                      {currentTopic.trim() !== "" ? `No topic found. Press Enter to add "${currentTopic}".` : "No topics found."}
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {filteredTopics.map((topic) => (
+                        <CommandItem
+                          key={topic}
+                          onSelect={() => handleSelectTopic(topic)}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              topics.includes(topic) ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {topic}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+               </PopoverContent>
+             </Popover>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="objectives">{t('learningObjectives')}</Label>
              {objectives.length > 0 && (
                 <Reorder.Group axis="y" values={objectives} onReorder={setObjectives} className="space-y-2">
-                  {objectives.map((obj, index) => (
+                  {objectives.map((obj) => (
                     <Reorder.Item key={obj} value={obj}>
                       <div className="flex items-center gap-2 group p-2.5 rounded-md border bg-muted/50 shadow-sm">
                         <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab group-hover:opacity-100 opacity-50 transition-opacity" />
                         <span className="flex-1 text-sm">{obj}</span>
-                        <button className="rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 opacity-50 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveObjective(index)}>
+                        <button className="rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 opacity-50 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveObjective(objectives.indexOf(obj))}>
                           <XIcon className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                           <span className="sr-only">Remove {obj}</span>
                         </button>
