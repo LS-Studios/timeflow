@@ -30,6 +30,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
@@ -124,7 +125,7 @@ export default function AnalyticsPage() {
       } else if (selectedDay) {
           // Refresh the selected day's data
           const updatedDaySessions = allSessions
-            .filter(s => s.id.startsWith(selectedDay.date))
+            .filter(s => format(new Date(s.start), 'yyyy-MM-dd') === selectedDay.date)
             .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
           setSelectedDay({ ...selectedDay, sessions: updatedDaySessions });
       }
