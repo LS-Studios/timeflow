@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import type { Session } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Briefcase, Coffee, Flag, Flame, PersonStanding, Wind, Pencil, Brain, Target, Edit } from "lucide-react";
+import { Briefcase, Coffee, Flag, Flame, PersonStanding, Wind, Pencil, Brain, Target, Edit, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-provider";
@@ -16,6 +16,7 @@ interface TimelineProps {
   isWorkDayEnded?: boolean;
   showEditButtons?: boolean;
   onEditSession?: (session: Session) => void;
+  onDeleteSession?: (session: Session) => void;
 }
 
 function formatTime(date: Date | null) {
@@ -54,7 +55,7 @@ function getIconForNote(note: string | undefined, t: (key: string) => string) {
 }
 
 
-export function Timeline({ sessions, isWorkDayEnded = false, showEditButtons = false, onEditSession }: TimelineProps) {
+export function Timeline({ sessions, isWorkDayEnded = false, showEditButtons = false, onEditSession, onDeleteSession }: TimelineProps) {
   const { t } = useTranslation();
   const { settings } = useSettings();
   const [now, setNow] = useState(Date.now());
@@ -100,8 +101,12 @@ export function Timeline({ sessions, isWorkDayEnded = false, showEditButtons = f
        <div className="absolute top-0 left-0 h-full w-px bg-border"></div>
       <AnimatePresence initial={false}>
         <div className="space-y-8">
-            {sessionsToDisplay.map((session) => {
+            {sessionsToDisplay.map((session, index) => {
               const PauseIcon = getIconForNote(session.note, t);
+              const isFirst = index === 0;
+              const isLast = index === sessionsToDisplay.length - 1;
+              const isDeletable = session.type === 'pause' || (!isFirst && !isLast);
+
               return (
                 <motion.div
                     key={session.id}
@@ -129,6 +134,11 @@ export function Timeline({ sessions, isWorkDayEnded = false, showEditButtons = f
                            {showEditButtons && onEditSession && (
                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEditSession(session)}>
                                 <Edit className="h-3 w-3" />
+                             </Button>
+                           )}
+                           {showEditButtons && onDeleteSession && isDeletable && (
+                             <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive" onClick={() => onDeleteSession(session)}>
+                                <Trash2 className="h-3 w-3" />
                              </Button>
                            )}
                       </div>

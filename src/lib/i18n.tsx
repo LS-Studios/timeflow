@@ -119,6 +119,8 @@ const translations: Record<Language, Translations> = {
     startTime: "Start Time",
     endTime: "End Time",
     note: "Note",
+    deleteSessionConfirmation: "This action cannot be undone. This will permanently delete the session. If it is a pause, the adjacent work sessions will be merged.",
+    confirmDeleteSession: "Yes, delete session"
   },
   de: {
     pomodoro: 'Pomodoro',
@@ -137,7 +139,7 @@ const translations: Record<Language, Translations> = {
     settingsDescription: 'Verwalten Sie Ihre App- und Kontoeinstellungen.',
     appearance: 'Erscheinungsbild',
     appearanceDescription: 'Passen Sie das Aussehen der App an.',
-    light: 'Hell',
+light: 'Hell',
     dark: 'Dunkel',
     system: 'System',
     language: 'Sprache',
@@ -228,6 +230,8 @@ const translations: Record<Language, Translations> = {
     startTime: "Startzeit",
     endTime: "Endzeit",
     note: "Notiz",
+    deleteSessionConfirmation: "Diese Aktion kann nicht rückgängig gemacht werden. Die Sitzung wird endgültig gelöscht. Wenn es sich um eine Pause handelt, werden die angrenzenden Arbeitssitzungen zusammengeführt.",
+    confirmDeleteSession: "Ja, Sitzung löschen"
   },
 };
 

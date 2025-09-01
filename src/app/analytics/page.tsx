@@ -25,6 +25,16 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
 import { EditLearningDialog } from "@/components/edit-learning-dialog";
 import { EditWorkDialog } from "@/components/edit-work-dialog";
 import { Timeline } from "@/components/timeline";
@@ -64,6 +74,7 @@ export default function AnalyticsPage() {
   
   const [selectedDay, setSelectedDay] = useState<DayHistory | null>(null);
   const [workSessionToEdit, setWorkSessionToEdit] = useState<Session | null>(null);
+  const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null);
 
   const refreshData = () => {
     const mode = settings.mode;
@@ -94,6 +105,11 @@ export default function AnalyticsPage() {
     setIsLoading(true);
     refreshData();
   }, [settings.mode, settings]);
+
+  const updateAllSessions = (newSessions: Session[]) => {
+      storageService.saveSessions(settings.mode, newSessions);
+      refreshData();
+  }
   
   const handleUpdateSession = (updatedSession: Session) => {
     const allSessions = storageService.getSessions(settings.mode);
@@ -101,18 +117,56 @@ export default function AnalyticsPage() {
     
     if (sessionIndex > -1) {
       allSessions[sessionIndex] = updatedSession;
-      storageService.saveSessions(settings.mode, allSessions);
-      
-      refreshData();
+      updateAllSessions(allSessions);
       
       if(settings.mode === 'learning') {
          setSelectedSession(updatedSession);
+      } else if (selectedDay) {
+          // Refresh the selected day's data
+          const updatedDaySessions = allSessions
+            .filter(s => s.id.startsWith(selectedDay.date))
+            .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+          setSelectedDay({ ...selectedDay, sessions: updatedDaySessions });
       }
     }
     
     setSessionToEdit(null);
     setWorkSessionToEdit(null);
   }
+
+  const handleDeleteSession = () => {
+    if (!sessionToDelete || !selectedDay) return;
+
+    let allSessions = storageService.getSessions(settings.mode);
+    const daySessions = selectedDay.sessions;
+    const sessionIndexInDay = daySessions.findIndex(s => s.id === sessionToDelete.id);
+
+    // If it's a pause, we need to merge the surrounding work sessions
+    if (sessionToDelete.type === 'pause' && sessionIndexInDay > 0) {
+        const precedingWorkSession = daySessions[sessionIndexInDay - 1];
+        const followingSession = daySessions[sessionIndexInDay + 1];
+
+        // Update the end time of the preceding work session to the start time of the following session
+        const precedingSessionIndexInAll = allSessions.findIndex(s => s.id === precedingWorkSession.id);
+        if (precedingSessionIndexInAll !== -1 && followingSession) {
+            allSessions[precedingSessionIndexInAll].end = followingSession.start;
+        }
+    }
+    
+    // Filter out the session to delete
+    allSessions = allSessions.filter(s => s.id !== sessionToDelete.id);
+    
+    updateAllSessions(allSessions);
+
+    // Refresh the selected day's data in the dialog
+    const updatedDaySessions = allSessions
+        .filter(s => format(new Date(s.start), 'yyyy-MM-dd') === selectedDay.date)
+        .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    setSelectedDay({ ...selectedDay, sessions: updatedDaySessions });
+
+    setSessionToDelete(null);
+};
+
 
   const formatDate = (dateString: string) => {
     try {
@@ -622,11 +676,29 @@ export default function AnalyticsPage() {
                 sessions={selectedDay.sessions} 
                 isWorkDayEnded={true} 
                 showEditButtons={true} 
-                onEditSession={(session) => setWorkSessionToEdit(session)} 
+                onEditSession={(session) => setWorkSessionToEdit(session)}
+                onDeleteSession={(session) => setSessionToDelete(session)}
             />
           </div>
         </DialogContent>
       </Dialog>
+    )
+  }
+
+  const DeleteSessionDialog = () => {
+    return (
+      <AlertDialog open={!!sessionToDelete} onOpenChange={() => setSessionToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('areYouSure')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('deleteSessionConfirmation')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteSession}>{t('confirmDeleteSession')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     )
   }
 
@@ -661,6 +733,7 @@ export default function AnalyticsPage() {
         onSave={handleUpdateSession}
         session={workSessionToEdit}
       />
+      <DeleteSessionDialog />
     </div>
   );
 }
