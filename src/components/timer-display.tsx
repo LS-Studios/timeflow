@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 
 interface TimerDisplayProps {
   time: number;
-  progress: number;
+  isActive: boolean;
 }
 
 const formatTime = (time: number) => {
@@ -23,10 +23,8 @@ const formatTime = (time: number) => {
   )}`;
 };
 
-export function TimerDisplay({ time, progress }: TimerDisplayProps) {
+export function TimerDisplay({ time, isActive }: TimerDisplayProps) {
   const radius = 90;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (progress / 100) * circumference;
 
   return (
     <div className="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center">
@@ -39,31 +37,33 @@ export function TimerDisplay({ time, progress }: TimerDisplayProps) {
           className="stroke-secondary"
           fill="transparent"
         />
-        {progress < 100 && (
-          <motion.circle
+        {isActive && (
+           <motion.circle
             cx="100"
             cy="100"
             r={radius}
             strokeWidth="8"
-            strokeLinecap="round"
             className="stroke-primary"
             fill="transparent"
+            initial={{ pathLength: 1, opacity: 0.7 }}
+            animate={{
+                pathLength: [1, 1],
+                opacity: [0.7, 0.3, 0.7],
+            }}
+            transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut"
+            }}
             style={{ rotate: -90, originX: '100px', originY: '100px' }}
-            strokeDasharray={circumference}
-            animate={{ strokeDashoffset: offset }}
-            transition={{ duration: 1, ease: "linear" }}
           />
         )}
       </svg>
-      <motion.div
-        key={time}
-        initial={{ opacity: 0.8, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.2 }}
+      <div
         className="text-5xl sm:text-6xl font-bold font-mono text-center tabular-nums"
       >
         {formatTime(time)}
-      </motion.div>
+      </div>
     </div>
   );
 }
