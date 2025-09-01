@@ -87,8 +87,12 @@ export function StartLearningDialog({
         setTopics([...topics, newTopic]);
       }
       setCurrentTopic("");
-      setPopoverOpen(false); // Close popover after adding
+      // Keep popover open to add more
       return;
+    }
+     if (event.key === 'Backspace' && currentTopic === '' && topics.length > 0) {
+      event.preventDefault();
+      handleRemoveTopic(topics[topics.length - 1]);
     }
   };
   
@@ -97,7 +101,7 @@ export function StartLearningDialog({
       setTopics(prev => [...prev, topic]);
     }
     setCurrentTopic("");
-    setPopoverOpen(false); // Close popover after selection
+    topicInputRef.current?.focus();
   }
 
   const filteredTopics = allTopics.filter(topic => 
@@ -136,7 +140,10 @@ export function StartLearningDialog({
             <Label>{t('topics')}</Label>
              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
               <PopoverTrigger asChild>
-                <div className="flex flex-wrap items-center gap-2 rounded-md border border-input p-1 pl-2 bg-transparent cursor-text min-h-11">
+                 <div
+                    className="flex flex-wrap items-center gap-2 rounded-md border border-input p-1 pl-2 bg-transparent cursor-text min-h-11"
+                    onClick={() => topicInputRef.current?.focus()}
+                >
                     {topics.map((topic, index) => (
                       <Badge key={index} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
                         {topic}
@@ -146,39 +153,49 @@ export function StartLearningDialog({
                         </button>
                       </Badge>
                     ))}
-                    <CommandInput
-                      ref={topicInputRef}
-                      id="topics"
-                      placeholder={t('addTopicPlaceholder')}
-                      value={currentTopic}
-                      onValueChange={setCurrentTopic}
-                      onKeyDown={handleTopicKeyDown}
-                      onFocus={() => setPopoverOpen(true)}
-                      onBlur={handleBlur}
-                      className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1 min-w-[120px]"
+                    <Input
+                        ref={topicInputRef}
+                        id="topics"
+                        placeholder={t('addTopicPlaceholder')}
+                        value={currentTopic}
+                        onValueChange={setCurrentTopic}
+                        onKeyDown={handleTopicKeyDown}
+                        onFocus={() => setPopoverOpen(true)}
+                        onBlur={handleBlur}
+                        onChange={(e) => setCurrentTopic(e.target.value)}
+                        className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1 min-w-[120px]"
                     />
                 </div>
               </PopoverTrigger>
               <PopoverContent asChild className="w-[--radix-popover-trigger-width] p-0">
                 <Command>
-                    <CommandList>
-                      {filteredTopics.length > 0 ? (
-                        <CommandGroup>
-                          {filteredTopics.map((topic) => (
-                            <CommandItem
-                              key={topic}
-                              onSelect={() => handleTopicSelect(topic)}
-                              className="cursor-pointer"
-                            >
-                              {topic}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      ) : (
-                        currentTopic.trim() && <CommandEmpty>No results found.</CommandEmpty>
-                      )}
-                    </CommandList>
-                  </Command>
+                  {/* The CommandInput was incorrectly placed before */}
+                  <CommandList>
+                    {(filteredTopics.length > 0 || currentTopic.trim()) ? (
+                      <CommandGroup>
+                        {filteredTopics.map((topic) => (
+                          <CommandItem
+                            key={topic}
+                            onSelect={() => handleTopicSelect(topic)}
+                            className="cursor-pointer"
+                          >
+                            {topic}
+                          </CommandItem>
+                        ))}
+                         {currentTopic.trim() && !filteredTopics.includes(currentTopic.trim()) && !topics.includes(currentTopic.trim()) && (
+                          <CommandItem
+                            onSelect={() => handleTopicSelect(currentTopic.trim())}
+                            className="cursor-pointer"
+                          >
+                           {t('add')} "{currentTopic.trim()}"
+                          </CommandItem>
+                        )}
+                      </CommandGroup>
+                    ) : (
+                      <CommandEmpty>No results found.</CommandEmpty>
+                    )}
+                  </CommandList>
+                </Command>
               </PopoverContent>
              </Popover>
           </div>
