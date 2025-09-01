@@ -64,34 +64,44 @@ export default function Home() {
     const loadedSessions = storageService.getAllSessions();
     setAllSessions(loadedSessions);
 
-    const today = loadedSessions.filter(s => isToday(new Date(s.start)));
-    setTodaySessions(today);
-    
-    // Auto-reset if the last session was from a previous day
-    const lastSession = loadedSessions[loadedSessions.length - 1];
-    if (lastSession && !isToday(new Date(lastSession.start))) {
+    const lastSession = loadedSessions.length > 0 ? loadedSessions[loadedSessions.length - 1] : null;
+
+    // Case 1: A session is still running from a previous day. Do not reset.
+    if (lastSession && !lastSession.end) {
+        // The session continues, so we just restore state regardless of the day.
+    }
+    // Case 2: The last session is finished and was on a previous day. Reset for a new day.
+    else if (lastSession && lastSession.end && !isToday(new Date(lastSession.start))) {
+      setTodaySessions([]);
       reset(TIMER_TYPES.stopwatch);
       setIsLoading(false);
       return;
     }
-    
-    if (today.length > 0) {
-      const lastTodaySession = today[today.length - 1];
 
-      // Check if work day was ended
-      if (settings.mode === 'work' && lastTodaySession.end !== null && today.every(s => s.end !== null)) {
+    // If we are here, we are on the same day or continuing a session.
+    const sessionsForToday = loadedSessions.filter(s => isToday(new Date(s.start)));
+    setTodaySessions(sessionsForToday);
+    
+    if (sessionsForToday.length > 0) {
+      const lastTodaySession = sessionsForToday[sessionsForToday.length - 1];
+
+      // Check if work day was ended (all sessions have an end time)
+      const allSessionsEnded = sessionsForToday.every(s => s.end !== null);
+      if (settings.mode === 'work' && allSessionsEnded) {
          setIsWorkDayEnded(true);
-         const totalTimeTodayMs = today.reduce((acc, session) => {
+         // Display total time from that ended day
+         const totalTimeTodayMs = sessionsForToday.reduce((acc, session) => {
             if (!session.start || !session.end) return acc;
              const duration = new Date(session.end).getTime() - new Date(session.start).getTime();
              return acc + (session.type === 'work' ? duration : 0);
          }, 0);
          setTime(Math.floor(totalTimeTodayMs / 1000));
+         pause();
 
       } else if (lastTodaySession && !lastTodaySession.end) {
-        // Restore timer state if last session is not ended
+        // A session is running, restore timer state
         let totalTimeTodayMs = 0;
-        today.forEach(session => {
+        sessionsForToday.forEach(session => {
             if (!session.start) return;
             const startTime = new Date(session.start).getTime();
             // Use current time for the running session
@@ -128,26 +138,27 @@ export default function Home() {
   };
 
   const updateLastSession = (updates: Partial<Session>) => {
-    setTodaySessions(prev => {
-        if (prev.length === 0) return prev;
-        const newSessions = [...prev];
-        const lastSession = { ...newSessions[newSessions.length - 1], ...updates };
-        newSessions[newSessions.length - 1] = lastSession;
+    setAllSessions(prevAll => {
+        if (prevAll.length === 0) return prevAll;
+        const newAllSessions = [...prevAll];
+        const lastSessionIndex = newAllSessions.length - 1;
+        newAllSessions[lastSessionIndex] = { ...newAllSessions[lastSessionIndex], ...updates };
         
-        setAllSessions(allPrev => {
-            const index = allPrev.findIndex(s => s.id === lastSession.id);
-            if (index !== -1) {
-                const newAllSessions = [...allPrev];
-                newAllSessions[index] = lastSession;
-                return newAllSessions;
+        // Also update today's sessions if the last session is from today
+        setTodaySessions(prevToday => {
+            const todayIndex = prevToday.findIndex(s => s.id === newAllSessions[lastSessionIndex].id);
+            if (todayIndex !== -1) {
+                const newTodaySessions = [...prevToday];
+                newTodaySessions[todayIndex] = newAllSessions[lastSessionIndex];
+                return newTodaySessions;
             }
-            return allPrev;
+            return prevToday;
         });
 
-        return newSessions;
+        return newAllSessions;
     });
   };
-
+  
   const handleGenericStart = () => {
     if (isWorkDayEnded) {
        setIsWorkDayEnded(false);
@@ -158,6 +169,8 @@ export default function Home() {
     }
     
     const now = new Date();
+    // If the timer is paused, it means we are resuming from a break.
+    // The break session needs to be ended first.
     if (isPaused) { 
       updateLastSession({ end: now });
     }
@@ -187,6 +200,7 @@ export default function Home() {
   };
 
   const confirmReset = () => {
+    // Only remove today's sessions from the master list
     const yesterdayAndBefore = allSessions.filter(s => !isToday(new Date(s.start)));
     setAllSessions(yesterdayAndBefore);
     setTodaySessions([]);
@@ -199,13 +213,13 @@ export default function Home() {
     const now = new Date();
     if (isActive || isPaused) {
       updateLastSession({ end: now });
-      pause();
     }
     
-    if (settings.mode === 'learning' && todaySessions.some(s => s.type === 'work' && s.learningGoal)) {
+    if (settings.mode === 'learning' && todaySessions.some(s => s.learningGoal)) {
       setEndLearningDialogOpen(true);
     } else {
       setIsWorkDayEnded(true);
+      pause();
     }
   }
   
@@ -215,16 +229,24 @@ export default function Home() {
   }
 
   const endLearningSession = (completionPercentage: number) => {
-    updateLastSession({ completionPercentage });
+     // Find last *learning* session of the day to update
+     setAllSessions(prevAll => {
+        const newAll = [...prevAll];
+        const lastLearningIndex = newAll.map(s => s.learningGoal ? true : false).lastIndexOf(true);
+        if (lastLearningIndex !== -1) {
+            newAll[lastLearningIndex] = { ...newAll[lastLearningIndex], completionPercentage };
+        }
+        return newAll;
+     });
     pause();
-    reset(TIMER_TYPES.stopwatch);
+    // Don't reset time, just allow starting a new session
     setEndLearningDialogOpen(false);
   }
 
   const handleSaveNote = (note: string) => {
     updateLastSession({ note });
   };
-
+  
   return (
     <>
       <div className="flex-1 w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
