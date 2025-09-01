@@ -225,14 +225,39 @@ export default function Home() {
 
       return { newWorkTime, newPauseTime, newCurrentTime };
   };
+  
+  const TimerPageSkeleton = () => (
+    <div className="w-full max-w-md mx-auto flex flex-col items-center gap-8 animate-pulse">
+        {/* Timer Display Skeleton */}
+        <div className="relative w-80 h-80 sm:w-96 sm:h-96 flex items-center justify-center">
+            <div className="absolute w-full h-full rounded-full bg-muted"></div>
+            <Skeleton className="h-14 w-52" />
+        </div>
 
-  const TimelineSkeleton = () => (
-    <div className="w-full max-w-md mx-auto mt-8 space-y-4">
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-10 w-full" />
+        {/* Timer Controls Skeleton */}
+        <div className="flex items-center justify-center gap-4 h-16 w-full">
+            <Skeleton className="h-14 w-14 rounded-full" />
+            <Skeleton className="min-w-[9rem] h-16 rounded-full" />
+            <Skeleton className="h-14 w-14 rounded-full" />
+        </div>
+        
+        {/* Timeline Skeleton */}
+        <div className="w-full max-w-md mx-auto mt-8 space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-3/4" />
+            <Skeleton className="h-10 w-full" />
+        </div>
     </div>
   );
+
+
+  if (isTimelineLoading) {
+      return (
+          <div className="flex-1 w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
+              <TimerPageSkeleton />
+          </div>
+      )
+  }
 
 
   return (
@@ -256,9 +281,7 @@ export default function Home() {
           />
         </motion.div>
         
-        {isTimelineLoading ? (
-          <TimelineSkeleton />
-        ) : sessions.length > 0 ? (
+        {sessions.length > 0 ? (
           <div className="w-full max-w-md mx-auto mt-8">
             <Timeline sessions={sessions} />
           </div>
@@ -320,5 +343,3 @@ export default function Home() {
     </>
   );
 }
-
-    
