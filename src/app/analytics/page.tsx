@@ -459,7 +459,7 @@ export default function AnalyticsPage() {
                   margin={{
                     top: 5,
                     right: 20,
-                    left: 0,
+                    left: 20,
                     bottom: 5,
                   }}
                 >
