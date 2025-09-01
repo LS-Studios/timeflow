@@ -9,7 +9,7 @@ import { MOCK_WORK_DAYS, MOCK_BREAKDOWN_DATA, MOCK_BREAK_TYPE_DATA } from "@/lib
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Clock, Coffee, PlusCircle, MinusCircle } from "lucide-react";
+import { Search, Clock, Coffee } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
