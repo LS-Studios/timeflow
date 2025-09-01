@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, AtSign, KeyRound, User, Users, AlertTriangle } from "lucide-react";
+import { LogIn, AtSign, KeyRound, User, HardDrive, AlertTriangle } from "lucide-react";
 import { Logo } from "./logo";
 import { useTranslation } from "@/lib/i18n";
 import { Separator } from "./ui/separator";
@@ -149,7 +149,7 @@ export function LoginDialog() {
             {mode === 'login' ? 'Login' : 'Create Account'}
           </Button>
            <Button onClick={handleGuestLogin} className="w-full" variant="outline">
-            <Users className="mr-2 h-4 w-4" />
+            <HardDrive className="mr-2 h-4 w-4" />
             Use without synchronization
           </Button>
         </div>
