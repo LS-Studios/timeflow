@@ -58,7 +58,6 @@ export default function Home() {
   
   const clearTimerState = useCallback(() => {
     setTodaySessions([]);
-    setAllSessions(prev => prev.filter(s => !isToday(new Date(s.start))));
     reset(TIMER_TYPES.stopwatch);
     setIsWorkDayEnded(false);
   }, [reset]);
@@ -75,20 +74,21 @@ export default function Home() {
     setIsLoading(true);
     
     const loadedSessions = storageService.getSessions(settings.mode);
+    setAllSessions(loadedSessions);
+
     const lastSession = loadedSessions.length > 0 ? loadedSessions[loadedSessions.length - 1] : null;
 
     // Auto-reset if the last session was on a previous day and is finished.
     if (lastSession && lastSession.end && isBefore(new Date(lastSession.start), startOfDay(new Date()))) {
       setTodaySessions([]);
-      setAllSessions(loadedSessions);
       reset(TIMER_TYPES.stopwatch);
+      setIsWorkDayEnded(false);
       setIsLoading(false);
       return;
     }
     
     const sessionsForToday = loadedSessions.filter(s => isToday(new Date(s.start)));
     setTodaySessions(sessionsForToday);
-    setAllSessions(loadedSessions);
     
     if (sessionsForToday.length > 0) {
       const lastTodaySession = sessionsForToday[sessionsForToday.length - 1];
@@ -104,13 +104,13 @@ export default function Home() {
       let totalTimeTodayMs = 0;
       sessionsForToday.forEach(session => {
           if (!session.start) return;
+          if (session.type !== 'work') return;
+
           // For ongoing sessions, calculate time until now
           const endTime = session.end ? new Date(session.end).getTime() : Date.now();
           const duration = endTime - new Date(session.start).getTime();
           
-          if (session.type === 'work') {
-            totalTimeTodayMs += duration;
-          }
+          totalTimeTodayMs += duration;
       });
       setTime(Math.floor(totalTimeTodayMs / 1000));
 
@@ -174,7 +174,10 @@ export default function Home() {
     const now = new Date();
     // If resuming from a pause, end the pause session
     if (isPaused) { 
-      updateLastSession({ end: now });
+      const lastSession = allSessions.length > 0 ? allSessions[allSessions.length-1] : null;
+      if (lastSession && lastSession.type === 'pause') {
+         updateLastSession({ end: now });
+      }
     }
     addSession({ type: 'work', start: now, end: null });
     start();
@@ -238,7 +241,7 @@ export default function Home() {
   
   const handleContinueWork = () => {
     setIsWorkDayEnded(false);
-    // User can now press start to resume
+    pause();
   }
 
   const endLearningSession = (completionPercentage: number) => {
@@ -254,6 +257,7 @@ export default function Home() {
     // Don't reset everything, just prepare for a new session
     pause();
     reset(TIMER_TYPES.stopwatch);
+    setTodaySessions([]);
     setEndLearningDialogOpen(false);
   }
 
