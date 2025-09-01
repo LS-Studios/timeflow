@@ -59,6 +59,17 @@ export default function Home() {
     setSessions([]);
     setCurrentSessionStart(null);
   };
+  
+  const handleEnd = () => {
+    console.log("Work day ended");
+    const now = new Date();
+    const lastSession = sessions[sessions.length - 1];
+    if (lastSession && lastSession.type === 'work') {
+      lastSession.end = now;
+    }
+    setSessions([...sessions]);
+    reset(TIMER_TYPES.stopwatch);
+  }
 
   const handleSaveNote = (note: string) => {
     const lastSession = sessions[sessions.length-1];
@@ -85,6 +96,7 @@ export default function Home() {
             onStart={handleStart}
             onPause={handlePause}
             onReset={handleReset}
+            onEnd={handleEnd}
           />
         </motion.div>
         

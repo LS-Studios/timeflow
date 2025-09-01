@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Play, Pause, RotateCcw } from "lucide-react";
+import { Play, Pause, RotateCcw, Flag } from "lucide-react";
 import { useTranslation } from "@/lib/i18n.tsx";
 
 interface TimerControlsProps {
@@ -11,6 +11,7 @@ interface TimerControlsProps {
   onStart: () => void;
   onPause: () => void;
   onReset: () => void;
+  onEnd: () => void;
 }
 
 const buttonVariants = {
@@ -25,6 +26,7 @@ export function TimerControls({
   onStart,
   onPause,
   onReset,
+  onEnd,
 }: TimerControlsProps) {
   const { t } = useTranslation();
   return (
@@ -72,13 +74,22 @@ export function TimerControls({
               onClick={onPause}
               aria-label={t('pause')}
             >
+
               <Pause className="h-8 w-8 mr-2" />
               {t('pause')}
             </Button>
           </motion.div>
         )}
       </AnimatePresence>
-      <div className="w-14"></div>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onEnd}
+        className="h-14 w-14"
+        aria-label={t('endDay')}
+      >
+        <Flag className="h-7 w-7 text-muted-foreground" />
+      </Button>
     </div>
   );
 }
