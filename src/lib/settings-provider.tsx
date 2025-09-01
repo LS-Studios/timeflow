@@ -8,7 +8,6 @@ import { storageService } from './storage';
 import { Language, useTranslation } from './i18n';
 
 type TimerResetCallback = () => void;
-type TimerIsActiveCallback = (isActive: boolean) => void;
 type EndCurrentSessionCallback = () => void;
 
 interface SettingsContextType {
@@ -69,8 +68,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     if(endCurrentSessionCallback) {
         endCurrentSessionCallback();
     }
+    if (timerResetCallback) {
+        timerResetCallback();
+    }
     setSettings(prev => ({ ...prev, mode }));
-  }, [settings.mode, endCurrentSessionCallback]);
+  }, [settings.mode, endCurrentSessionCallback, timerResetCallback]);
 
 
   const setTheme = useCallback((theme: AppTheme) => {

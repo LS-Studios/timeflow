@@ -61,6 +61,13 @@ export default function Home() {
   
   const isTimerIdle = !isActive && !isPaused;
 
+  const isSessionRunning = todaySessions.length > 0 && todaySessions.some(s => s.end === null);
+
+  useEffect(() => {
+    setTimerIsActiveCallback(isSessionRunning);
+  }, [isSessionRunning, setTimerIsActiveCallback]);
+
+
   const clearTimerState = useCallback(() => {
     setTodaySessions([]);
     reset(TIMER_TYPES.stopwatch);
@@ -71,24 +78,23 @@ export default function Home() {
     setTimerResetCallback(clearTimerState);
   }, [clearTimerState, setTimerResetCallback]);
 
-  useEffect(() => {
-    setTimerIsActiveCallback(isTimerIdle);
-  }, [isTimerIdle, setTimerIsActiveCallback]);
 
   // Load sessions from storage on mode change or initial load
   useEffect(() => {
     if (!settingsLoaded) return;
     setIsLoading(true);
-
+    
     const loadedSessions = storageService.getSessions(settings.mode);
     setAllSessions(loadedSessions);
     setAllTopics(storageService.getAllTopics());
 
-    // Auto-reset if the last session was on a previous day.
+    // Auto-reset if the last session was on a previous day and is finished.
     if (settings.mode === 'work' && loadedSessions.length > 0) {
       const lastSession = loadedSessions[loadedSessions.length - 1];
       if (lastSession.end && isBefore(new Date(lastSession.start), startOfDay(new Date()))) {
-        clearTimerState();
+        setTodaySessions([]);
+        reset(TIMER_TYPES.stopwatch);
+        setIsWorkDayEnded(false);
         setIsLoading(false);
         return;
       }
@@ -106,8 +112,7 @@ export default function Home() {
         if (settings.mode === 'work' && lastSession.note === 'Day ended') {
             setIsWorkDayEnded(true);
         } else {
-            // For learning mode, or if work day didn't end with "End Day" button
-            setTodaySessions([]); // Clear timeline for a fresh start
+            setTodaySessions([]);
             setIsWorkDayEnded(false);
         }
     } else if (sessionsForToday.length > 0) {
@@ -270,10 +275,9 @@ export default function Home() {
       if (isActive || isPaused) {
         const currentLastSession = allSessions[allSessions.length-1];
         if (currentLastSession && !currentLastSession.end) {
-            updateLastSession({ end: now });
+            updateLastSession({ end: now, note: 'Day ended' });
         }
       }
-      addSession({ type: 'pause', start: now, end: now, note: 'Day ended' });
       pause();
       setIsWorkDayEnded(true);
     }
@@ -281,8 +285,6 @@ export default function Home() {
   
   const handleContinueWork = () => {
     const now = new Date();
-    // End the "Day ended" pause
-    updateLastSession({ end: now });
     // Start a new work session immediately
     addSession({ type: 'work', start: now, end: null });
     start();
@@ -448,4 +450,3 @@ export default function Home() {
     </>
   );
 }
-
