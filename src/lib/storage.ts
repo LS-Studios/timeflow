@@ -20,9 +20,7 @@ export interface UserAccount {
 interface StorageProvider {
     getUserAccount(userId: string): Promise<UserAccount | null>;
     saveSettings(userId: string, settings: AppSettings): Promise<void>;
-    getSettings(userId: string): Promise<AppSettings | null>; // For initial load
-    onSettingsChange(userId: string, callback: (settings: AppSettings) => void): () => void; // Real-time listener
-    getSessions(userId: string, mode: AppMode): Promise<Session[]>; // For initial load
+    onSettingsChange(userId: string, callback: (settings: AppSettings | null) => void): () => void; // Real-time listener
     onSessionsChange(userId: string, mode: AppMode, callback: (sessions: Session[]) => void): () => void; // Real-time listener
     saveSessions(userId: string, mode: AppMode, sessions: Session[]): Promise<void>;
     getAllTopics(userId: string): Promise<string[]>;
@@ -46,35 +44,13 @@ class FirebaseStorageProvider implements StorageProvider {
     async saveSettings(userId: string, settings: AppSettings): Promise<void> {
         await set(ref(db, `users/${userId}/settings`), settings);
     }
-
-    async getSettings(userId: string): Promise<AppSettings | null> {
-        const snapshot = await get(ref(db, `users/${userId}/settings`));
-        return snapshot.exists() ? snapshot.val() : null;
-    }
-
-    onSettingsChange(userId: string, callback: (settings: AppSettings) => void): () => void {
+    
+    onSettingsChange(userId: string, callback: (settings: AppSettings | null) => void): () => void {
         const settingsRef = ref(db, `users/${userId}/settings`);
         const listener = onValue(settingsRef, (snapshot) => {
-            if (snapshot.exists()) {
-                callback(snapshot.val());
-            }
+            callback(snapshot.exists() ? snapshot.val() : null);
         });
-
-        // Return the unsubscribe function
         return () => off(settingsRef, 'value', listener);
-    }
-    
-    async getSessions(userId: string, mode: AppMode): Promise<Session[]> {
-        const snapshot = await get(ref(db, `users/${userId}/${mode}Sessions`));
-        if (snapshot.exists()) {
-            const sessions = snapshot.val();
-            return sessions.map((s: any) => ({
-                ...s,
-                start: new Date(s.start),
-                end: s.end ? new Date(s.end) : null,
-            }));
-        }
-        return [];
     }
     
     onSessionsChange(userId: string, mode: AppMode, callback: (sessions: Session[]) => void): () => void {
@@ -82,9 +58,10 @@ class FirebaseStorageProvider implements StorageProvider {
         const listener = onValue(sessionsRef, (snapshot) => {
             let sessions: Session[] = [];
             if (snapshot.exists()) {
-                sessions = snapshot.val().map((s: any) => ({
+                const rawSessions = snapshot.val() || [];
+                sessions = rawSessions.map((s: any) => ({
                     ...s,
-                    start: new Date(s.start),
+                    start: s.start ? new Date(s.start) : new Date(),
                     end: s.end ? new Date(s.end) : null,
                 }));
             }
@@ -96,15 +73,17 @@ class FirebaseStorageProvider implements StorageProvider {
     async saveSessions(userId: string, mode: AppMode, sessions: Session[]): Promise<void> {
         const sessionsToStore = sessions.map(s => ({
           ...s,
-          start: s.start.toISOString(),
+          start: s.start ? s.start.toISOString() : new Date().toISOString(),
           end: s.end ? s.end.toISOString() : null
         }));
         await set(ref(db, `users/${userId}/${mode}Sessions`), sessionsToStore);
     }
 
     async getAllTopics(userId: string): Promise<string[]> {
-        const workSessions = await this.getSessions(userId, 'work');
-        const learningSessions = await this.getSessions(userId, 'learning');
+        const [workSessions, learningSessions] = await Promise.all([
+          this.getSessions(userId, 'work'),
+          this.getSessions(userId, 'learning')
+        ]);
         const allSessions = [...workSessions, ...learningSessions];
         const topics = new Set<string>();
         allSessions.forEach(session => {
@@ -113,6 +92,19 @@ class FirebaseStorageProvider implements StorageProvider {
             }
         });
         return Array.from(topics);
+    }
+
+    private async getSessions(userId: string, mode: AppMode): Promise<Session[]> {
+        const snapshot = await get(ref(db, `users/${userId}/${mode}Sessions`));
+        if (snapshot.exists()) {
+            const sessions = snapshot.val() || [];
+            return sessions.map((s: any) => ({
+                ...s,
+                start: s.start ? new Date(s.start) : new Date(),
+                end: s.end ? new Date(s.end) : null,
+            }));
+        }
+        return [];
     }
     
     async addPendingRequest(userId: string, date: string): Promise<void> {
@@ -137,7 +129,6 @@ class FirebaseStorageProvider implements StorageProvider {
         return () => off(requestsRef, 'value', listener);
     }
 
-    // Guest functions are not applicable for the Firebase provider
     getGuestUser(): null { return null; }
     saveGuestUser(): void {}
     clearGuestUser(): void {}
@@ -158,36 +149,53 @@ class LocalStorageProvider implements StorageProvider {
         return Promise.resolve();
     }
 
-    async getSettings(): Promise<AppSettings | null> {
-        if (typeof window === 'undefined') return Promise.resolve(null);
-        const settingsJson = localStorage.getItem(LOCAL_SETTINGS_KEY);
-        return Promise.resolve(settingsJson ? JSON.parse(settingsJson) : null);
-    }
-    
-    onSettingsChange(_: string, callback: (settings: AppSettings) => void): () => void {
-        // Local storage doesn't have a native push-based change listener.
-        // We can simulate it, but for this app's purpose, a one-time get is sufficient.
-        // The settings provider re-reads on user change anyway.
-        this.getSettings().then(settings => {
-            if (settings) callback(settings);
-        });
-        return () => {}; // Return a no-op unsubscribe function
-    }
-    
-    async getSessions(_: string, mode: AppMode): Promise<Session[]> {
-        if (typeof window === 'undefined') return Promise.resolve([]);
-        const key = `${LOCAL_SESSIONS_PREFIX}${mode}`;
-        const sessionsJson = localStorage.getItem(key);
-        if (!sessionsJson) return Promise.resolve([]);
-        const parsed = JSON.parse(sessionsJson);
-        const sessions = parsed.map((s: any) => ({ ...s, start: new Date(s.start), end: s.end ? new Date(s.end) : null }));
-        return Promise.resolve(sessions);
+    onSettingsChange(_: string, callback: (settings: AppSettings | null) => void): () => void {
+        if (typeof window === 'undefined') return () => {};
+
+        let lastKnownState = localStorage.getItem(LOCAL_SETTINGS_KEY);
+        
+        const getSettings = () => {
+            const settingsJson = localStorage.getItem(LOCAL_SETTINGS_KEY);
+            return settingsJson ? JSON.parse(settingsJson) : null;
+        }
+        
+        callback(getSettings());
+        
+        const intervalId = setInterval(() => {
+            const currentState = localStorage.getItem(LOCAL_SETTINGS_KEY);
+            if (currentState !== lastKnownState) {
+                lastKnownState = currentState;
+                callback(currentState ? JSON.parse(currentState) : null);
+            }
+        }, 1000);
+
+        return () => clearInterval(intervalId);
     }
     
     onSessionsChange(userId: string, mode: AppMode, callback: (sessions: Session[]) => void): () => void {
-        // Similar to settings, just get the data once. UI updates are handled internally for local storage.
-        this.getSessions(userId, mode).then(callback);
-        return () => {};
+        if (typeof window === 'undefined') return () => {};
+
+        const key = `${LOCAL_SESSIONS_PREFIX}${mode}`;
+        let lastKnownState = localStorage.getItem(key);
+
+        const getSessions = () => {
+            const sessionsJson = localStorage.getItem(key);
+            if (!sessionsJson) return [];
+            const parsed = JSON.parse(sessionsJson);
+            return parsed.map((s: any) => ({ ...s, start: new Date(s.start), end: s.end ? new Date(s.end) : null }));
+        };
+
+        callback(getSessions());
+
+        const intervalId = setInterval(() => {
+            const currentState = localStorage.getItem(key);
+            if (currentState !== lastKnownState) {
+                lastKnownState = currentState;
+                callback(getSessions());
+            }
+        }, 1000);
+
+        return () => clearInterval(intervalId);
     }
 
     async saveSessions(_: string, mode: AppMode, sessions: Session[]): Promise<void> {
@@ -203,8 +211,11 @@ class LocalStorageProvider implements StorageProvider {
     }
 
     async getAllTopics(userId: string): Promise<string[]> {
-        const workSessions = await this.getSessions(userId, 'work');
-        const learningSessions = await this.getSessions(userId, 'learning');
+        const [workSessions, learningSessions] = await Promise.all([
+          this.getSessions(userId, 'work'),
+          this.getSessions(userId, 'learning')
+        ]);
+
         const allSessions = [...workSessions, ...learningSessions];
         const topics = new Set<string>();
         allSessions.forEach(session => {
@@ -214,8 +225,17 @@ class LocalStorageProvider implements StorageProvider {
         });
         return Promise.resolve(Array.from(topics));
     }
+    
+    private async getSessions(userId: string, mode: AppMode): Promise<Session[]> {
+       if (typeof window === 'undefined') return Promise.resolve([]);
+        const key = `${LOCAL_SESSIONS_PREFIX}${mode}`;
+        const sessionsJson = localStorage.getItem(key);
+        if (!sessionsJson) return Promise.resolve([]);
+        const parsed = JSON.parse(sessionsJson);
+        const sessions = parsed.map((s: any) => ({ ...s, start: new Date(s.start), end: s.end ? new Date(s.end) : null }));
+        return Promise.resolve(sessions);
+    }
 
-    // Request-related functions are not applicable for local storage
     async addPendingRequest(): Promise<void> { return Promise.resolve(); }
     async getPendingRequests(): Promise<string[]> { return Promise.resolve([]); }
     onPendingRequestsChange(_: string, callback: (requests: string[]) => void): () => void {
@@ -268,17 +288,9 @@ class StorageServiceFacade implements StorageProvider {
     saveSettings(userId: string, settings: AppSettings): Promise<void> {
         return this.getProvider(userId).saveSettings(userId, settings);
     }
-
-    getSettings(userId: string): Promise<AppSettings | null> {
-        return this.getProvider(userId).getSettings(userId);
-    }
     
-    onSettingsChange(userId: string, callback: (settings: AppSettings) => void): () => void {
+    onSettingsChange(userId: string, callback: (settings: AppSettings | null) => void): () => void {
         return this.getProvider(userId).onSettingsChange(userId, callback);
-    }
-    
-    getSessions(userId: string, mode: AppMode): Promise<Session[]> {
-        return this.getProvider(userId).getSessions(userId, mode);
     }
     
     onSessionsChange(userId: string, mode: AppMode, callback: (sessions: Session[]) => void): () => void {
@@ -297,7 +309,7 @@ class StorageServiceFacade implements StorageProvider {
         return this.getProvider(userId).addPendingRequest(userId, date);
     }
 
-    getPendingRequests(userId: string): Promise<string[]> {
+    async getPendingRequests(userId: string): Promise<string[]> {
         return this.getProvider(userId).getPendingRequests(userId);
     }
     
@@ -305,7 +317,6 @@ class StorageServiceFacade implements StorageProvider {
         return this.getProvider(userId).onPendingRequestsChange(userId, callback);
     }
 
-    // Guest user management is always local
     getGuestUser() {
         return this.localProvider.getGuestUser();
     }
@@ -319,5 +330,6 @@ class StorageServiceFacade implements StorageProvider {
     }
 }
 
-// Export a singleton instance of the facade
 export const storageService = new StorageServiceFacade();
+
+    
