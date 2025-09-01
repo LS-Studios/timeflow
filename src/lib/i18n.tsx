@@ -37,7 +37,11 @@ const translations: Record<Language, Translations> = {
     areYouSure: 'Are you absolutely sure?',
     deleteAccountConfirmation: 'This action cannot be undone. This will permanently delete your account and remove your data from our servers.',
     cancel: 'Cancel',
-    confirmDelete: 'Yes, delete my account'
+    confirmDelete: 'Yes, delete my account',
+    workGoals: "Work Goals",
+    workGoalsDescription: "Set your daily and weekly work hour goals.",
+    dailyGoal: "Daily Goal (hours)",
+    weeklyGoal: "Weekly Goal (hours)",
   },
   de: {
     pomodoro: 'Pomodoro',
@@ -67,7 +71,11 @@ const translations: Record<Language, Translations> = {
     areYouSure: 'Sind Sie absolut sicher?',
     deleteAccountConfirmation: 'Diese Aktion kann nicht rückgängig gemacht werden. Dadurch wird Ihr Konto dauerhaft gelöscht und Ihre Daten von unseren Servern entfernt.',
     cancel: 'Abbrechen',
-    confirmDelete: 'Ja, mein Konto löschen'
+    confirmDelete: 'Ja, mein Konto löschen',
+    workGoals: "Arbeitsziele",
+    workGoalsDescription: "Legen Sie Ihre täglichen und wöchentlichen Arbeitszeitziele fest.",
+    dailyGoal: "Tagesziel (Stunden)",
+    weeklyGoal: "Wochenziel (Stunden)",
   },
 };
 
@@ -80,7 +88,7 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>('en');
+  const [language, setLanguage] = useState<Language>('de');
 
   const t = (key: string) => {
     return translations[language][key] || translations['en'][key] || key;

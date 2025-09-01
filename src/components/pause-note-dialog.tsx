@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,18 +14,21 @@ import { useTranslation } from "@/lib/i18n.tsx";
 interface PauseNoteDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  onSave: (note: string) => void;
 }
 
 export function PauseNoteDialog({
   isOpen,
   onOpenChange,
+  onSave,
 }: PauseNoteDialogProps) {
   const { t } = useTranslation();
+  const [note, setNote] = useState("");
 
   const handleSave = () => {
-    // Here you would typically save the note to a state or a service
-    console.log("Note saved!");
+    onSave(note);
     onOpenChange(false);
+    setNote("");
   };
 
   return (
@@ -41,6 +45,8 @@ export function PauseNoteDialog({
             id="note"
             placeholder={t('notePlaceholder')}
             className="col-span-3"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
           />
         </div>
         <DialogFooter>

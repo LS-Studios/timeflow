@@ -25,13 +25,35 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 export function SettingsForm() {
   const { theme, setTheme } = useTheme();
   const { t, language, setLanguage } = useTranslation();
 
+  // In a real app, these values would come from a settings context or API
+  const dailyGoal = 8;
+  const weeklyGoal = 40;
+
   return (
     <div className="grid gap-6">
+       <Card>
+        <CardHeader>
+          <CardTitle>{t('workGoals')}</CardTitle>
+          <CardDescription>{t('workGoalsDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="daily-goal">{t('dailyGoal')}</Label>
+            <Input id="daily-goal" type="number" defaultValue={dailyGoal} className="w-24" />
+          </div>
+           <div className="flex items-center justify-between">
+            <Label htmlFor="weekly-goal">{t('weeklyGoal')}</Label>
+            <Input id="weekly-goal" type="number" defaultValue={weeklyGoal} className="w-24" />
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>{t('appearance')}</CardTitle>
