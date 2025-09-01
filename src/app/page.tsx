@@ -64,11 +64,20 @@ export default function Home() {
     console.log("Work day ended");
     const now = new Date();
     const lastSession = sessions[sessions.length - 1];
-    if (lastSession && lastSession.type === 'work') {
-      lastSession.end = now;
+    
+    // Finalize last session if it exists and is ongoing
+    if (lastSession) {
+      if (lastSession.type === 'work' && !lastSession.end) {
+        lastSession.end = now;
+      } else if (lastSession.type === 'pause' && !lastSession.end) {
+        // If ending during a pause, end the pause, but don't start a new work session.
+        lastSession.end = now;
+      }
     }
+    
     setSessions([...sessions]);
     reset(TIMER_TYPES.stopwatch);
+    setCurrentSessionStart(null); // Ensure no new session starts
   }
 
   const handleSaveNote = (note: string) => {

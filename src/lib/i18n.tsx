@@ -48,6 +48,11 @@ const translations: Record<Language, Translations> = {
     breakFreshAir: "Fresh air",
     breakSmoking: "Smoking break",
     breakOther: "Other...",
+    resetConfirmation: "This will reset the timer and clear all recorded sessions for the day. Are you sure?",
+    confirmReset: "Yes, reset",
+    areYouSureEndDay: "End your work day?",
+    endDayConfirmation: "This will finalize your last session and reset the timer. You can't undo this.",
+    confirmEndDay: "Yes, end day",
   },
   de: {
     pomodoro: 'Pomodoro',
@@ -88,6 +93,11 @@ const translations: Record<Language, Translations> = {
     breakFreshAir: "Frische Luft schnappen",
     breakSmoking: "Raucherpause",
     breakOther: "Anderes...",
+    resetConfirmation: "Dadurch wird der Timer zurückgesetzt und alle aufgezeichneten Sitzungen für den Tag werden gelöscht. Sind Sie sicher?",
+    confirmReset: "Ja, zurücksetzen",
+    areYouSureEndDay: "Arbeitstag beenden?",
+    endDayConfirmation: "Dadurch wird Ihre letzte Sitzung abgeschlossen und der Timer zurückgesetzt. Dies kann nicht rückgängig gemacht werden.",
+    confirmEndDay: "Ja, Arbeitstag beenden",
   },
 };
 
