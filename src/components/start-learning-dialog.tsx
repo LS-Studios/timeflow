@@ -61,6 +61,7 @@ export function StartLearningDialog({
       setCurrentObjective("");
       setTopics([]);
       setCurrentTopic("");
+      setPopoverOpen(false);
     }
     onOpenChange(open);
   };
@@ -83,12 +84,12 @@ export function StartLearningDialog({
   };
   
   const handleTopicSelect = useCallback((topic: string) => {
+    setPopoverOpen(false);
     const trimmedTopic = topic.trim();
     if (trimmedTopic && !topics.includes(trimmedTopic)) {
       setTopics(prev => [...prev, trimmedTopic]);
     }
     setCurrentTopic("");
-    setPopoverOpen(false);
     topicInputRef.current?.focus();
   }, [topics]);
 
@@ -96,6 +97,11 @@ export function StartLearningDialog({
     if (event.key === 'Backspace' && event.currentTarget.value === '' && topics.length > 0) {
       event.preventDefault();
       handleRemoveTopic(topics[topics.length - 1]);
+      return;
+    }
+     if(event.key === 'Enter' && currentTopic.trim()) {
+        event.preventDefault();
+        handleTopicSelect(currentTopic.trim());
     }
   };
 
@@ -138,7 +144,7 @@ export function StartLearningDialog({
               <PopoverTrigger asChild>
                 <div
                   className="flex flex-wrap items-center gap-2 rounded-md border border-input p-1 pl-2 bg-transparent cursor-text min-h-11"
-                  onClick={() => setPopoverOpen(true)}
+                  onClick={() => topicInputRef.current?.focus()}
                 >
                   {topics.map((topic) => (
                     <Badge key={topic} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
@@ -162,33 +168,19 @@ export function StartLearningDialog({
                     value={currentTopic}
                     onChange={(e) => {
                         setCurrentTopic(e.target.value)
-                        setPopoverOpen(true)
+                        if(!popoverOpen) setPopoverOpen(true);
                     }}
+                    onFocus={() => setPopoverOpen(true)}
                     onKeyDown={handleTopicInputKeyDown}
                     className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1 min-w-[120px]"
                   />
                 </div>
               </PopoverTrigger>
               <PopoverContent asChild className="w-[--radix-popover-trigger-width] p-0">
-                <Command onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const selectedValue = e.currentTarget.querySelector('[aria-selected="true"]')?.textContent;
-                    if(selectedValue) {
-                      if(selectedValue.startsWith(t('add'))){
-                        handleTopicSelect(currentTopic)
-                      } else {
-                        handleTopicSelect(selectedValue)
-                      }
-                    } else if (currentTopic.trim()) {
-                       handleTopicSelect(currentTopic)
-                    }
-                  }
-                }}>
+                <Command>
                   <CommandInput
                     ref={commandInputRef}
                     placeholder={t('addTopicPlaceholder')}
-                    value={currentTopic}
-                    onValueChange={setCurrentTopic}
                   />
                   <CommandList>
                     {(filteredTopics.length === 0 && !currentTopic.trim()) && <CommandEmpty>{t('addTopicPlaceholder')}</CommandEmpty>}
@@ -205,7 +197,7 @@ export function StartLearningDialog({
                         ))}
                     </CommandGroup>
 
-                    {currentTopic.trim() && !filteredTopics.some(t => t.toLowerCase() === currentTopic.trim().toLowerCase()) && !topics.includes(currentTopic.trim()) && (
+                    {currentTopic.trim() && !allTopics.some(t => t.toLowerCase() === currentTopic.trim().toLowerCase()) && !topics.includes(currentTopic.trim()) && (
                       <CommandGroup>
                           <CommandItem
                             onSelect={() => handleTopicSelect(currentTopic.trim())}
@@ -225,12 +217,12 @@ export function StartLearningDialog({
             <Label htmlFor="objectives">{t('learningObjectives')}</Label>
              {objectives.length > 0 && (
                 <Reorder.Group axis="y" values={objectives} onReorder={setObjectives} className="space-y-2">
-                  {objectives.map((obj, index) => (
+                  {objectives.map((obj) => (
                     <Reorder.Item key={obj} value={obj} className="bg-background rounded-md border shadow-sm">
                       <div className="flex items-center gap-2 group p-2.5">
                         <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab group-hover:opacity-100 opacity-50 transition-opacity" />
                         <span className="flex-1 text-sm">{obj}</span>
-                        <button className="rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 opacity-50 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveObjective(index)}>
+                        <button className="rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 opacity-50 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveObjective(objectives.indexOf(obj))}>
                           <XIcon className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                           <span className="sr-only">Remove {obj}</span>
                         </button>
