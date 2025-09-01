@@ -17,11 +17,11 @@ interface TimelineProps {
 
 function formatTime(date: Date | null) {
   if (!date) return "";
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDuration(start: Date, end: Date) {
-  const diff = (end.getTime() - start.getTime()) / 1000; // in seconds
+  const diff = (new Date(end).getTime() - new Date(start).getTime()) / 1000; // in seconds
   const minutes = Math.floor(diff / 60);
   const seconds = Math.round(diff % 60);
   if (minutes > 0) {
@@ -31,7 +31,7 @@ function formatDuration(start: Date, end: Date) {
 }
 
 function formatOngoingDuration(start: Date, now: number) {
-    const diff = Math.max(0, (now - start.getTime()) / 1000);
+    const diff = Math.max(0, (now - new Date(start).getTime()) / 1000);
     const hours = Math.floor(diff / 3600);
     const minutes = Math.floor((diff % 3600) / 60);
     const seconds = Math.floor(diff % 60);
@@ -81,7 +81,7 @@ export function Timeline({ sessions, isWorkDayEnded = false }: TimelineProps) {
     }, 0);
 
   const remainingWorkMs = (dailyGoalHours * 60 * 60 * 1000) - workDurationSoFar;
-  const projectedEndTime = isWorkModeWithGoal && hasOngoingSession && remainingWorkMs > 0 ? new Date(now + remainingWorkMs) : null;
+  const projectedEndTime = isWorkModeWithGoal && (hasOngoingSession || !isWorkDayEnded) && remainingWorkMs > 0 ? new Date(now + remainingWorkMs) : null;
 
 
   return (
@@ -111,9 +111,9 @@ export function Timeline({ sessions, isWorkDayEnded = false }: TimelineProps) {
                     <div className="flex-1 pl-6">
                       <div className="flex items-center gap-2">
                           {session.type === 'work' ? (settings.mode === 'learning' ? <Brain className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />) : <PauseIcon className="w-4 h-4" />}
-                          <span className="font-semibold">{formatTime(new Date(session.start))}</span>
+                          <span className="font-semibold">{formatTime(session.start)}</span>
                           <span className="text-muted-foreground text-sm">
-                           ({session.end ? formatDuration(new Date(session.start), new Date(session.end)) : formatOngoingDuration(new Date(session.start), now)})
+                           ({session.end ? formatDuration(session.start, session.end) : formatOngoingDuration(session.start, now)})
                           </span>
                       </div>
                       

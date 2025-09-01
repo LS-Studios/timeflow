@@ -156,7 +156,7 @@ export default function Home() {
     setTodaySessions(prev => [...prev, newSession]);
   };
 
-  const updateLastSession = (updates: Partial<Session>) => {
+  const updateLastSession = useCallback((updates: Partial<Session>) => {
     setAllSessions(prevAll => {
         if (prevAll.length === 0) return prevAll;
         const newAllSessions = [...prevAll];
@@ -175,7 +175,7 @@ export default function Home() {
 
         return newAllSessions;
     });
-  };
+  }, []);
   
   const handleGenericStart = () => {
     if (settings.mode === 'learning' && !isPaused && todaySessions.every(s => s.end !== null)) {
@@ -266,7 +266,8 @@ export default function Home() {
         const newAll = [...prevAll];
         let lastLearningIndex = -1;
         for(let i = newAll.length - 1; i >= 0; i--) {
-            if(newAll[i].learningGoal && !newAll[i].end) {
+            // Find the last, un-ended learning session to apply the completion rate to.
+            if(newAll[i].learningGoal && !newAll[i].completionPercentage && !newAll[i].end) {
                 lastLearningIndex = i;
                 break;
             }
@@ -278,6 +279,12 @@ export default function Home() {
               completionPercentage,
               end: new Date()
             };
+        } else {
+            // If no active session, might need to update the very last one if it was just completed.
+             const veryLastSession = newAll[newAll.length - 1];
+             if(veryLastSession?.learningGoal && veryLastSession.end) {
+                 newAll[newAll.length - 1] = { ...veryLastSession, completionPercentage };
+             }
         }
         return newAll;
      });
