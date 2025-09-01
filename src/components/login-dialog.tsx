@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,7 +112,7 @@ export function LoginDialog({ onLogin }: LoginDialogProps) {
             </div>
           </div>
         </div>
-        <DialogFooter className="flex-col gap-2">
+        <div className="flex flex-col gap-2">
           <Button onClick={handleSubmit} className="w-full">
             <LogIn className="mr-2 h-4 w-4" />
             {mode === 'login' ? 'Login' : 'Create Account'}
@@ -122,7 +121,7 @@ export function LoginDialog({ onLogin }: LoginDialogProps) {
             <Users className="mr-2 h-4 w-4" />
             Use without synchronization
           </Button>
-        </DialogFooter>
+        </div>
         
         <Separator className="mt-4" />
         
