@@ -11,11 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/lib/i18n.tsx";
-import { Brain, X as XIcon, Plus, GripVertical, Check, ListOrdered } from "lucide-react";
+import { Brain, X as XIcon, Plus, GripVertical, Check } from "lucide-react";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
 import { Reorder } from "framer-motion";
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
@@ -41,12 +41,12 @@ export function StartLearningDialog({
   const [inputValue, setInputValue] = useState("");
   const [popoverOpen, setPopoverOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
-  // This effect ensures that the input field is refocused after a topic is added.
   useEffect(() => {
-    inputRef.current?.focus();
-  }, [selectedTopics]);
+    if (isOpen) {
+        inputRef.current?.focus();
+    }
+  }, [isOpen, selectedTopics]);
 
   const handleStart = () => {
     if (mainGoal.trim()) {
@@ -80,18 +80,19 @@ export function StartLearningDialog({
     setObjectives(objectives.filter((_, index) => index !== indexToRemove));
   };
 
-  const handleRemoveTopic = (topicToRemove: string) => {
-    setSelectedTopics(selectedTopics.filter((topic) => topic !== topicToRemove));
-  };
+  const handleRemoveTopic = useCallback((topicToRemove: string) => {
+    setSelectedTopics(current => current.filter((topic) => topic !== topicToRemove));
+    inputRef.current?.focus();
+  }, []);
   
   const handleTopicSelect = useCallback((topic: string) => {
+    setInputValue("");
     const trimmedTopic = topic.trim();
     if (trimmedTopic && !selectedTopics.includes(trimmedTopic)) {
       setSelectedTopics(prev => [...prev, trimmedTopic]);
     }
-    setInputValue("");
     setPopoverOpen(false);
-    inputRef.current?.focus();
+    // Focus gets handled by the useEffect
   }, [selectedTopics]);
 
   const handleTopicInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -132,7 +133,6 @@ export function StartLearningDialog({
              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
               <PopoverTrigger asChild>
                   <div
-                    ref={containerRef}
                     className="flex flex-wrap items-center gap-2 rounded-md border border-input p-2 bg-transparent cursor-text min-h-11"
                     onClick={() => inputRef.current?.focus()}
                   >
@@ -151,21 +151,19 @@ export function StartLearningDialog({
                         </button>
                       </Badge>
                     ))}
-                     <input
-                        ref={inputRef}
-                        type="text"
-                        placeholder={selectedTopics.length > 0 ? '' : t('addTopicPlaceholder')}
-                        value={inputValue}
-                        onChange={(e) => {
-                          setInputValue(e.target.value);
-                          if (!popoverOpen) {
-                            setPopoverOpen(true);
-                          }
-                        }}
-                        onKeyDown={handleTopicInputKeyDown}
-                        onFocus={() => setPopoverOpen(true)}
-                        className="bg-transparent border-0 shadow-none h-6 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1 min-w-[120px] text-sm"
-                      />
+                    <Command asChild>
+                       <div cmdk-input-wrapper="" className="flex-1 min-w-[120px]">
+                         <CommandInput
+                            ref={inputRef}
+                            placeholder={selectedTopics.length > 0 ? '' : t('addTopicPlaceholder')}
+                            value={inputValue}
+                            onValueChange={setInputValue}
+                            onKeyDown={handleTopicInputKeyDown}
+                            onFocus={() => setPopoverOpen(true)}
+                            className="bg-transparent border-0 shadow-none h-6 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
+                          />
+                        </div>
+                     </Command>
                   </div>
               </PopoverTrigger>
               <PopoverContent asChild className="w-[--radix-popover-trigger-width] p-0">
@@ -239,3 +237,5 @@ export function StartLearningDialog({
     </Dialog>
   );
 }
+
+    
