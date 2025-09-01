@@ -72,26 +72,23 @@ export default function Home() {
   }, [clearTimerState, setTimerResetCallback]);
 
   useEffect(() => {
-    setTimerIsActiveCallback(!isTimerIdle);
+    setTimerIsActiveCallback(isTimerIdle);
   }, [isTimerIdle, setTimerIsActiveCallback]);
-
 
   // Load sessions from storage on mode change or initial load
   useEffect(() => {
     if (!settingsLoaded) return;
     setIsLoading(true);
-    
+
     const loadedSessions = storageService.getSessions(settings.mode);
     setAllSessions(loadedSessions);
     setAllTopics(storageService.getAllTopics());
 
-    // Auto-reset if the last session was on a previous day and is finished.
+    // Auto-reset if the last session was on a previous day.
     if (settings.mode === 'work' && loadedSessions.length > 0) {
       const lastSession = loadedSessions[loadedSessions.length - 1];
       if (lastSession.end && isBefore(new Date(lastSession.start), startOfDay(new Date()))) {
-        setTodaySessions([]);
-        reset(TIMER_TYPES.stopwatch);
-        setIsWorkDayEnded(false);
+        clearTimerState();
         setIsLoading(false);
         return;
       }
@@ -100,47 +97,49 @@ export default function Home() {
     const sessionsForToday = loadedSessions.filter(s => isToday(new Date(s.start)));
     setTodaySessions(sessionsForToday);
     
-    if (sessionsForToday.length > 0) {
-      const lastTodaySession = sessionsForToday[sessionsForToday.length - 1];
+    const allTodaySessionsAreFinished = sessionsForToday.length > 0 && sessionsForToday.every(s => s.end !== null);
 
-      // Check if work day should be considered "ended"
-      const allSessionsEnded = sessionsForToday.every(s => s.end !== null);
-      if (settings.mode === 'work' && allSessionsEnded && lastTodaySession && lastTodaySession.note === 'Day ended') {
-         setIsWorkDayEnded(true);
-      } else {
-        setIsWorkDayEnded(false);
-      }
-      
-      let totalTimeTodayMs = 0;
-      sessionsForToday.forEach(session => {
-          if (!session.start) return;
-          if (session.type !== 'work') return;
-
-          // For ongoing sessions, calculate time until now
-          const endTime = session.end ? new Date(session.end).getTime() : Date.now();
-          const duration = endTime - new Date(session.start).getTime();
-          
-          totalTimeTodayMs += duration;
-      });
-      setTime(Math.floor(totalTimeTodayMs / 1000));
-
-      if(lastTodaySession && !lastTodaySession.end) {
-        if (lastTodaySession.type === 'work') {
-          start();
-        } else { // It's a pause
-          pause();
+    if (allTodaySessionsAreFinished) {
+        // Day is over, show the appropriate end screen or a clean slate.
+        reset(TIMER_TYPES.stopwatch);
+        const lastSession = sessionsForToday[sessionsForToday.length - 1];
+        if (settings.mode === 'work' && lastSession.note === 'Day ended') {
+            setIsWorkDayEnded(true);
+        } else {
+            // For learning mode, or if work day didn't end with "End Day" button
+            setTodaySessions([]); // Clear timeline for a fresh start
+            setIsWorkDayEnded(false);
         }
-      } else { // No active session
-        pause();
-      }
+    } else if (sessionsForToday.length > 0) {
+        // Day is ongoing, restore state.
+        setIsWorkDayEnded(false);
+        const lastTodaySession = sessionsForToday[sessionsForToday.length - 1];
+
+        let totalTimeTodayMs = 0;
+        sessionsForToday.forEach(session => {
+            if (!session.start || session.type !== 'work') return;
+            const endTime = session.end ? new Date(session.end).getTime() : Date.now();
+            totalTimeTodayMs += (endTime - new Date(session.start).getTime());
+        });
+        setTime(Math.floor(totalTimeTodayMs / 1000));
+
+        if (lastTodaySession && !lastTodaySession.end) {
+            if (lastTodaySession.type === 'work') {
+                start();
+            } else { // It's a pause
+                pause();
+            }
+        } else { // Should not happen if not all sessions are finished, but as a fallback
+            pause();
+        }
     } else {
-      // No sessions for today, reset timer
-      reset(TIMER_TYPES.stopwatch);
-      setIsWorkDayEnded(false);
+        // No sessions for today, start fresh.
+        clearTimerState();
     }
     
     setIsLoading(false);
-  }, [settingsLoaded, settings.mode, setTime, start, pause, reset]);
+  }, [settingsLoaded, settings.mode, setTime, start, pause, reset, clearTimerState]);
+
 
   // Persist all sessions whenever they change for the current mode
   useEffect(() => {
@@ -178,7 +177,7 @@ export default function Home() {
   }, []);
   
   const handleGenericStart = () => {
-    if (settings.mode === 'learning' && !isPaused && todaySessions.every(s => s.end !== null)) {
+    if (settings.mode === 'learning' && isTimerIdle && todaySessions.every(s => s.end !== null)) {
       setStartLearningDialogOpen(true);
       return;
     }
@@ -233,9 +232,7 @@ export default function Home() {
     // Keep past history, only clear today's sessions for the current mode
     const pastSessions = allSessions.filter(s => !isToday(new Date(s.start)));
     setAllSessions(pastSessions);
-    setTodaySessions([]);
-    reset(TIMER_TYPES.stopwatch);
-    setIsWorkDayEnded(false);
+    clearTimerState();
     setResetDialogOpen(false);
   }
 
@@ -258,25 +255,19 @@ export default function Home() {
   const handleEnd = () => {
     const now = new Date();
     
-    // Find the first learning session of the day to get the objectives.
-    // This is more robust than looking at the last one, especially after pauses.
     const initialLearningSession = todaySessions.find(s => s.type === 'work' && s.learningGoal);
     
     if (settings.mode === 'learning' && initialLearningSession) {
-      // Pass this initial session to the dialog
       setSessionToEnd(initialLearningSession);
       setEndLearningDialogOpen(true);
-      // Immediately pause the timer, but DON'T end the session in the state yet.
-      // A temporary pause session will be added to signal the "ending" phase.
       const currentLastSession = allSessions[allSessions.length-1];
       if (currentLastSession && !currentLastSession.end) {
           updateLastSession({ end: now });
       }
       addSession({ type: 'pause', start: now, end: null, note: 'Ending session...' });
       pause(); 
-    } else {
+    } else { // Work mode
       if (isActive || isPaused) {
-        // End any active session (work or pause)
         const currentLastSession = allSessions[allSessions.length-1];
         if (currentLastSession && !currentLastSession.end) {
             updateLastSession({ end: now });
@@ -301,31 +292,29 @@ export default function Home() {
   const endLearningSession = (updatedObjectives: LearningObjective[], totalCompletion: number) => {
     const now = new Date();
     if (!sessionToEnd) return;
-  
+
     // Create a new, fully updated array for all sessions
     const finalAllSessions = allSessions.map(session => {
-      let updatedSession = { ...session };
-      
-      // Update the main learning session with completion data
-      if (session.id === sessionToEnd.id) {
-        updatedSession.learningObjectives = updatedObjectives;
-        updatedSession.completionPercentage = totalCompletion;
-      }
-      
-      // Ensure every session for today has a definitive end time
-      if (isToday(new Date(session.start)) && !session.end) {
-        updatedSession.end = now;
-      }
-      
-      return updatedSession;
+        let updatedSession = { ...session };
+        
+        // Find all work sessions related to this goal for today
+        if (isToday(new Date(session.start)) && session.learningGoal === sessionToEnd.learningGoal) {
+            updatedSession.learningObjectives = updatedObjectives;
+            updatedSession.completionPercentage = totalCompletion;
+        }
+        
+        // Ensure every session for today has a definitive end time
+        if (isToday(new Date(session.start)) && !session.end) {
+            updatedSession.end = now;
+        }
+        
+        return updatedSession;
     });
-  
-    // Update all states in a batch
+
     setAllSessions(finalAllSessions);
-    // After ending a learning day, today's sessions should be empty for the next start
-    setTodaySessions([]);
+    setTodaySessions([]); // Clear timeline for the next start
     setAllTopics(storageService.getAllTopics());
-  
+
     // Reset UI for the next session
     reset(TIMER_TYPES.stopwatch);
     pause(); 
@@ -459,3 +448,4 @@ export default function Home() {
     </>
   );
 }
+
