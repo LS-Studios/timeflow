@@ -59,7 +59,7 @@ export function PauseNoteDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[425px] mx-4">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{t('addPauseNote')}</DialogTitle>
           <DialogDescription>
