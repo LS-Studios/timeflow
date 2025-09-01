@@ -36,7 +36,7 @@ export function ProfileDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-xs">
         <DialogHeader className="items-center text-center">
             <Avatar className="h-20 w-20 mb-4">
                 <AvatarImage src={`https://i.pravatar.cc/150?u=${user.email}`} />
@@ -46,11 +46,7 @@ export function ProfileDialog({
             <DialogDescription>{user.email}</DialogDescription>
         </DialogHeader>
 
-        <DialogFooter className="flex-col sm:justify-stretch gap-2 pt-4">
-           <Button variant="outline" onClick={onLogout} className="w-full">
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Switch Profile
-            </Button>
+        <DialogFooter className="pt-4">
             <Button variant="destructive" onClick={onLogout} className="w-full">
               <LogOut className="mr-2 h-4 w-4" />
               Log Out

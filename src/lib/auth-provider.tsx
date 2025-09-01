@@ -65,9 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
   
   const loginAsGuest = useCallback(() => {
-    const guestUser = { name: 'Guest User', email: `guest-${Date.now()}@local.com` };
+    const guestUser = { name: 'Guest User', email: 'guest@local.storage' };
     setUser(guestUser);
-    // Don't save guest user to permanent logged-in state
+    storageService.setLoggedInUser(guestUser);
   }, []);
 
   const logout = useCallback(() => {
