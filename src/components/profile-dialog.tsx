@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, User, RefreshCw } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 interface ProfileDialogProps {
   isOpen: boolean;
@@ -45,7 +46,7 @@ export function ProfileDialog({
             <DialogDescription>{user.email}</DialogDescription>
         </DialogHeader>
 
-        <DialogFooter className="flex-col gap-2 pt-4">
+        <DialogFooter className="flex-col sm:justify-stretch gap-2 pt-4">
            <Button variant="outline" onClick={onLogout} className="w-full">
               <RefreshCw className="mr-2 h-4 w-4" />
               Switch Profile
