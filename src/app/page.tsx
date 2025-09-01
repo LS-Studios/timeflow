@@ -241,14 +241,6 @@ export default function Home() {
     });
   };
   
-  useEffect(() => {
-    if (isTimelineLoading) return;
-    reset(TIMER_TYPES.stopwatch);
-    setSessions([]);
-    const todayKey = format(new Date(), 'yyyy-MM-dd');
-    storageService.clearDayHistory(todayKey);
-  }, [settings.mode, reset, isTimelineLoading]);
-  
   const isLoading = !settingsLoaded || isTimelineLoading;
 
 
@@ -361,5 +353,3 @@ export default function Home() {
     </>
   );
 }
-
-    
