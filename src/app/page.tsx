@@ -51,14 +51,37 @@ export default function Home() {
   
   const { t } = useTranslation();
 
-  // Load sessions from storage on mount
+  // Helper function to calculate durations from sessions
+  const calculateDurations = (sessionList: Session[]) => {
+      let newWorkTime = 0;
+      let newPauseTime = 0;
+
+      sessionList.forEach(session => {
+        if (!session.start) return;
+        // If a session is ongoing, its end time is now
+        const endTime = session.end || new Date();
+        const duration = endTime.getTime() - new Date(session.start).getTime();
+        
+        if (session.type === 'work') {
+          newWorkTime += duration;
+        } else {
+          newPauseTime += duration;
+        }
+      });
+      
+      const newCurrentTime = settings.mode === 'work' ? newWorkTime : newWorkTime + newPauseTime;
+
+      return { newWorkTime, newPauseTime, newCurrentTime };
+  };
+
+  // Load sessions from storage on mount and restore timer state
   useEffect(() => {
     if (!settingsLoaded) return;
     setIsTimelineLoading(true);
     const todayKey = format(new Date(), 'yyyy-MM-dd');
     const loadedHistory = storageService.getDayHistory(todayKey);
-    if (loadedHistory) {
-      // Convert string dates back to Date objects
+    
+    if (loadedHistory && loadedHistory.sessions.length > 0) {
       const parsedSessions = loadedHistory.sessions.map(s => ({
         ...s,
         start: new Date(s.start),
@@ -66,24 +89,38 @@ export default function Home() {
       }));
       setSessions(parsedSessions);
       
-      // Recalculate current time
+      // Recalculate current time based on stored sessions
       const { newCurrentTime } = calculateDurations(parsedSessions);
       setTime(Math.floor(newCurrentTime / 1000));
+      
+      // Restore timer state (isActive, isPaused)
+      const lastSession = parsedSessions[parsedSessions.length - 1];
+      if (lastSession && !lastSession.end) {
+        if (lastSession.type === 'work') {
+          start();
+        } else if (lastSession.type === 'pause') {
+          pause();
+        }
+      }
     }
     setIsTimelineLoading(false);
-  }, [setTime, settingsLoaded]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsLoaded]);
 
   // Persist sessions whenever they change
   useEffect(() => {
     if (isTimelineLoading) return; // Don't save during initial load
+    
+    // Only save if there are sessions or if the day was cleared
     if (sessions.length > 0) {
-      const todayKey = format(new Date(), 'yyyy-MM-dd');
-      storageService.saveDayHistory({
-        id: todayKey,
-        date: todayKey,
-        sessions: sessions,
-      });
+        const todayKey = format(new Date(), 'yyyy-MM-dd');
+        storageService.saveDayHistory({
+            id: todayKey,
+            date: todayKey,
+            sessions: sessions,
+        });
     }
+
   }, [sessions, isTimelineLoading]);
 
 
@@ -125,15 +162,17 @@ export default function Home() {
   }
 
   const handlePause = () => {
-    pause();
     const now = new Date();
-    let newSessions = [...sessions];
-    const lastSession = newSessions[newSessions.length - 1];
-    if (lastSession && lastSession.type === 'work') {
-      lastSession.end = now;
-    }
-    newSessions = [...newSessions, { type: 'pause', start: now, end: null, note: '' }];
-    setSessions(newSessions);
+    // Use a functional update to ensure we have the latest state
+    setSessions(prevSessions => {
+        let newSessions = [...prevSessions];
+        const lastSession = newSessions[newSessions.length - 1];
+        if (lastSession && lastSession.type === 'work') {
+            lastSession.end = now;
+        }
+        return [...newSessions, { type: 'pause', start: now, end: null, note: '' }];
+    });
+    pause();
     setPauseNoteDialogOpen(true);
   };
   
@@ -192,12 +231,14 @@ export default function Home() {
   }
 
   const handleSaveNote = (note: string) => {
-    let newSessions = [...sessions];
-    const lastSession = newSessions[newSessions.length-1];
-    if (lastSession && lastSession.type === 'pause') {
-      lastSession.note = note;
-      setSessions(newSessions);
-    }
+    setSessions(prevSessions => {
+        let newSessions = [...prevSessions];
+        const lastSession = newSessions[newSessions.length-1];
+        if (lastSession && lastSession.type === 'pause') {
+        lastSession.note = note;
+        }
+        return newSessions;
+    });
   };
   
   // Reset sessions if mode changes
@@ -208,27 +249,6 @@ export default function Home() {
     const todayKey = format(new Date(), 'yyyy-MM-dd');
     storageService.clearDayHistory(todayKey);
   }, [settings.mode, reset, isTimelineLoading]);
-
-  // Helper function to calculate durations from sessions
-  const calculateDurations = (sessionList: Session[]) => {
-      let newWorkTime = 0;
-      let newPauseTime = 0;
-
-      sessionList.forEach(session => {
-        if (!session.start) return;
-        const endTime = session.end || new Date();
-        const duration = endTime.getTime() - session.start.getTime();
-        if (session.type === 'work') {
-          newWorkTime += duration;
-        } else {
-          newPauseTime += duration;
-        }
-      });
-      
-      const newCurrentTime = settings.mode === 'work' ? newWorkTime : newWorkTime + newPauseTime;
-
-      return { newWorkTime, newPauseTime, newCurrentTime };
-  };
   
   const isLoading = !settingsLoaded || isTimelineLoading;
 
@@ -342,3 +362,6 @@ export default function Home() {
     </>
   );
 }
+
+
+      
