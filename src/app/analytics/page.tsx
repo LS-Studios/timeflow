@@ -2,7 +2,7 @@
 
 import { useTranslation } from "@/lib/i18n";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, YAxis, Cell } from "recharts";
 import { MOCK_WORK_DAYS, MOCK_BREAKDOWN_DATA, MOCK_BREAK_TYPE_DATA } from "@/lib/mock-data";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -60,6 +60,10 @@ export default function AnalyticsPage() {
                       <Cell key={`cell-${index}`} fill={workBreakdownChartConfig[entry.type as keyof typeof workBreakdownChartConfig].color} />
                     ))}
                   </Pie>
+                   <ChartLegend
+                    content={<ChartLegendContent nameKey="type" />}
+                    className="-translate-y-[2rem] flex-wrap gap-2 [&>*]:basis-1/4 [&>*]:justify-center"
+                  />
                 </PieChart>
               </ChartContainer>
           </CardContent>
