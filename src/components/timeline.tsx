@@ -86,6 +86,10 @@ export function Timeline({ sessions, isWorkDayEnded = false }: TimelineProps) {
   const isWorkSessionActive = sessions.some(s => s.type === 'work' && !s.end);
   const showProjectedEndTime = isWorkModeWithGoal && isWorkSessionActive && !isWorkDayEnded && remainingWorkMs > 0;
   const projectedEndTime = showProjectedEndTime ? new Date(now + remainingWorkMs) : null;
+  
+  // Don't show the "Day ended" pause session while the day is considered ended.
+  // It only becomes relevant history if the user continues working.
+  const sessionsToDisplay = isWorkDayEnded ? sessions.slice(0, -1) : sessions;
 
 
   return (
@@ -93,7 +97,7 @@ export function Timeline({ sessions, isWorkDayEnded = false }: TimelineProps) {
        <div className="absolute top-0 left-0 h-full w-px bg-border"></div>
       <AnimatePresence initial={false}>
         <div className="space-y-8">
-            {sessions.map((session) => {
+            {sessionsToDisplay.map((session) => {
               const PauseIcon = getIconForNote(session.note, t);
               return (
                 <motion.div
