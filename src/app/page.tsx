@@ -161,11 +161,10 @@ export default function Home() {
         setTodaySessions(prevToday => {
             if (prevToday.length === 0) return prevToday;
             const newTodaySessions = [...prevToday];
-            const todayIndex = newTodaySessions.length - 1;
-            
-            // Ensure we are updating the correct session by ID
-            if(newTodaySessions[todayIndex].id === newAllSessions[lastSessionIndex].id) {
-               newTodaySessions[todayIndex] = newAllSessions[lastSessionIndex];
+            const lastSessionTodayIndex = newTodaySessions.map(s => s.id).lastIndexOf(newAllSessions[lastSessionIndex].id);
+
+            if(lastSessionTodayIndex !== -1) {
+               newTodaySessions[lastSessionTodayIndex] = newAllSessions[lastSessionIndex];
                return newTodaySessions;
             }
             return prevToday;
@@ -193,7 +192,7 @@ export default function Home() {
     // For learning mode, carry over the goal from the previous session if resuming
     const newSessionData: Omit<Session, 'id'> = { type: 'work', start: now, end: null };
     if (settings.mode === 'learning') {
-       const lastLearningSession = [...todaySessions].reverse().find(s => s.type === 'work' && s.learningGoal);
+       const lastLearningSession = [...allSessions].reverse().find(s => s.type === 'work' && s.learningGoal);
        if (lastLearningSession) {
           newSessionData.learningGoal = lastLearningSession.learningGoal;
           newSessionData.learningObjectives = lastLearningSession.learningObjectives;
@@ -264,7 +263,14 @@ export default function Home() {
       // Pass this initial session to the dialog
       setSessionToEnd(initialLearningSession);
       setEndLearningDialogOpen(true);
-      pause(); // Immediately pause the timer, but DON'T end the session in the state yet.
+      // Immediately pause the timer, but DON'T end the session in the state yet.
+      // A temporary pause session will be added to signal the "ending" phase.
+      const currentLastSession = allSessions[allSessions.length-1];
+      if (currentLastSession && !currentLastSession.end) {
+          updateLastSession({ end: now });
+      }
+      addSession({ type: 'pause', start: now, end: null, note: 'Ending session...' });
+      pause(); 
     } else {
       if (isActive || isPaused) {
         // End any active session (work or pause)
@@ -409,7 +415,7 @@ export default function Home() {
       />
       <StartLearningDialog
         isOpen={isStartLearningDialogOpen}
-        onOpen-change={setStartLearningDialogOpen}
+        onOpenChange={setStartLearningDialogOpen}
         onStart={handleStartLearning}
         allTopics={allTopics}
       />
@@ -419,8 +425,15 @@ export default function Home() {
           if (!isOpen) {
              setSessionToEnd(null);
              // If dialog is closed without saving, and there's an active timer, it should continue.
-             // We check for isPaused because handleEnd pauses the timer.
-             if (isPaused && !isActive && allSessions[allSessions.length-1]?.type === 'work') start(); 
+             // We check for the temporary 'Ending session...' note.
+             const lastSession = allSessions[allSessions.length - 1];
+             if (lastSession?.note === 'Ending session...') {
+                // Remove the temporary pause and resume the previous work session
+                const previousWorkSession = allSessions[allSessions.length - 2];
+                setAllSessions(prev => prev.slice(0, -1)); // remove pause
+                updateLastSession({ end: null }); // reopen work session
+                start();
+             }
           }
           setEndLearningDialogOpen(isOpen);
         }}
@@ -447,7 +460,3 @@ export default function Home() {
     </>
   );
 }
-
-    
-
-    
