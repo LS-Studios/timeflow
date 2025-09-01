@@ -1,3 +1,5 @@
+"use client";
+
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -19,8 +21,6 @@ const formatTime = (time: number) => {
 };
 
 export function TimerDisplay({ time, isActive, isPaused }: TimerDisplayProps) {
-  const isRunning = isActive && !isPaused;
-
   return (
     <div className="relative w-80 h-80 sm:w-96 sm:h-96 flex items-center justify-center">
       <motion.svg
@@ -42,9 +42,9 @@ export function TimerDisplay({ time, isActive, isPaused }: TimerDisplayProps) {
           r={95}
           strokeWidth="8"
           className={cn({
-            "stroke-primary": isRunning || isPaused,
+            "stroke-primary animate-pulse": isActive,
+            "stroke-primary": isPaused,
             "stroke-secondary": !isActive && !isPaused,
-            "animate-pulse": isRunning,
           })}
           fill="transparent"
         />
