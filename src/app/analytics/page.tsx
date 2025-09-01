@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-provider";
+import { useAuth } from "@/lib/auth-provider";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, YAxis, Cell, LineChart, Line, Label } from "recharts";
@@ -64,6 +65,7 @@ const completionChartConfig = {
 export default function AnalyticsPage() {
   const { t, language } = useTranslation();
   const { settings } = useSettings();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [groupedHistory, setGroupedHistory] = useState<DayHistory[]>([]);
@@ -77,9 +79,11 @@ export default function AnalyticsPage() {
 
   const isInOrganization = !!settings.organizationName;
 
-  const refreshData = useCallback(() => {
+  const refreshData = useCallback(async () => {
+    if (!user) return;
+    
     const mode = settings.mode;
-    const relevantSessions = storageService.getSessions(mode);
+    const relevantSessions = await storageService.getSessions(user.uid, mode);
 
     const groupedByDay: { [key: string]: Session[] } = {};
     relevantSessions.forEach(session => {
@@ -97,53 +101,60 @@ export default function AnalyticsPage() {
     })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
     setGroupedHistory(finalHistory);
-    setAllTopics(storageService.getAllTopics());
-    setPendingRequests(storageService.getPendingRequests());
+    const topics = await storageService.getAllTopics(user.uid);
+    setAllTopics(topics);
+    const requests = await storageService.getPendingRequests(user.uid);
+    setPendingRequests(requests);
     setIsLoading(false);
-  }, [settings.mode]);
+  }, [settings.mode, user]);
   
   useEffect(() => {
-    if (!settings) return;
+    if (!settings || !user) return;
     setIsLoading(true);
     refreshData();
-  }, [settings.mode, settings, refreshData]);
+  }, [settings, user, refreshData]);
 
   const updateAndRefresh = (newSessions: Session[], mode: 'work' | 'learning') => {
-      storageService.saveSessions(mode, newSessions);
+      if (!user) return;
+      storageService.saveSessions(user.uid, mode, newSessions);
       refreshData();
   }
   
   const handleUpdateLearningSession = (updatedSession: Session) => {
-    const allSessions = storageService.getSessions('learning');
-    const sessionIndex = allSessions.findIndex(s => s.id === updatedSession.id);
-    
-    if (sessionIndex > -1) {
-      allSessions[sessionIndex] = updatedSession;
-      updateAndRefresh(allSessions, 'learning');
-      setSelectedSession(updatedSession);
-    }
-    
-    setSessionToEdit(null);
+    if (!user) return;
+    storageService.getSessions(user.uid, 'learning').then(allSessions => {
+        const sessionIndex = allSessions.findIndex(s => s.id === updatedSession.id);
+        
+        if (sessionIndex > -1) {
+          allSessions[sessionIndex] = updatedSession;
+          updateAndRefresh(allSessions, 'learning');
+          setSelectedSession(updatedSession);
+        }
+        
+        setSessionToEdit(null);
+    });
   }
 
 
   const handleSaveDayChanges = (pendingSessions: Session[]) => {
-    if (!dayToEdit) return;
+    if (!dayToEdit || !user) return;
 
-    // Get all work sessions EXCEPT for the day being edited
-    let allSessions = storageService.getSessions('work')
-      .filter(s => format(new Date(s.start), 'yyyy-MM-dd') !== dayToEdit.date);
+    storageService.getSessions(user.uid, 'work').then(allWorkSessions => {
+        // Get all work sessions EXCEPT for the day being edited
+        let filteredSessions = allWorkSessions
+            .filter(s => format(new Date(s.start), 'yyyy-MM-dd') !== dayToEdit.date);
 
-    // Add the updated sessions for the edited day
-    const updatedSessions = [...allSessions, ...pendingSessions];
-    
-    updateAndRefresh(updatedSessions, 'work');
-    setDayToEdit(null);
+        // Add the updated sessions for the edited day
+        const updatedSessions = [...filteredSessions, ...pendingSessions];
+        
+        updateAndRefresh(updatedSessions, 'work');
+        setDayToEdit(null);
+    });
   }
 
-  const handleRequestChange = (pendingSessions: Session[], reason: string) => {
-     if (!dayToEdit) return;
-     storageService.addPendingRequest(dayToEdit.date);
+  const handleRequestChange = async (pendingSessions: Session[], reason: string) => {
+     if (!dayToEdit || !user) return;
+     await storageService.addPendingRequest(user.uid, dayToEdit.date);
      setPendingRequests(prev => [...prev, dayToEdit!.date]);
 
      console.log("Requesting change for day:", dayToEdit.date);

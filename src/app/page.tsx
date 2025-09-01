@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useTimer } from "@/hooks/use-timer";
 import { useSettings } from "@/lib/settings-provider";
+import { useAuth } from "@/lib/auth-provider";
 import { TimerDisplay } from "@/components/timer-display";
 import { TimerControls } from "@/components/timer-controls";
 import { PauseNoteDialog } from "@/components/pause-note-dialog";
@@ -44,6 +45,7 @@ export default function Home() {
   } = useTimer(TIMER_TYPES.stopwatch);
   
   const { settings, isLoaded: settingsLoaded, setTimerResetCallback, setTimerIsActiveCallback, setEndCurrentSessionCallback } = useSettings();
+  const { user } = useAuth();
   const [isPauseNoteDialogOpen, setPauseNoteDialogOpen] = useState(false);
   const [isStartLearningDialogOpen, setStartLearningDialogOpen] = useState(false);
   const [isEndLearningDialogOpen, setEndLearningDialogOpen] = useState(false);
@@ -52,7 +54,7 @@ export default function Home() {
   
   const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [todaySessions, setTodaySessions] = useState<Session[]>([]);
-  const [allTopics, setAllTopics] = useState<string[]>(storageService.getAllTopics());
+  const [allTopics, setAllTopics] = useState<string[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isWorkDayEnded, setIsWorkDayEnded] = useState(false);
@@ -79,78 +81,80 @@ export default function Home() {
   }, [clearTimerState, setTimerResetCallback]);
 
 
-  // Load sessions from storage on mode change or initial load
+  // Load sessions from storage on mode/user change or initial load
   useEffect(() => {
-    if (!settingsLoaded) return;
-    setIsLoading(true);
+    if (!settingsLoaded || !user) return;
     
-    const loadedSessions = storageService.getSessions(settings.mode);
-    setAllSessions(loadedSessions);
-    setAllTopics(storageService.getAllTopics());
+    const loadData = async () => {
+        setIsLoading(true);
+        const loadedSessions = await storageService.getSessions(user.uid, settings.mode);
+        setAllSessions(loadedSessions);
+        const topics = await storageService.getAllTopics(user.uid);
+        setAllTopics(topics);
 
-    // Auto-reset if the last session was on a previous day and is finished.
-    if (settings.mode === 'work' && loadedSessions.length > 0) {
-      const lastSession = loadedSessions[loadedSessions.length - 1];
-      if (lastSession.end && isBefore(new Date(lastSession.start), startOfDay(new Date()))) {
-        setTodaySessions([]);
-        reset(TIMER_TYPES.stopwatch);
-        setIsWorkDayEnded(false);
-        setIsLoading(false);
-        return;
-      }
-    }
-    
-    const sessionsForToday = loadedSessions.filter(s => isToday(new Date(s.start)));
-    setTodaySessions(sessionsForToday);
-    
-    const allTodaySessionsAreFinished = sessionsForToday.length > 0 && sessionsForToday.every(s => s.end !== null);
-
-    if (allTodaySessionsAreFinished) {
-        // Day is over, show the appropriate end screen or a clean slate.
-        reset(TIMER_TYPES.stopwatch);
-        const lastSession = sessionsForToday[sessionsForToday.length - 1];
-        if (settings.mode === 'work' && lastSession.note === 'Day ended') {
-            setIsWorkDayEnded(true);
-        } else {
-            setTodaySessions([]);
-            setIsWorkDayEnded(false);
+        // Auto-reset if the last session was on a previous day and is finished.
+        if (settings.mode === 'work' && loadedSessions.length > 0) {
+            const lastSession = loadedSessions[loadedSessions.length - 1];
+            if (lastSession.end && isBefore(new Date(lastSession.start), startOfDay(new Date()))) {
+                setTodaySessions([]);
+                reset(TIMER_TYPES.stopwatch);
+                setIsWorkDayEnded(false);
+                setIsLoading(false);
+                return;
+            }
         }
-    } else if (sessionsForToday.length > 0) {
-        // Day is ongoing, restore state.
-        setIsWorkDayEnded(false);
-        const lastTodaySession = sessionsForToday[sessionsForToday.length - 1];
+        
+        const sessionsForToday = loadedSessions.filter(s => isToday(new Date(s.start)));
+        setTodaySessions(sessionsForToday);
+        
+        const allTodaySessionsAreFinished = sessionsForToday.length > 0 && sessionsForToday.every(s => s.end !== null);
 
-        let totalTimeTodayMs = 0;
-        sessionsForToday.forEach(session => {
-            if (!session.start || session.type !== 'work') return;
-            const endTime = session.end ? new Date(session.end).getTime() : Date.now();
-            totalTimeTodayMs += (endTime - new Date(session.start).getTime());
-        });
-        setTime(Math.floor(totalTimeTodayMs / 1000));
+        if (allTodaySessionsAreFinished) {
+            reset(TIMER_TYPES.stopwatch);
+            const lastSession = sessionsForToday[sessionsForToday.length - 1];
+            if (settings.mode === 'work' && lastSession.note === 'Day ended') {
+                setIsWorkDayEnded(true);
+            } else {
+                setTodaySessions([]);
+                setIsWorkDayEnded(false);
+            }
+        } else if (sessionsForToday.length > 0) {
+            setIsWorkDayEnded(false);
+            const lastTodaySession = sessionsForToday[sessionsForToday.length - 1];
 
-        if (lastTodaySession && !lastTodaySession.end) {
-            if (lastTodaySession.type === 'work') {
-                start();
-            } else { // It's a pause
+            let totalTimeTodayMs = 0;
+            sessionsForToday.forEach(session => {
+                if (!session.start || session.type !== 'work') return;
+                const endTime = session.end ? new Date(session.end).getTime() : Date.now();
+                totalTimeTodayMs += (endTime - new Date(session.start).getTime());
+            });
+            setTime(Math.floor(totalTimeTodayMs / 1000));
+
+            if (lastTodaySession && !lastTodaySession.end) {
+                if (lastTodaySession.type === 'work') {
+                    start();
+                } else {
+                    pause();
+                }
+            } else {
                 pause();
             }
-        } else { // Should not happen if not all sessions are finished, but as a fallback
-            pause();
+        } else {
+            clearTimerState();
         }
-    } else {
-        // No sessions for today, start fresh.
-        clearTimerState();
+        
+        setIsLoading(false);
     }
     
-    setIsLoading(false);
-  }, [settingsLoaded, settings.mode, setTime, start, pause, reset, clearTimerState]);
+    loadData();
+  }, [settingsLoaded, settings.mode, user, setTime, start, pause, reset, clearTimerState]);
 
 
   // Persist all sessions whenever they change for the current mode
   useEffect(() => {
-    if (isLoading) return; 
-    storageService.saveSessions(settings.mode, allSessions);
-  }, [allSessions, isLoading, settings.mode]);
+    if (isLoading || !user) return; 
+    storageService.saveSessions(user.uid, settings.mode, allSessions);
+  }, [allSessions, isLoading, settings.mode, user]);
 
   const addSession = (session: Omit<Session, 'id'>) => {
     const newSession: Session = { ...session, id: new Date().toISOString() + Math.random() };
@@ -291,9 +295,9 @@ export default function Home() {
     setIsWorkDayEnded(false);
   }
 
-  const endLearningSession = (updatedObjectives: LearningObjective[], totalCompletion: number) => {
+  const endLearningSession = async (updatedObjectives: LearningObjective[], totalCompletion: number) => {
     const now = new Date();
-    if (!sessionToEnd) return;
+    if (!sessionToEnd || !user) return;
 
     // Create a new, fully updated array for all sessions
     const finalAllSessions = allSessions.map(session => {
@@ -315,7 +319,8 @@ export default function Home() {
 
     setAllSessions(finalAllSessions);
     setTodaySessions([]); // Clear timeline for the next start
-    setAllTopics(storageService.getAllTopics());
+    const topics = await storageService.getAllTopics(user.uid);
+    setAllTopics(topics);
 
     // Reset UI for the next session
     reset(TIMER_TYPES.stopwatch);

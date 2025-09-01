@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Monitor, Moon, Sun, Trash2, Brain, Briefcase, Building } from "lucide-react";
 import { useTranslation, type Language } from "@/lib/i18n.tsx";
 import { useSettings } from "@/lib/settings-provider";
+import { useAuth } from "@/lib/auth-provider";
 import type { AppMode } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ import { OrganizationDialog } from "./organization-dialog";
 export function SettingsForm() {
   const { t } = useTranslation();
   const { settings, setMode, setTheme, setLanguage, setWorkGoals, setOrganization, timerIsActive } = useSettings();
+  const { user } = useAuth();
   const [isModeChangeDialogOpen, setModeChangeDialogOpen] = useState(false);
   const [targetMode, setTargetMode] = useState<AppMode | null>(null);
   const [isOrganizationDialogOpen, setOrganizationDialogOpen] = useState(false);
@@ -73,6 +75,8 @@ export function SettingsForm() {
     const value = e.target.valueAsNumber;
     setWorkGoals({ weeklyGoal: isNaN(value) ? undefined : value });
   };
+
+  const isGuest = user?.uid === 'guest';
 
 
   return (
@@ -143,10 +147,10 @@ export function SettingsForm() {
                 <div className="flex items-center gap-2">
                    <Building className="h-5 w-5 text-muted-foreground" />
                    <span className="text-sm font-medium">
-                     {settings.organizationName || t('noOrganization')}
+                     {isGuest ? t('noOrganization') : settings.organizationName || t('noOrganization')}
                    </span>
                 </div>
-                <Button variant="outline" onClick={() => setOrganizationDialogOpen(true)}>
+                <Button variant="outline" onClick={() => setOrganizationDialogOpen(true)} disabled={isGuest}>
                   {settings.organizationName ? t('manage') : t('join')}
                 </Button>
               </CardContent>
@@ -216,7 +220,7 @@ export function SettingsForm() {
           <CardContent>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive">
+                <Button variant="destructive" disabled={isGuest}>
                   <Trash2 className="mr-2 h-4 w-4" />
                   {t('deleteAccount')}
                 </Button>
@@ -260,20 +264,22 @@ export function SettingsForm() {
         </AlertDialogContent>
       </AlertDialog>
       
-      <OrganizationDialog
-        isOpen={isOrganizationDialogOpen}
-        onOpenChange={setOrganizationDialogOpen}
-        currentOrganization={settings.organizationName}
-        onJoin={(serialNumber) => {
-          // Mock logic: any serial number joins "Musterfirma GmbH"
-          if (serialNumber) {
-            setOrganization("Musterfirma GmbH");
-            return true;
-          }
-          return false;
-        }}
-        onLeave={() => setOrganization(null)}
-      />
+      {!isGuest && (
+        <OrganizationDialog
+          isOpen={isOrganizationDialogOpen}
+          onOpenChange={setOrganizationDialogOpen}
+          currentOrganization={settings.organizationName}
+          onJoin={(serialNumber) => {
+            // Mock logic: any serial number joins "Musterfirma GmbH"
+            if (serialNumber) {
+              setOrganization("Musterfirma GmbH");
+              return true;
+            }
+            return false;
+          }}
+          onLeave={() => setOrganization(null)}
+        />
+      )}
     </>
   );
 }

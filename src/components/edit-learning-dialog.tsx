@@ -29,6 +29,8 @@ import { cn } from "@/lib/utils";
 import { Badge } from "./ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Reorder } from "framer-motion";
+import { useAuth } from "@/lib/auth-provider";
+import { storageService } from "@/lib/storage";
 
 interface EditLearningDialogProps {
   isOpen: boolean;
@@ -46,6 +48,7 @@ export function EditLearningDialog({
   allTopics,
 }: EditLearningDialogProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   
   const [mainGoal, setMainGoal] = useState("");
   const [objectives, setObjectives] = useState<LearningObjective[]>([]);
@@ -261,5 +264,3 @@ export function EditLearningDialog({
     </Dialog>
   );
 }
-
-    

@@ -1,11 +1,8 @@
-// This file would contain your Firebase configuration and initialization logic.
-// For security, you should use environment variables to store your Firebase credentials.
 
-// Example:
-/*
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import "dotenv/config";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -22,9 +19,3 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 export { app, auth, db };
-*/
-
-// Mock exports for placeholder functionality
-export const app = {};
-export const auth = {};
-export const db = {};

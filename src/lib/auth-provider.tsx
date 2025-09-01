@@ -2,11 +2,15 @@
 "use client";
 
 import React, { createContext, useState, useContext, ReactNode, useMemo, useEffect, useCallback } from 'react';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, db } from './firebase';
 import { LoginDialog } from '@/components/login-dialog';
 import { ProfileDialog } from '@/components/profile-dialog';
 import { storageService, type UserAccount } from './storage';
 
 type User = {
+  uid: string;
   name: string;
   email: string;
 };
@@ -32,48 +36,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isProfileDialogOpen, setProfileDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for a logged-in user in localStorage on initial load
+  // Use onAuthStateChanged to manage user session
   useEffect(() => {
-    const loggedInUser = storageService.getLoggedInUser();
-    if (loggedInUser) {
-      setUser(loggedInUser);
-    }
-    setIsLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        if (firebaseUser.isAnonymous) {
+             setUser({
+                uid: firebaseUser.uid,
+                name: 'Guest User',
+                email: 'guest@local.storage'
+             });
+        } else {
+            const userDocRef = doc(db, "users", firebaseUser.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+                setUser({
+                    uid: firebaseUser.uid,
+                    email: firebaseUser.email!,
+                    name: userDoc.data().name,
+                });
+            } else {
+                 // This case can happen if a user is created in Auth but not in Firestore.
+                 // We'll log them out to be safe.
+                 await signOut(auth);
+                 setUser(null);
+            }
+        }
+      } else {
+        setUser(null);
+      }
+      setIsLoading(false);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, []);
 
   const login = useCallback(async (email: string, password: string): Promise<AuthResult> => {
-    const authenticatedUser = storageService.authenticateUser(email, password);
-    if (authenticatedUser) {
-      setUser(authenticatedUser);
-      storageService.setLoggedInUser(authenticatedUser);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
       return { success: true, message: 'Login successful' };
-    } else {
-      return { success: false, message: 'Invalid email or password.' };
+    } catch (error: any) {
+      return { success: false, message: error.message || 'Invalid email or password.' };
     }
   }, []);
 
   const register = useCallback(async (name: string, email: string, password: string): Promise<AuthResult> => {
-    const newUser: UserAccount = { name, email, password };
-    const success = storageService.saveUser(newUser);
-    if (success) {
-      setUser(newUser);
-      storageService.setLoggedInUser(newUser);
-      return { success: true, message: 'Registration successful' };
-    } else {
-      return { success: false, message: 'A user with this email already exists.' };
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const firebaseUser = userCredential.user;
+
+        // Store user's name in Firestore
+        await setDoc(doc(db, "users", firebaseUser.uid), {
+            name: name,
+            email: email,
+        });
+
+        return { success: true, message: 'Registration successful' };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Registration failed.' };
     }
   }, []);
   
   const loginAsGuest = useCallback(() => {
-    const guestUser = { name: 'Guest User', email: 'guest@local.storage' };
-    setUser(guestUser);
-    storageService.setLoggedInUser(guestUser);
+     // For a true "guest" mode that doesn't persist across reloads without firebase,
+     // we just set a temporary local state. With firebase, we could use anonymous auth.
+    setUser({ uid: 'guest', name: 'Guest User', email: 'guest@local.storage' });
   }, []);
 
-  const logout = useCallback(() => {
-    setUser(null);
-    storageService.clearLoggedInUser();
-    setProfileDialogOpen(false);
+  const logout = useCallback(async () => {
+    try {
+      await signOut(auth);
+      setProfileDialogOpen(false);
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
   }, []);
 
   const openProfileDialog = useCallback(() => {
@@ -99,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       {isLoginRequired && <LoginDialog />}
       
-      {user && (
+      {user && user.uid !== 'guest' && (
         <ProfileDialog 
           isOpen={isProfileDialogOpen} 
           onOpenChange={setProfileDialogOpen}

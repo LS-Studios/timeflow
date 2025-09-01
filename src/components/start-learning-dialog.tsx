@@ -19,6 +19,8 @@ import { Badge } from "./ui/badge";
 import { Reorder } from "framer-motion";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-provider";
+import { storageService } from "@/lib/storage";
 
 interface StartLearningDialogProps {
   isOpen: boolean;
@@ -34,6 +36,7 @@ export function StartLearningDialog({
   allTopics,
 }: StartLearningDialogProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [mainGoal, setMainGoal] = useState("");
   const [objectives, setObjectives] = useState<string[]>([]);
   const [currentObjective, setCurrentObjective] = useState("");
@@ -285,5 +288,3 @@ export function StartLearningDialog({
     </Dialog>
   );
 }
-
-    

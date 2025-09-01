@@ -6,6 +6,7 @@ import { useTheme } from 'next-themes';
 import type { AppMode, AppSettings, AppTheme } from '@/lib/types';
 import { storageService } from './storage';
 import { Language, useTranslation } from './i18n';
+import { useAuth } from './auth-provider';
 
 type TimerResetCallback = () => void;
 type EndCurrentSessionCallback = () => void;
@@ -40,28 +41,39 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const { setTheme: applyTheme } = useTheme();
   const { setLanguage: applyLanguage } = useTranslation();
+  const { user } = useAuth();
 
   const [timerIsActive, setTimerIsActive] = useState(false);
   const timerResetCallbackRef = React.useRef<TimerResetCallback | null>(null);
   const endCurrentSessionCallbackRef = React.useRef<EndCurrentSessionCallback | null>(null);
 
-  // Load settings from storage on initial mount
+  // Load settings from storage on user change
   useEffect(() => {
-    const loadedSettings = storageService.getSettings();
-    if (loadedSettings) {
-      setSettings(prev => ({...prev, ...loadedSettings}));
-    }
-    setIsLoaded(true);
-  }, []);
+    const loadSettings = async () => {
+      if (user) {
+        setIsLoaded(false);
+        const loadedSettings = await storageService.getSettings(user.uid);
+        if (loadedSettings) {
+          setSettings(prev => ({...prev, ...loadedSettings}));
+        } else {
+          // If no settings in DB, use defaults and save them
+          setSettings(defaultSettings);
+          await storageService.saveSettings(user.uid, defaultSettings);
+        }
+        setIsLoaded(true);
+      }
+    };
+    loadSettings();
+  }, [user]);
 
   // When settings change, apply them and save to storage
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded && user) {
       applyTheme(settings.theme);
       applyLanguage(settings.language);
-      storageService.saveSettings(settings);
+      storageService.saveSettings(user.uid, settings);
     }
-  }, [settings, isLoaded, applyTheme, applyLanguage]);
+  }, [settings, isLoaded, user, applyTheme, applyLanguage]);
 
   const setMode = useCallback((mode: AppMode) => {
     if (settings.mode === mode) return;
