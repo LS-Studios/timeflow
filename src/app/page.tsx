@@ -49,7 +49,6 @@ export default function Home() {
   const [isPauseNoteDialogOpen, setPauseNoteDialogOpen] = useState(false);
   const [isStartLearningDialogOpen, setStartLearningDialogOpen] = useState(false);
   const [isEndLearningDialogOpen, setEndLearningDialogOpen] = useState(false);
-  const [isResetDialogOpen, setResetDialogOpen] = useState(false);
   const [sessionToEnd, setSessionToEnd] = useState<Session | null>(null);
   
   const [allSessions, setAllSessions] = useState<Session[]>([]);
@@ -238,16 +237,23 @@ export default function Home() {
   };
   
   const handleReset = () => {
-     setResetDialogOpen(true);
-  };
+    if (isTimerIdle) return;
 
-  const confirmReset = () => {
-    // Keep past history, only clear today's sessions for the current mode
-    const pastSessions = allSessions.filter(s => !isToday(new Date(s.start)));
-    setAllSessions(pastSessions);
+    // Find the last session that is still running (end is null) and remove it.
+    const lastRunningSessionIndex = allSessions.findIndex(s => !s.end);
+    
+    if (lastRunningSessionIndex !== -1) {
+      const newAllSessions = [...allSessions];
+      // If the running session was a pause, remove it. If it was work, remove it.
+      // If it was a work session preceded by a pause, we might need more complex logic,
+      // but for a simple reset, just removing the last entry is sufficient.
+      newAllSessions.pop();
+      setAllSessions(newAllSessions);
+    }
+    
+    // In any case, reset the timer UI.
     clearTimerState();
-    setResetDialogOpen(false);
-  }
+  };
 
   const endCurrentSessionAndPause = useCallback(() => {
     const now = new Date();
@@ -439,23 +445,6 @@ export default function Home() {
         onEnd={endLearningSession}
         session={sessionToEnd}
       />
-      
-      <AlertDialog open={isResetDialogOpen} onOpenChange={setResetDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('areYouSure')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('resetConfirmation')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmReset}>
-              {t('confirmReset')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }
