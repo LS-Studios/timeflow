@@ -46,6 +46,8 @@ export function TimerControls({
 }: TimerControlsProps) {
   const { t } = useTranslation();
   const { settings } = useSettings();
+  const isTimerIdle = !isActive && !isPaused;
+
   return (
     <div className="flex items-center justify-center gap-4 h-16">
       <Button
@@ -54,6 +56,7 @@ export function TimerControls({
         className="h-14 w-14"
         aria-label={t('reset')}
         onClick={onReset}
+        disabled={isTimerIdle}
       >
         <RotateCcw className="h-7 w-7 text-muted-foreground" />
       </Button>
@@ -104,6 +107,7 @@ export function TimerControls({
           className="h-14 w-14"
           aria-label={endLabel || t('endDay')}
           onClick={onEnd}
+          disabled={isTimerIdle}
         >
           <Flag className="h-7 w-7 text-muted-foreground" />
         </Button>
