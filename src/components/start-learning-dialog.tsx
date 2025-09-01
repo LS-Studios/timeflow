@@ -39,27 +39,27 @@ export function StartLearningDialog({
   const [currentObjective, setCurrentObjective] = useState("");
   
   const [topics, setTopics] = useState<string[]>([]);
-  const [currentTopic, setCurrentTopic] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const commandInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
 
   const handleStart = () => {
     if (mainGoal.trim()) {
       const finalObjectives = currentObjective.trim() ? [...objectives, currentObjective.trim()] : objectives;
-      const finalTopics = topics;
-      onStart(mainGoal.trim(), finalObjectives, finalTopics);
+      onStart(mainGoal.trim(), finalObjectives, topics);
       onOpenChange(false);
     }
   };
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
+      // Reset state on close
       setMainGoal("");
       setObjectives([]);
       setCurrentObjective("");
       setTopics([]);
-      setCurrentTopic("");
+      setInputValue("");
       setPopoverOpen(false);
     }
     onOpenChange(open);
@@ -81,26 +81,26 @@ export function StartLearningDialog({
     setTopics(topics.filter((topic) => topic !== topicToRemove));
   };
   
-  const handleTopicSelect = useCallback((topic: string) => {
+  const handleSelectTopic = useCallback((topic: string) => {
     const trimmedTopic = topic.trim();
     if (trimmedTopic && !topics.includes(trimmedTopic)) {
       setTopics(prev => [...prev, trimmedTopic]);
     }
-    setCurrentTopic("");
-    commandInputRef.current?.focus();
-    setPopoverOpen(true);
+    setInputValue("");
+    setPopoverOpen(false);
+    inputRef.current?.focus();
   }, [topics]);
 
   const handleTopicInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Backspace' && event.currentTarget.value === '' && topics.length > 0) {
+    if (event.key === 'Backspace' && inputValue === '' && topics.length > 0) {
       event.preventDefault();
       handleRemoveTopic(topics[topics.length - 1]);
-      return;
     }
   };
-
+  
+  // Filter available topics, excluding already selected ones
   const filteredTopics = allTopics.filter(topic => 
-    !topics.includes(topic) && topic.toLowerCase().includes(currentTopic.toLowerCase())
+    !topics.includes(topic) && topic.toLowerCase().includes(inputValue.toLowerCase())
   );
 
   return (
@@ -129,62 +129,62 @@ export function StartLearningDialog({
             <Label>{t('topics')}</Label>
             <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
               <PopoverTrigger asChild>
-                <div
-                  className="flex flex-wrap items-center gap-2 rounded-md border border-input p-1 pl-2 bg-transparent cursor-text min-h-11"
-                  onClick={() => commandInputRef.current?.focus()}
-                >
-                  {topics.map((topic) => (
-                    <Badge key={topic} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
-                      {topic}
-                      <button
-                        className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveTopic(topic)
-                        }}
-                      >
-                        <XIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-                        <span className="sr-only">Remove {topic}</span>
-                      </button>
-                    </Badge>
-                  ))}
-                  <Command className="flex-1 min-w-[120px]">
-                    <CommandInput
-                      ref={commandInputRef}
-                      placeholder={topics.length > 0 ? '' : t('addTopicPlaceholder')}
-                      value={currentTopic}
-                      onValueChange={setCurrentTopic}
-                      onKeyDown={handleTopicInputKeyDown}
-                      onFocus={() => setPopoverOpen(true)}
-                      className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0"
-                    />
-                  </Command>
-                </div>
+                  <div
+                    className="flex flex-wrap items-center gap-2 rounded-md border border-input p-1 pl-2 bg-transparent cursor-text min-h-11"
+                    onClick={() => inputRef.current?.focus()}
+                  >
+                    {topics.map((topic) => (
+                      <Badge key={topic} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
+                        {topic}
+                        <button
+                          className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                          onClick={(e) => {
+                            e.stopPropagation(); // prevent popover from opening
+                            handleRemoveTopic(topic)
+                          }}
+                        >
+                          <XIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                          <span className="sr-only">Remove {topic}</span>
+                        </button>
+                      </Badge>
+                    ))}
+                    <Command className="flex-1 min-w-[120px]">
+                      <CommandInput
+                        ref={inputRef}
+                        placeholder={topics.length > 0 ? '' : t('addTopicPlaceholder')}
+                        value={inputValue}
+                        onValueChange={setInputValue}
+                        onKeyDown={handleTopicInputKeyDown}
+                        onFocus={() => setPopoverOpen(true)}
+                        className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0"
+                      />
+                    </Command>
+                  </div>
               </PopoverTrigger>
               <PopoverContent asChild className="w-[--radix-popover-trigger-width] p-0">
                  <Command>
                    <CommandList>
-                    {(filteredTopics.length === 0 && !currentTopic.trim()) && <CommandEmpty>{t('addTopicPlaceholder')}</CommandEmpty>}
+                    {(filteredTopics.length === 0 && !inputValue.trim()) && <CommandEmpty>{t('addTopicPlaceholder')}</CommandEmpty>}
                     
                     <CommandGroup>
                         {filteredTopics.map((topic) => (
                         <CommandItem
                             key={topic}
-                            onSelect={() => handleTopicSelect(topic)}
+                            onSelect={() => handleSelectTopic(topic)}
                             className="cursor-pointer"
                         >
                             {topic}
                         </CommandItem>
                         ))}
                     </CommandGroup>
-
-                    {currentTopic.trim() && !allTopics.some(t => t.toLowerCase() === currentTopic.trim().toLowerCase()) && !topics.includes(currentTopic.trim()) && (
+                    
+                    {inputValue.trim() && !allTopics.some(t => t.toLowerCase() === inputValue.trim().toLowerCase()) && !topics.includes(inputValue.trim()) && (
                       <CommandGroup>
                           <CommandItem
-                            onSelect={() => handleTopicSelect(currentTopic.trim())}
+                            onSelect={() => handleSelectTopic(inputValue.trim())}
                             className="cursor-pointer"
                           >
-                           {t('add')} "{currentTopic.trim()}"
+                           {t('add')} "{inputValue.trim()}"
                           </CommandItem>
                       </CommandGroup>
                     )}
@@ -231,3 +231,5 @@ export function StartLearningDialog({
     </Dialog>
   );
 }
+
+    
