@@ -93,7 +93,7 @@ export default function AnalyticsPage() {
                     ))}
                 </Bar>
               </BarChart>
-            </Container>
+            </ChartContainer>
           </CardContent>
         </Card>
         <Card>
