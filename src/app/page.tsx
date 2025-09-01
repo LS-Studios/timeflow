@@ -59,6 +59,8 @@ export default function Home() {
   
   const { t } = useTranslation();
   
+  const isTimerIdle = !isActive && !isPaused;
+
   const clearTimerState = useCallback(() => {
     setTodaySessions([]);
     reset(TIMER_TYPES.stopwatch);
@@ -70,8 +72,8 @@ export default function Home() {
   }, [clearTimerState, setTimerResetCallback]);
 
   useEffect(() => {
-    setTimerIsActiveCallback(isActive || isPaused);
-  }, [isActive, isPaused, setTimerIsActiveCallback]);
+    setTimerIsActiveCallback(!isTimerIdle);
+  }, [isTimerIdle, setTimerIsActiveCallback]);
 
 
   // Load sessions from storage on mode change or initial load
@@ -83,15 +85,16 @@ export default function Home() {
     setAllSessions(loadedSessions);
     setAllTopics(storageService.getAllTopics());
 
-    const lastSession = loadedSessions.length > 0 ? loadedSessions[loadedSessions.length - 1] : null;
-
     // Auto-reset if the last session was on a previous day and is finished.
-    if (settings.mode === 'work' && lastSession && lastSession.end && isBefore(new Date(lastSession.start), startOfDay(new Date()))) {
-      setTodaySessions([]);
-      reset(TIMER_TYPES.stopwatch);
-      setIsWorkDayEnded(false);
-      setIsLoading(false);
-      return;
+    if (settings.mode === 'work' && loadedSessions.length > 0) {
+      const lastSession = loadedSessions[loadedSessions.length - 1];
+      if (lastSession.end && isBefore(new Date(lastSession.start), startOfDay(new Date()))) {
+        setTodaySessions([]);
+        reset(TIMER_TYPES.stopwatch);
+        setIsWorkDayEnded(false);
+        setIsLoading(false);
+        return;
+      }
     }
     
     const sessionsForToday = loadedSessions.filter(s => isToday(new Date(s.start)));
@@ -279,7 +282,7 @@ export default function Home() {
             updateLastSession({ end: now });
         }
       }
-      addSession({ type: 'pause', start: now, end: null, note: 'Day ended' });
+      addSession({ type: 'pause', start: now, end: now, note: 'Day ended' });
       pause();
       setIsWorkDayEnded(true);
     }
@@ -341,8 +344,6 @@ export default function Home() {
     return acc + (new Date(session.end).getTime() - new Date(session.start).getTime());
   }, 0);
   
-  const isTimerIdle = !isActive && !isPaused;
-
   return (
     <>
       <div className="flex-1 w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
@@ -460,3 +461,5 @@ export default function Home() {
     </>
   );
 }
+
+
