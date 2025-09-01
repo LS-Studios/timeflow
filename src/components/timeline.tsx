@@ -37,42 +37,44 @@ export function Timeline({ sessions }: TimelineProps) {
 
 
   return (
-    <div className="space-y-8 relative pl-6">
+    <div className="relative">
        <div className="absolute top-0 left-[11px] h-full w-px bg-border -translate-x-1/2"></div>
       <AnimatePresence initial={false}>
-        {sessions.map((session, index) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="flex items-start"
-          >
-            <div className="absolute left-[11px] top-1 -translate-x-1/2">
-              <div
-                className={cn(
-                  "w-4 h-4 rounded-full z-10 bg-background border-2",
-                  session.type === 'work' ? 'border-primary' : 'border-accent'
+        <div className="space-y-8">
+            {sessions.map((session, index) => (
+            <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-start relative"
+            >
+                <div className="absolute left-[11px] top-1 -translate-x-1/2">
+                <div
+                    className={cn(
+                    "w-4 h-4 rounded-full z-10 bg-background border-2",
+                    session.type === 'work' ? 'border-primary' : 'border-accent'
+                    )}
+                ></div>
+                </div>
+                <div className="flex-1 pl-6">
+                <div className="flex items-center gap-2">
+                    {session.type === 'work' ? <Briefcase className="w-4 h-4" /> : <Coffee className="w-4 h-4" />}
+                    <span className="font-semibold">{formatTime(session.start)}</span>
+                    <span className="text-muted-foreground text-sm">
+                    ({formatDuration(session.start, session.end)})
+                    </span>
+                </div>
+                {session.type === 'pause' && session.note && (
+                    <p className="text-sm text-muted-foreground ml-6 italic">
+                    "{session.note}"
+                    </p>
                 )}
-              ></div>
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                {session.type === 'work' ? <Briefcase className="w-4 h-4" /> : <Coffee className="w-4 h-4" />}
-                <span className="font-semibold">{formatTime(session.start)}</span>
-                <span className="text-muted-foreground text-sm">
-                  ({formatDuration(session.start, session.end)})
-                </span>
-              </div>
-              {session.type === 'pause' && session.note && (
-                <p className="text-sm text-muted-foreground ml-6 italic">
-                  "{session.note}"
-                </p>
-              )}
-            </div>
-          </motion.div>
-        ))}
+                </div>
+            </motion.div>
+            ))}
+        </div>
       </AnimatePresence>
       
       {projectedEndTime && (
@@ -80,12 +82,12 @@ export function Timeline({ sessions }: TimelineProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="flex items-start"
+            className="flex items-start relative mt-8"
          >
            <div className="absolute left-[11px] top-1 -translate-x-1/2">
              <div className="w-4 h-4 rounded-full bg-border z-10 opacity-50"></div>
            </div>
-          <div className="flex-1 opacity-50">
+          <div className="flex-1 pl-6 opacity-50">
             <div className="flex items-center gap-2">
               <Flag className="w-4 h-4" />
               <span className="font-semibold">{formatTime(projectedEndTime)}</span>
