@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -34,7 +35,7 @@ const learningFocusChartConfig = {
   typescript: { label: "TypeScript", color: "hsl(var(--chart-2))" },
   figma: { label: "Figma", color: "hsl(var(--chart-3))" },
   go: { label: "Go", color: "hsl(var(--chart-4))" },
-  nextjs: { label: "Next.js", color: "hsl(var(--chart-5))" },
+  "next.js": { label: "Next.js", color: "hsl(var(--chart-5))" },
   deutsch: { label: "Deutsch", color: "hsl(var(--chart-1))" },
 } satisfies ChartConfig;
 
@@ -136,7 +137,7 @@ export default function AnalyticsPage() {
     const totalBreakMs = history.reduce((acc, day) => acc + getDurations(day.sessions).breakMs, 0);
     const totalOvertimeMs = history.reduce((acc, day) => {
         const { workMs } = getDurations(day.sessions);
-        const dailyGoalMs = 8 * 60 * 60 * 1000;
+        const dailyGoalMs = (settings.dailyGoal || 8) * 60 * 60 * 1000;
         return acc + (workMs - dailyGoalMs);
     }, 0);
     const breakTypeCounts = history
@@ -258,7 +259,7 @@ export default function AnalyticsPage() {
             <div className="md:hidden space-y-4">
               {filteredHistory.map((day) => {
                   const { workMs, breakMs } = getDurations(day.sessions);
-                  const overtimeMs = workMs - (8 * 60 * 60 * 1000);
+                  const overtimeMs = workMs - ((settings.dailyGoal || 8) * 60 * 60 * 1000);
                   return (
                     <Card key={day.id} className="p-4">
                       <div className="flex justify-between items-center mb-4">
@@ -294,7 +295,7 @@ export default function AnalyticsPage() {
                   <TableBody>
                     {filteredHistory.map((day) => {
                       const { workMs, breakMs } = getDurations(day.sessions);
-                      const overtimeMs = workMs - (8 * 60 * 60 * 1000);
+                      const overtimeMs = workMs - ((settings.dailyGoal || 8) * 60 * 60 * 1000);
                       return (
                         <TableRow key={day.id}>
                           <TableCell className="font-medium">{formatDate(day.date)}</TableCell>
@@ -476,5 +477,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-
-    

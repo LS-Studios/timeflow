@@ -1,11 +1,10 @@
 
 "use client";
 
-import { useTheme } from "next-themes";
 import { Monitor, Moon, Sun, Trash2, Brain, Briefcase } from "lucide-react";
 import { useTranslation, type Language } from "@/lib/i18n.tsx";
 import { useSettings } from "@/lib/settings-provider";
-import type { AppMode, AppTheme } from "@/lib/types";
+import type { AppMode } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,16 +33,23 @@ import { cn } from "@/lib/utils";
 
 export function SettingsForm() {
   const { t } = useTranslation();
-  const { settings, setMode, setLanguage, setTheme } = useSettings();
-
-  // In a real app, these values would come from a settings context or API
-  const dailyGoal = 8;
-  const weeklyGoal = 40;
+  const { settings, setMode, setLanguage, setTheme, setWorkGoals } = useSettings();
   
   const appModeOptions = [
     { id: "work", label: t('modeWork'), icon: Briefcase },
     { id: "learning", label: t('modeLearning'), icon: Brain },
   ]
+
+  const handleDailyGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.valueAsNumber;
+    setWorkGoals({ dailyGoal: isNaN(value) ? undefined : value });
+  };
+  
+  const handleWeeklyGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.valueAsNumber;
+    setWorkGoals({ weeklyGoal: isNaN(value) ? undefined : value });
+  };
+
 
   return (
     <div className="grid gap-6">
@@ -81,11 +87,23 @@ export function SettingsForm() {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <Label htmlFor="daily-goal">{t('dailyGoal')}</Label>
-              <Input id="daily-goal" type="number" defaultValue={dailyGoal} className="w-24" />
+              <Input 
+                id="daily-goal" 
+                type="number" 
+                value={settings.dailyGoal || ''}
+                onChange={handleDailyGoalChange}
+                className="w-24" 
+              />
             </div>
             <div className="flex items-center justify-between">
               <Label htmlFor="weekly-goal">{t('weeklyGoal')}</Label>
-              <Input id="weekly-goal" type="number" defaultValue={weeklyGoal} className="w-24" />
+              <Input 
+                id="weekly-goal" 
+                type="number" 
+                value={settings.weeklyGoal || ''}
+                onChange={handleWeeklyGoalChange}
+                className="w-24" 
+              />
             </div>
           </CardContent>
         </Card>

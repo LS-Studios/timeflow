@@ -12,6 +12,7 @@ interface SettingsContextType {
   setMode: (mode: AppMode) => void;
   setTheme: (theme: AppTheme) => void;
   setLanguage: (language: Language) => void;
+  setWorkGoals: (goals: { dailyGoal?: number; weeklyGoal?: number }) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -19,7 +20,9 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 const defaultSettings: AppSettings = {
     theme: 'system',
     language: 'de',
-    mode: 'work'
+    mode: 'work',
+    dailyGoal: 8,
+    weeklyGoal: 40
 };
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
@@ -32,7 +35,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadedSettings = storageService.getSettings();
     if (loadedSettings) {
-      setSettings(loadedSettings);
+      setSettings(prev => ({...prev, ...loadedSettings}));
     }
     setIsLoaded(true);
   }, []);
@@ -57,14 +60,23 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const setLanguage = useCallback((language: Language) => {
     setSettings(prev => ({...prev, language}));
   }, []);
+  
+  const setWorkGoals = useCallback((goals: { dailyGoal?: number, weeklyGoal?: number }) => {
+    setSettings(prev => ({
+        ...prev,
+        dailyGoal: goals.dailyGoal ?? prev.dailyGoal,
+        weeklyGoal: goals.weeklyGoal ?? prev.weeklyGoal
+    }));
+  }, []);
 
 
   const value = useMemo(() => ({
     settings,
     setMode,
     setTheme,
-    setLanguage
-  }), [settings, setMode, setTheme, setLanguage]);
+    setLanguage,
+    setWorkGoals
+  }), [settings, setMode, setTheme, setLanguage, setWorkGoals]);
 
   if (!isLoaded) {
       return null;

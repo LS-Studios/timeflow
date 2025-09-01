@@ -16,7 +16,8 @@ export interface AppSettings {
     theme: AppTheme;
     language: 'en' | 'de';
     mode: AppMode;
-    // Potentially add work goals here in the future
+    dailyGoal?: number;
+    weeklyGoal?: number;
 }
 
 export interface DayHistory {
