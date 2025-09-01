@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import type { Session } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Briefcase, Coffee, Flag, Flame, PersonStanding, Wind, Pencil, Brain, Target } from "lucide-react";
@@ -18,8 +19,7 @@ function formatTime(date: Date | null) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatDuration(start: Date, end: Date | null) {
-  if (!end) return "Ongoing";
+function formatDuration(start: Date, end: Date) {
   const diff = (end.getTime() - start.getTime()) / 1000; // in seconds
   const minutes = Math.floor(diff / 60);
   const seconds = Math.round(diff % 60);
@@ -27,6 +27,16 @@ function formatDuration(start: Date, end: Date | null) {
     return `${minutes} min ${seconds} sec`;
   }
   return `${seconds} sec`;
+}
+
+function formatOngoingDuration(start: Date, now: number) {
+    const diff = Math.max(0, (now - start.getTime()) / 1000);
+    const hours = Math.floor(diff / 3600);
+    const minutes = Math.floor((diff % 3600) / 60);
+    const seconds = Math.floor(diff % 60);
+
+    const timeString = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    return `Ongoing for ${timeString}`;
 }
 
 function getIconForNote(note: string | undefined, t: (key: string) => string) {
@@ -42,23 +52,35 @@ function getIconForNote(note: string | undefined, t: (key: string) => string) {
 export function Timeline({ sessions }: TimelineProps) {
   const { t } = useTranslation();
   const { settings } = useSettings();
+  const [now, setNow] = useState(Date.now());
+  
+  const hasOngoingSession = sessions.some(s => !s.end);
+
+  useEffect(() => {
+    if (hasOngoingSession) {
+      const interval = setInterval(() => {
+        setNow(Date.now());
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [hasOngoingSession]);
+
   
   const dailyGoalHours = settings.dailyGoal || 8;
   const isWorkModeWithGoal = settings.mode === 'work' && dailyGoalHours > 0;
   
-  const hasOngoingSession = sessions.some(s => !s.end);
 
   const workDurationSoFar = sessions
     .filter(s => s.type === 'work')
     .reduce((acc, s) => {
         const startMs = s.start.getTime();
         // If session is ongoing, calculate duration until now.
-        const endMs = s.end ? s.end.getTime() : Date.now();
+        const endMs = s.end ? s.end.getTime() : now;
         return acc + (endMs - startMs);
     }, 0);
 
   const remainingWorkMs = (dailyGoalHours * 60 * 60 * 1000) - workDurationSoFar;
-  const projectedEndTime = isWorkModeWithGoal && hasOngoingSession && remainingWorkMs > 0 ? new Date(Date.now() + remainingWorkMs) : null;
+  const projectedEndTime = isWorkModeWithGoal && hasOngoingSession && remainingWorkMs > 0 ? new Date(now + remainingWorkMs) : null;
 
 
   return (
@@ -90,7 +112,7 @@ export function Timeline({ sessions }: TimelineProps) {
                           {session.type === 'work' ? (settings.mode === 'learning' ? <Brain className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />) : <PauseIcon className="w-4 h-4" />}
                           <span className="font-semibold">{formatTime(session.start)}</span>
                           <span className="text-muted-foreground text-sm">
-                          ({formatDuration(session.start, session.end)})
+                           ({session.end ? formatDuration(session.start, session.end) : formatOngoingDuration(session.start, now)})
                           </span>
                       </div>
                       
