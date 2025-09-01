@@ -14,9 +14,8 @@ export interface Session {
   // Learning mode specific
   learningGoal?: string; // Main goal title
   learningObjectives?: LearningObjective[];
+  topics?: string[]; // High-level categories like "Math", "German", "Uni"
   completionPercentage?: number; // Overall completion
-  // Deprecated, replaced by learningObjectives
-  topics?: string[];
 }
 
 export type AppMode = 'work' | 'learning';

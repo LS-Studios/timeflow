@@ -11,7 +11,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, YAxis, Cell, LineCh
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Clock, Coffee, Target, BookOpen, BarChart2, CheckCircle, Circle } from "lucide-react";
+import { Search, Clock, Coffee, Target, BookOpen, BarChart2, CheckCircle, Circle, Percent } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { DayHistory, Session, LearningObjective } from "@/lib/types";
@@ -41,12 +41,6 @@ const breakTypeChartConfig = {
 
 const learningFocusChartConfig = {
   sessions: { label: "Sessions" },
-  react: { label: "React", color: "hsl(var(--chart-1))" },
-  typescript: { label: "TypeScript", color: "hsl(var(--chart-2))" },
-  figma: { label: "Figma", color: "hsl(var(--chart-3))" },
-  go: { label: "Go", color: "hsl(var(--chart-4))" },
-  "next.js": { label: "Next.js", color: "hsl(var(--chart-5))" },
-  deutsch: { label: "Deutsch", color: "hsl(var(--chart-1))" },
 } satisfies ChartConfig;
 
 const completionChartConfig = {
@@ -128,9 +122,9 @@ export default function AnalyticsPage() {
     if (settings.mode === 'work') return dateMatch;
 
     const learningGoalMatch = day.sessions.some(s => s.learningGoal?.toLowerCase().includes(searchTerm.toLowerCase()));
-    const objectiveMatch = day.sessions.some(s => s.learningObjectives?.some(o => o.text.toLowerCase().includes(searchTerm.toLowerCase())));
+    const topicMatch = day.sessions.some(s => s.topics?.some(t => t.toLowerCase().includes(searchTerm.toLowerCase())));
     
-    return dateMatch || learningGoalMatch || objectiveMatch;
+    return dateMatch || learningGoalMatch || topicMatch;
   });
   
   const OvertimeBadge = ({ overtimeMs }: { overtimeMs: number }) => {
@@ -395,50 +389,62 @@ export default function AnalyticsPage() {
     }
 
     const allLearningSessions = groupedHistory.flatMap(day => day.sessions.filter(s => s.learningGoal && s.end));
-    const learningFocusData = allLearningSessions
-      .flatMap(s => s.learningObjectives?.map(o => o.text.toLowerCase()) || [])
+    
+    // For "Learning Focus" chart
+    const topicData = allLearningSessions
+      .flatMap(s => s.topics || [])
       .reduce((acc, topic) => {
           if (!topic) return acc;
-          acc[topic] = (acc[topic] || 0) + 1;
+          const lowerCaseTopic = topic.toLowerCase();
+          acc[lowerCaseTopic] = (acc[lowerCaseTopic] || 0) + 1;
           return acc;
       }, {} as Record<string, number>);
       
-    const learningFocusChartData = Object.entries(learningFocusData)
+    const learningFocusChartData = Object.entries(topicData)
         .map(([topic, sessions]) => ({ topic, sessions }))
         .sort((a,b) => b.sessions - a.sessions);
 
+    // For "Completion over Time" chart
     const completionOverTimeData = allLearningSessions
         .map(session => ({ date: new Date(session.end!), completion: session.completionPercentage || 0 }))
         .sort((a,b) => a.date.getTime() - b.date.getTime());
 
+    // For "Average Session Success" card
+    const totalCompletion = allLearningSessions.reduce((acc, s) => acc + (s.completionPercentage || 0), 0);
+    const averageCompletion = allLearningSessions.length > 0 ? Math.round(totalCompletion / allLearningSessions.length) : 0;
+
 
     return (
       <>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <Card>
             <CardHeader>
               <CardTitle>{t('learningFocus')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={learningFocusChartConfig} className="h-[200px] w-full">
-                <BarChart accessibilityLayer data={learningFocusChartData} layout="vertical" margin={{ left: 10, right: 10 }}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis type="number" dataKey="sessions" hide />
-                  <YAxis
-                    dataKey="topic"
-                    type="category"
-                    tickLine={false}
-                    tickMargin={10}
-                    axisLine={false}
-                    tickFormatter={(value) => (value.charAt(0).toUpperCase() + value.slice(1))}
-                  />
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent indicator="dot" />}
-                  />
-                  <Bar dataKey="sessions" layout="vertical" radius={5} fill="hsl(var(--primary))" />
-                </BarChart>
-              </ChartContainer>
+              {learningFocusChartData.length > 0 ? (
+                <ChartContainer config={learningFocusChartConfig} className="h-[200px] w-full">
+                  <BarChart accessibilityLayer data={learningFocusChartData} layout="vertical" margin={{ left: 10, right: 10 }}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis type="number" dataKey="sessions" hide />
+                    <YAxis
+                      dataKey="topic"
+                      type="category"
+                      tickLine={false}
+                      tickMargin={10}
+                      axisLine={false}
+                      tickFormatter={(value) => (value.charAt(0).toUpperCase() + value.slice(1))}
+                    />
+                    <ChartTooltip
+                      cursor={false}
+                      content={<ChartTooltipContent indicator="dot" />}
+                    />
+                    <Bar dataKey="sessions" layout="vertical" radius={5} fill="hsl(var(--primary))" />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">{t('noTopicsYet')}</div>
+              )}
             </CardContent>
           </Card>
            <Card>
@@ -483,6 +489,17 @@ export default function AnalyticsPage() {
               </ChartContainer>
             </CardContent>
           </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('averageSessionSuccess')}</CardTitle>
+              <CardDescription>{t('averageSessionSuccessDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center justify-center h-[160px]">
+              <div className={cn("text-5xl font-bold text-primary flex items-center gap-2")}>
+                {averageCompletion}<Percent className="h-10 w-10" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <Card>
@@ -510,16 +527,26 @@ export default function AnalyticsPage() {
 
                     return (
                         <Card key={learningSession.id} className="p-4 cursor-pointer hover:bg-muted/50" onClick={() => setSelectedSession(learningSession)}>
-                            <div className="flex justify-between items-center mb-2">
-                            <p className="font-medium text-sm">{formatDate(day.date)}</p>
-                            {learningSession.completionPercentage !== undefined && (
-                                <CompletionBadge completion={learningSession.completionPercentage} />
-                            )}
+                            <div className="flex justify-between items-start gap-4 mb-2">
+                                <div>
+                                    <p className="font-medium text-sm text-muted-foreground">{formatDate(day.date)}</p>
+                                    <p className="font-semibold text-base">{learningSession.learningGoal}</p>
+                                </div>
+                                {learningSession.completionPercentage !== undefined && (
+                                    <CompletionBadge completion={learningSession.completionPercentage} />
+                                )}
                             </div>
-                            <p className="font-semibold text-base mb-2">{learningSession.learningGoal}</p>
+                            
                             <div className="flex items-center text-sm text-muted-foreground gap-4">
                                 <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {formatDuration(workMs)}</div>
                             </div>
+                            {learningSession.topics && learningSession.topics.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                    {learningSession.topics.map(topic => (
+                                        <Badge key={topic} variant="secondary">{topic}</Badge>
+                                    ))}
+                                </div>
+                            )}
                         </Card>
                     )
                   })

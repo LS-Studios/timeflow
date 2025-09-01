@@ -197,13 +197,13 @@ export default function Home() {
     start();
   };
   
-  const handleStartLearning = (goal: string, objectives: string[]) => {
+  const handleStartLearning = (goal: string, objectives: string[], topics: string[]) => {
     const now = new Date();
     if (isPaused) { 
         updateLastSession({ end: now });
     }
     const learningObjectives: LearningObjective[] = objectives.map(obj => ({ text: obj, completed: 0 }));
-    addSession({ type: 'work', start: now, end: null, learningGoal: goal, learningObjectives });
+    addSession({ type: 'work', start: now, end: null, learningGoal: goal, learningObjectives, topics });
     start();
   }
 
@@ -248,9 +248,13 @@ export default function Home() {
   const handleEnd = () => {
     const now = new Date();
     
-    const lastSession = [...todaySessions].reverse().find(s => !s.end);
+    // Find the last active work session for today
+    const lastSession = [...todaySessions].reverse().find(s => s.type === 'work' && !s.end);
 
-    if (settings.mode === 'learning' && lastSession && lastSession.type === 'work') {
+    if (settings.mode === 'learning' && lastSession) {
+      // First, "end" the session in the state
+      updateLastSession({ end: now });
+      // Then, pass this now-ended session to the dialog
       setSessionToEnd(lastSession);
       setEndLearningDialogOpen(true);
     } else {
@@ -282,7 +286,7 @@ export default function Home() {
         if (sessionIndex !== -1) {
              newAll[sessionIndex] = { 
                 ...newAll[sessionIndex],
-                end: new Date(),
+                end: new Date(), // Re-affirm end time
                 learningObjectives: updatedObjectives,
                 completionPercentage: totalCompletion,
             };
