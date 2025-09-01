@@ -302,33 +302,31 @@ export default function Home() {
     const now = new Date();
     if (!sessionToEnd) return;
   
-    // 1. Create fully updated versions of the session arrays
+    // Create a new, fully updated array for all sessions
     const finalAllSessions = allSessions.map(session => {
-      // Find the initial learning session and update it with the final results
+      let updatedSession = { ...session };
+      
+      // Update the main learning session with completion data
       if (session.id === sessionToEnd.id) {
-        return {
-          ...session,
-          learningObjectives: updatedObjectives,
-          completionPercentage: totalCompletion,
-        };
+        updatedSession.learningObjectives = updatedObjectives;
+        updatedSession.completionPercentage = totalCompletion;
       }
-      return session;
-    }).map(session => {
+      
       // Ensure every session for today has a definitive end time
       if (isToday(new Date(session.start)) && !session.end) {
-        return { ...session, end: now };
+        updatedSession.end = now;
       }
-      return session;
+      
+      return updatedSession;
     });
   
-    const finalTodaySessions = finalAllSessions.filter(s => isToday(new Date(s.start)));
-  
-    // 2. Update all states in a batch
+    // Update all states in a batch
     setAllSessions(finalAllSessions);
-    setTodaySessions(finalTodaySessions);
+    // After ending a learning day, today's sessions should be empty for the next start
+    setTodaySessions([]);
     setAllTopics(storageService.getAllTopics());
   
-    // 3. Reset UI for the next session
+    // Reset UI for the next session
     reset(TIMER_TYPES.stopwatch);
     pause(); 
     setEndLearningDialogOpen(false);
@@ -461,5 +459,6 @@ export default function Home() {
     </>
   );
 }
+
 
 
