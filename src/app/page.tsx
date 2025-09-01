@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { useTimer } from "@/hooks/use-timer";
+import { useSettings } from "@/lib/settings-provider";
 import { TimerDisplay } from "@/components/timer-display";
 import { TimerControls } from "@/components/timer-controls";
 import { PauseNoteDialog } from "@/components/pause-note-dialog";
+import { StartLearningDialog } from "@/components/start-learning-dialog";
+import { EndLearningDialog } from "@/components/end-learning-dialog";
 import { TIMER_TYPES } from "@/lib/constants";
 import { useTranslation } from "@/lib/i18n.tsx";
 import { Timeline } from "@/components/timeline";
@@ -19,29 +22,47 @@ export default function Home() {
     start,
     pause,
     reset,
-    progress,
   } = useTimer(TIMER_TYPES.stopwatch);
   
-  const [isNoteDialogOpen, setNoteDialogOpen] = useState(false);
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [currentSessionStart, setCurrentSessionStart] = useState<Date | null>(null);
+  const { mode } = useSettings();
+  const [isPauseNoteDialogOpen, setPauseNoteDialogOpen] = useState(false);
+  const [isStartLearningDialogOpen, setStartLearningDialogOpen] = useState(false);
+  const [isEndLearningDialogOpen, setEndLearningDialogOpen] = useState(false);
 
+  const [sessions, setSessions] = useState<Session[]>([]);
+  
   const { t } = useTranslation();
 
-  const handleStart = () => {
-    const now = new Date();
-    if (sessions.length === 0) { // First start of the day
-      setSessions([{ type: 'work', start: now, end: null }]);
-    } else if (isPaused) { // Resuming from a pause
-      const lastSession = sessions[sessions.length - 1];
-      if (lastSession.type === 'pause') {
-        lastSession.end = now;
+  const handleGenericStart = () => {
+    if (mode === 'learning') {
+      setStartLearningDialogOpen(true);
+    } else {
+      // Logic for 'work' mode
+      const now = new Date();
+      if (sessions.length === 0) { // First start of the day
+        setSessions([{ type: 'work', start: now, end: null }]);
+      } else if (isPaused) { // Resuming from a pause
+        const lastSession = sessions[sessions.length - 1];
+        if (lastSession.type === 'pause') {
+          lastSession.end = now;
+        }
+        setSessions([...sessions, { type: 'work', start: now, end: null }]);
       }
-      setSessions([...sessions, { type: 'work', start: now, end: null }]);
+      start();
     }
-    setCurrentSessionStart(now);
-    start();
   };
+  
+  const handleStartLearning = (goal: string) => {
+    const now = new Date();
+     if (isPaused) { // Resuming from a pause
+        const lastSession = sessions[sessions.length - 1];
+        if (lastSession.type === 'pause') {
+          lastSession.end = now;
+        }
+    }
+    setSessions([...sessions, { type: 'work', start: now, end: null, learningGoal: goal }]);
+    start();
+  }
 
   const handlePause = () => {
     pause();
@@ -51,39 +72,64 @@ export default function Home() {
       lastSession.end = now;
     }
     setSessions([...sessions, { type: 'pause', start: now, end: null, note: '' }]);
-    setNoteDialogOpen(true);
+    setPauseNoteDialogOpen(true);
   };
   
   const handleReset = () => {
     reset(TIMER_TYPES.stopwatch);
     setSessions([]);
-    setCurrentSessionStart(null);
   };
   
-  const handleEnd = () => {
-    console.log("Work day ended");
+  const handleGenericEnd = () => {
+    if (mode === 'learning' && sessions.some(s => s.type === 'work')) {
+       setEndLearningDialogOpen(true);
+    } else {
+      endWorkDay();
+    }
+  }
+
+  const endWorkDay = () => {
     const now = new Date();
     const lastSession = sessions[sessions.length - 1];
     
     // Finalize last session if it exists and is ongoing
-    if (lastSession) {
-      if (lastSession.type === 'work' && !lastSession.end) {
-        lastSession.end = now;
-      } else if (lastSession.type === 'pause' && !lastSession.end) {
-        // If ending during a pause, end the pause.
-        lastSession.end = now;
-      }
+    if (lastSession && !lastSession.end) {
+      lastSession.end = now;
     }
     
     // In a real app, you'd save the finalized sessions here.
-    // For now, we just log them.
     console.log("Final sessions:", sessions);
 
     // Reset everything for the next day
     setSessions([]);
     reset(TIMER_TYPES.stopwatch);
-    setCurrentSessionStart(null);
   }
+
+  const handleEndLearning = (completionPercentage: number) => {
+    const now = new Date();
+    const lastWorkSession = [...sessions].reverse().find(s => s.type === 'work');
+
+    if (lastWorkSession) {
+      if (!lastWorkSession.end) {
+        lastWorkSession.end = now;
+      }
+      lastWorkSession.completionPercentage = completionPercentage;
+    }
+    
+     // Also end a potential ongoing pause
+    const lastSession = sessions[sessions.length-1];
+    if(lastSession.type === 'pause' && !lastSession.end) {
+        lastSession.end = now;
+    }
+
+    // In a real app, you'd save the finalized sessions here.
+    console.log("Final learning sessions:", sessions);
+
+    // Reset everything for the next day
+    setSessions([]);
+    reset(TIMER_TYPES.stopwatch);
+  }
+
 
   const handleSaveNote = (note: string) => {
     const lastSession = sessions[sessions.length-1];
@@ -92,6 +138,13 @@ export default function Home() {
       setSessions([...sessions]);
     }
   };
+  
+  // Reset sessions if mode changes
+  useState(() => {
+    reset(TIMER_TYPES.stopwatch);
+    setSessions([]);
+  }, [mode]);
+
 
   return (
     <>
@@ -107,10 +160,10 @@ export default function Home() {
           <TimerControls
             isActive={isActive}
             isPaused={isPaused}
-            onStart={handleStart}
+            onStart={handleGenericStart}
             onPause={handlePause}
             onReset={handleReset}
-            onEnd={handleEnd}
+            onEnd={handleGenericEnd}
           />
         </motion.div>
         
@@ -121,10 +174,22 @@ export default function Home() {
         )}
 
       </div>
+      
+      {/* Dialogs */}
       <PauseNoteDialog
-        isOpen={isNoteDialogOpen}
-        onOpenChange={setNoteDialogOpen}
+        isOpen={isPauseNoteDialogOpen}
+        onOpenChange={setPauseNoteDialogOpen}
         onSave={handleSaveNote}
+      />
+      <StartLearningDialog
+        isOpen={isStartLearningDialogOpen}
+        onOpenChange={setStartLearningDialogOpen}
+        onStart={handleStartLearning}
+      />
+      <EndLearningDialog
+        isOpen={isEndLearningDialogOpen}
+        onOpenChange={setEndLearningDialogOpen}
+        onEnd={handleEndLearning}
       />
     </>
   );

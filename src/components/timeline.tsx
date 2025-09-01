@@ -2,9 +2,11 @@
 
 import type { Session } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Briefcase, Coffee, Flag, Flame, PersonStanding, Wind, Pencil } from "lucide-react";
+import { Briefcase, Coffee, Flag, Flame, PersonStanding, Wind, Pencil, Brain, Target } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "@/lib/i18n";
+import { useSettings } from "@/lib/settings-provider";
+
 
 interface TimelineProps {
   sessions: Session[];
@@ -38,6 +40,8 @@ function getIconForNote(note: string | undefined, t: (key: string) => string) {
 
 export function Timeline({ sessions }: TimelineProps) {
   const { t } = useTranslation();
+  const { mode } = useSettings();
+  
   // We'll add the calculated end time later
   const dailyGoalHours = 8;
   const workDurationSoFar = sessions
@@ -45,7 +49,7 @@ export function Timeline({ sessions }: TimelineProps) {
     .reduce((acc, s) => acc + (s.end!.getTime() - s.start.getTime()), 0);
 
   const remainingWorkMs = (dailyGoalHours * 60 * 60 * 1000) - workDurationSoFar;
-  const projectedEndTime = sessions.length > 0 ? new Date(Date.now() + remainingWorkMs) : null;
+  const projectedEndTime = (mode === 'work' && sessions.length > 0) ? new Date(Date.now() + remainingWorkMs) : null;
 
 
   return (
@@ -73,18 +77,26 @@ export function Timeline({ sessions }: TimelineProps) {
                     ></div>
                     </div>
                     <div className="flex-1 pl-6">
-                    <div className="flex items-center gap-2">
-                        {session.type === 'work' ? <Briefcase className="w-4 h-4" /> : <PauseIcon className="w-4 h-4" />}
-                        <span className="font-semibold">{formatTime(session.start)}</span>
-                        <span className="text-muted-foreground text-sm">
-                        ({formatDuration(session.start, session.end)})
-                        </span>
-                    </div>
-                    {session.type === 'pause' && session.note && (
-                        <p className="text-sm text-muted-foreground ml-6 italic">
-                        "{session.note}"
-                        </p>
-                    )}
+                      <div className="flex items-center gap-2">
+                          {session.type === 'work' ? (mode === 'learning' ? <Brain className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />) : <PauseIcon className="w-4 h-4" />}
+                          <span className="font-semibold">{formatTime(session.start)}</span>
+                          <span className="text-muted-foreground text-sm">
+                          ({formatDuration(session.start, session.end)})
+                          </span>
+                      </div>
+                      
+                      {session.type === 'work' && session.learningGoal && (
+                          <p className="text-sm text-muted-foreground ml-6 italic">
+                          Goal: "{session.learningGoal}"
+                           {session.completionPercentage !== undefined && <span className="font-semibold not-italic"> - Completed: {session.completionPercentage}%</span>}
+                          </p>
+                      )}
+
+                      {session.type === 'pause' && session.note && (
+                          <p className="text-sm text-muted-foreground ml-6 italic">
+                          "{session.note}"
+                          </p>
+                      )}
                     </div>
                 </motion.div>
               );

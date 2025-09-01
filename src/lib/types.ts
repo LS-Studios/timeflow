@@ -3,4 +3,8 @@ export interface Session {
   start: Date;
   end: Date | null;
   note?: string;
+  learningGoal?: string;
+  completionPercentage?: number;
 }
+
+export type AppMode = 'work' | 'learning';

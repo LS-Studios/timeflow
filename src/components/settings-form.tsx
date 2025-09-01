@@ -1,8 +1,10 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { Monitor, Moon, Sun, Trash2 } from "lucide-react";
+import { Monitor, Moon, Sun, Trash2, Brain, Briefcase } from "lucide-react";
 import { useTranslation, type Language } from "@/lib/i18n.tsx";
+import { useSettings } from "@/lib/settings-provider";
+import type { AppMode } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,33 +28,69 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { cn } from "@/lib/utils";
 
 export function SettingsForm() {
   const { theme, setTheme } = useTheme();
   const { t, language, setLanguage } = useTranslation();
+  const { mode, setMode } = useSettings();
 
   // In a real app, these values would come from a settings context or API
   const dailyGoal = 8;
   const weeklyGoal = 40;
+  
+  const appModeOptions = [
+    { id: "work", label: t('modeWork'), icon: Briefcase },
+    { id: "learning", label: t('modeLearning'), icon: Brain },
+  ]
 
   return (
     <div className="grid gap-6">
        <Card>
         <CardHeader>
-          <CardTitle>{t('workGoals')}</CardTitle>
-          <CardDescription>{t('workGoalsDescription')}</CardDescription>
+          <CardTitle>{t('appMode')}</CardTitle>
+          <CardDescription>{t('appModeDescription')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="daily-goal">{t('dailyGoal')}</Label>
-            <Input id="daily-goal" type="number" defaultValue={dailyGoal} className="w-24" />
-          </div>
-           <div className="flex items-center justify-between">
-            <Label htmlFor="weekly-goal">{t('weeklyGoal')}</Label>
-            <Input id="weekly-goal" type="number" defaultValue={weeklyGoal} className="w-24" />
-          </div>
+        <CardContent>
+           <RadioGroup value={mode} onValueChange={(value: AppMode) => setMode(value)} className="grid grid-cols-2 gap-4">
+              {appModeOptions.map((option) => (
+                <Label
+                  key={option.id}
+                  htmlFor={option.id}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-2 rounded-md border-2 p-4 cursor-pointer transition-colors hover:border-primary h-28",
+                    mode === option.id && "border-primary bg-primary/5"
+                  )}
+                >
+                  <RadioGroupItem value={option.id} id={option.id} className="sr-only" />
+                  <option.icon className="h-8 w-8 text-muted-foreground" />
+                  <span className="font-semibold text-center">{option.label}</span>
+                </Label>
+              ))}
+          </RadioGroup>
         </CardContent>
       </Card>
+      
+      {mode === 'work' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('workGoals')}</CardTitle>
+            <CardDescription>{t('workGoalsDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="daily-goal">{t('dailyGoal')}</Label>
+              <Input id="daily-goal" type="number" defaultValue={dailyGoal} className="w-24" />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="weekly-goal">{t('weeklyGoal')}</Label>
+              <Input id="weekly-goal" type="number" defaultValue={weeklyGoal} className="w-24" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
 
       <Card>
         <CardHeader>
