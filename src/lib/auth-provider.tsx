@@ -58,7 +58,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Use onAuthStateChanged to manage user session
   useEffect(() => {
     console.log("AuthProvider: Setting up onAuthStateChanged listener.");
-    // Check if auth object is valid before subscribing
     if (!auth || Object.keys(auth).length === 0) {
       console.log("AuthProvider: Firebase Auth not initialized, skipping listener.");
       setIsLoading(false);
@@ -132,11 +131,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const firebaseUser = userCredential.user;
         console.log("AuthProvider: Firebase user created successfully with UID:", firebaseUser.uid);
 
+        const newUserAccount: UserAccount = { name: name, email: email };
         console.log("AuthProvider: Storing user account data in Realtime Database.");
-        await set(ref(db, `users/${firebaseUser.uid}/account`), {
-            name: name,
-            email: email,
-        });
+        await set(ref(db, `users/${firebaseUser.uid}/account`), newUserAccount);
         console.log("AuthProvider: User data stored successfully.");
 
         return { success: true, message: 'Registration successful' };
