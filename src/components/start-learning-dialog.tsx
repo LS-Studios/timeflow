@@ -15,10 +15,9 @@ import { Brain, X as XIcon, Plus, GripVertical, Check, ListOrdered } from "lucid
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
 import { Reorder } from "framer-motion";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-
 
 interface StartLearningDialogProps {
   isOpen: boolean;
@@ -44,6 +43,10 @@ export function StartLearningDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // This effect ensures that the input field is refocused after a topic is added.
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [selectedTopics]);
 
   const handleStart = () => {
     if (mainGoal.trim()) {
@@ -53,7 +56,6 @@ export function StartLearningDialog({
     }
   };
 
-  // Reset state on close
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       setMainGoal("");
@@ -162,14 +164,6 @@ export function StartLearningDialog({
                         }}
                         onKeyDown={handleTopicInputKeyDown}
                         onFocus={() => setPopoverOpen(true)}
-                        onBlur={() => {
-                          // We need a small delay to allow for clicks on popover items
-                          setTimeout(() => {
-                            if (!containerRef.current?.contains(document.activeElement)) {
-                               setPopoverOpen(false);
-                            }
-                          }, 150);
-                        }}
                         className="bg-transparent border-0 shadow-none h-6 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1 min-w-[120px] text-sm"
                       />
                   </div>
@@ -186,8 +180,8 @@ export function StartLearningDialog({
                             onSelect={() => handleTopicSelect(topic)}
                             className="cursor-pointer"
                         >
+                             <Check className={cn("mr-2 h-4 w-4", selectedTopics.includes(topic) ? "opacity-100" : "opacity-0")} />
                             {topic}
-                             <Check className={cn("ml-auto h-4 w-4", selectedTopics.includes(topic) ? "opacity-100" : "opacity-0")} />
                         </CommandItem>
                         ))}
                     </CommandGroup>
@@ -245,5 +239,3 @@ export function StartLearningDialog({
     </Dialog>
   );
 }
-
-    
