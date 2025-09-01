@@ -18,34 +18,8 @@ const formatTime = (time: number) => {
   )}:${String(seconds).padStart(2, "0")}`;
 };
 
-const circlePath = "M 100, 5 a 95,95 0 1,1 0,190 a 95,95 0 1,1 0,-190";
-
-const morphPaths = [
-  "M100,5 C152.47,5,195,47.53,195,100 C195,152.47,152.47,195,100,195 C47.53,195,5,152.47,5,100 C5,71.5,23.5,47.5,50,30",
-  "M100,5 C128.5,23.5,152.5,47.5,170,75 C190,110,195,152.47,195,100 C195,47.53,152.47,5,100,5 C47.53,5,5,47.53,5,100",
-  "M100,5 C47.53,5,5,47.53,5,100 C5,152.47,47.53,195,100,195 C128.5,176.5,152.5,152.5,170,125",
-  "M100,5 C47.53,5,5,47.53,5,100 C5,128.5,23.5,152.5,50,170 C90,210,152.47,195,100,195 C47.53,195,5,152.47,5,100",
-  "M100,5 C152.47,5,195,47.53,195,100 C195,128.5,176.5,152.5,150,170 C110,210,47.53,195,100,195",
-];
-
-
 export function TimerDisplay({ time, isActive, isPaused }: TimerDisplayProps) {
   const isRunning = isActive && !isPaused;
-
-  const pathVariants = {
-    running: {
-      d: [...morphPaths, morphPaths[0]],
-      transition: {
-        duration: 8,
-        ease: "easeInOut",
-        repeat: Infinity,
-      },
-    },
-    stopped: {
-      d: circlePath,
-      transition: { duration: 0.8, ease: "easeOut" },
-    },
-  };
 
   return (
     <div className="relative w-80 h-80 sm:w-96 sm:h-96 flex items-center justify-center">
@@ -58,8 +32,10 @@ export function TimerDisplay({ time, isActive, isPaused }: TimerDisplayProps) {
           className="stroke-secondary"
           fill="transparent"
         />
-        <motion.path
-          d={circlePath}
+        <motion.circle
+          cx="100"
+          cy="100"
+          r={95}
           strokeWidth="8"
           className={cn({
             "stroke-primary": isRunning,
@@ -67,8 +43,9 @@ export function TimerDisplay({ time, isActive, isPaused }: TimerDisplayProps) {
             "stroke-secondary": !isActive && !isPaused,
           })}
           fill="transparent"
-          variants={pathVariants}
-          animate={isRunning ? "running" : "stopped"}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
         />
       </svg>
       <div
