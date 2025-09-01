@@ -136,9 +136,9 @@ export function LoginDialog() {
         
         {error && (
             <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4"/>
-                <AlertDescription className="text-xs">
-                  {error}
+                <AlertDescription className="text-xs flex items-center gap-2">
+                   <AlertTriangle className="h-4 w-4"/>
+                   {error}
                 </AlertDescription>
             </Alert>
         )}
