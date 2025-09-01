@@ -12,41 +12,59 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, AtSign, KeyRound, User, Users } from "lucide-react";
+import { LogIn, AtSign, KeyRound, User, Users, AlertTriangle } from "lucide-react";
 import { Logo } from "./logo";
 import { useTranslation } from "@/lib/i18n";
 import { Separator } from "./ui/separator";
+import { useAuth } from "@/lib/auth-provider";
+import { Alert, AlertDescription } from "./ui/alert";
 
-interface LoginDialogProps {
-  onLogin: (user: { name: string; email: string }) => void;
-}
-
-export function LoginDialog({ onLogin }: LoginDialogProps) {
+export function LoginDialog() {
   const { t } = useTranslation();
+  const { login, register, loginAsGuest } = useAuth();
+  
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [name, setName] = useState("Max Mustermann");
-  const [email, setEmail] = useState("max.mustermann@musterfirma.de");
-  const [password, setPassword] = useState("password123");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  
+  const resetForm = () => {
+      setName("");
+      setEmail("");
+      setPassword("");
+      setError(null);
+  }
 
-  const handleSubmit = () => {
-    // Simulate login/registration
-    if (email && password && (mode === 'login' || (mode === 'register' && name))) {
-      onLogin({
-        name: name,
-        email: email,
-      });
+  const handleSubmit = async () => {
+    setError(null);
+    let result;
+    if (mode === 'login') {
+      if (!email || !password) {
+        setError("Please enter email and password.");
+        return;
+      }
+      result = await login(email, password);
+    } else { // register
+      if (!name || !email || !password) {
+        setError("Please fill in all fields.");
+        return;
+      }
+      result = await register(name, email, password);
+    }
+
+    if (result && !result.success) {
+      setError(result.message);
     }
   };
   
   const handleGuestLogin = () => {
-    onLogin({
-      name: 'Guest User',
-      email: `guest-${Date.now()}@local.com` // Unique email for avatar
-    });
+    loginAsGuest();
   }
 
   const toggleMode = () => {
     setMode(prev => prev === 'login' ? 'register' : 'login');
+    resetForm();
   }
 
   return (
@@ -80,6 +98,7 @@ export function LoginDialog({ onLogin }: LoginDialogProps) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="pl-9"
+                  autoComplete="name"
                 />
               </div>
             </div>
@@ -95,6 +114,7 @@ export function LoginDialog({ onLogin }: LoginDialogProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-9"
+                autoComplete="email"
               />
             </div>
           </div>
@@ -108,10 +128,21 @@ export function LoginDialog({ onLogin }: LoginDialogProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="pl-9"
+                autoComplete={mode === 'login' ? "current-password" : "new-password"}
               />
             </div>
           </div>
         </div>
+        
+        {error && (
+            <Alert variant="destructive" className="py-2">
+                <AlertTriangle className="h-4 w-4"/>
+                <AlertDescription className="text-xs">
+                  {error}
+                </AlertDescription>
+            </Alert>
+        )}
+
         <div className="flex flex-col gap-2">
           <Button onClick={handleSubmit} className="w-full">
             <LogIn className="mr-2 h-4 w-4" />

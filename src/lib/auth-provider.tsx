@@ -4,16 +4,24 @@
 import React, { createContext, useState, useContext, ReactNode, useMemo, useEffect, useCallback } from 'react';
 import { LoginDialog } from '@/components/login-dialog';
 import { ProfileDialog } from '@/components/profile-dialog';
+import { storageService, type UserAccount } from './storage';
 
-interface User {
+type User = {
   name: string;
   email: string;
-}
+};
+
+type AuthResult = {
+  success: boolean;
+  message: string;
+};
 
 interface AuthContextType {
   user: User | null;
-  login: (user: User) => void;
+  login: (email: string, password: string) => Promise<AuthResult>;
+  register: (name: string, email: string, password: string) => Promise<AuthResult>;
   logout: () => void;
+  loginAsGuest: () => void;
   openProfileDialog: () => void;
 }
 
@@ -22,38 +30,66 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isProfileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // In a real app, you might check a token in localStorage here
+  // Check for a logged-in user in localStorage on initial load
   useEffect(() => {
-    // For now, we start logged out
-    setUser(null);
+    const loggedInUser = storageService.getLoggedInUser();
+    if (loggedInUser) {
+      setUser(loggedInUser);
+    }
+    setIsLoading(false);
   }, []);
 
-  const login = useCallback((newUser: User) => {
-    setUser(newUser);
+  const login = useCallback(async (email: string, password: string): Promise<AuthResult> => {
+    const authenticatedUser = storageService.authenticateUser(email, password);
+    if (authenticatedUser) {
+      setUser(authenticatedUser);
+      storageService.setLoggedInUser(authenticatedUser);
+      return { success: true, message: 'Login successful' };
+    } else {
+      return { success: false, message: 'Invalid email or password.' };
+    }
+  }, []);
+
+  const register = useCallback(async (name: string, email: string, password: string): Promise<AuthResult> => {
+    const newUser: UserAccount = { name, email, password };
+    const success = storageService.saveUser(newUser);
+    if (success) {
+      setUser(newUser);
+      storageService.setLoggedInUser(newUser);
+      return { success: true, message: 'Registration successful' };
+    } else {
+      return { success: false, message: 'A user with this email already exists.' };
+    }
+  }, []);
+  
+  const loginAsGuest = useCallback(() => {
+    const guestUser = { name: 'Guest User', email: `guest-${Date.now()}@local.com` };
+    setUser(guestUser);
+    // Don't save guest user to permanent logged-in state
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
-    setProfileDialogOpen(false); // Close profile dialog on logout
+    storageService.clearLoggedInUser();
+    setProfileDialogOpen(false);
   }, []);
 
   const openProfileDialog = useCallback(() => {
     setProfileDialogOpen(true);
   }, []);
   
-  const closeProfileDialog = useCallback(() => {
-    setProfileDialogOpen(false);
-  }, []);
-
   const value = useMemo(() => ({
     user,
     login,
+    register,
     logout,
+    loginAsGuest,
     openProfileDialog,
-  }), [user, login, logout, openProfileDialog]);
+  }), [user, login, register, logout, loginAsGuest, openProfileDialog]);
   
-  const isLoginRequired = !user;
+  const isLoginRequired = !user && !isLoading;
 
   return (
     <AuthContext.Provider value={value}>
@@ -61,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         {children}
       </div>
       
-      {isLoginRequired && <LoginDialog onLogin={login} />}
+      {isLoginRequired && <LoginDialog />}
       
       {user && (
         <ProfileDialog 
