@@ -1,5 +1,5 @@
 
-import { useState, KeyboardEvent, useRef } from "react";
+import { useState, KeyboardEvent, useRef, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/lib/i18n.tsx";
-import { Brain, X as XIcon, Plus, GripVertical, Check } from "lucide-react";
+import { Brain, X as XIcon, Plus, GripVertical } from "lucide-react";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
 import { Reorder } from "framer-motion";
@@ -87,22 +87,28 @@ export function StartLearningDialog({
         setTopics([...topics, newTopic]);
       }
       setCurrentTopic("");
+      setPopoverOpen(false); // Close popover after adding
       return;
     }
   };
   
   const handleTopicSelect = (topic: string) => {
     if (topic && !topics.includes(topic)) {
-      setTopics([...topics, topic]);
+      setTopics(prev => [...prev, topic]);
     }
     setCurrentTopic("");
-    // Keep focus on the input to add more topics
-    topicInputRef.current?.focus();
+    setPopoverOpen(false); // Close popover after selection
   }
 
   const filteredTopics = allTopics.filter(topic => 
     !topics.includes(topic) && topic.toLowerCase().includes(currentTopic.toLowerCase())
   );
+  
+  const handleBlur = useCallback(() => {
+    // We need a tiny delay, because the blur event happens before the onSelect event
+    // on a CommandItem. So if we close the popover immediately, the onSelect is never fired.
+    setTimeout(() => setPopoverOpen(false), 100);
+  }, []);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -130,10 +136,7 @@ export function StartLearningDialog({
             <Label>{t('topics')}</Label>
              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
               <PopoverTrigger asChild>
-                <div 
-                  className="flex flex-wrap items-center gap-2 rounded-md border border-input p-1 pl-2 bg-background cursor-text min-h-11"
-                  onClick={() => topicInputRef.current?.focus()}
-                >
+                <div className="flex flex-wrap items-center gap-2 rounded-md border border-input p-1 pl-2 bg-transparent cursor-text min-h-11">
                     {topics.map((topic, index) => (
                       <Badge key={index} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
                         {topic}
@@ -143,38 +146,39 @@ export function StartLearningDialog({
                         </button>
                       </Badge>
                     ))}
-                    <Command className="flex-1 min-w-[120px]">
-                      <CommandInput
-                        ref={topicInputRef}
-                        id="topics"
-                        placeholder={t('addTopicPlaceholder')}
-                        value={currentTopic}
-                        onValueChange={setCurrentTopic}
-                        onKeyDown={handleTopicKeyDown}
-                        onFocus={() => setPopoverOpen(true)}
-                        onBlur={() => setPopoverOpen(false)}
-                        className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0"
-                      />
-                      <CommandList>
-                        {popoverOpen && filteredTopics.length > 0 && (
-                          <CommandGroup>
-                            {filteredTopics.map((topic) => (
-                              <CommandItem
-                                key={topic}
-                                onSelect={() => handleTopicSelect(topic)}
-                                className="cursor-pointer"
-                              >
-                                {topic}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        )}
-                      </CommandList>
-                   </Command>
+                    <CommandInput
+                      ref={topicInputRef}
+                      id="topics"
+                      placeholder={t('addTopicPlaceholder')}
+                      value={currentTopic}
+                      onValueChange={setCurrentTopic}
+                      onKeyDown={handleTopicKeyDown}
+                      onFocus={() => setPopoverOpen(true)}
+                      onBlur={handleBlur}
+                      className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1 min-w-[120px]"
+                    />
                 </div>
               </PopoverTrigger>
               <PopoverContent asChild className="w-[--radix-popover-trigger-width] p-0">
-                 {/* The CommandList is now part of the PopoverTrigger, so this can be empty or we can move the list here */}
+                <Command>
+                    <CommandList>
+                      {filteredTopics.length > 0 ? (
+                        <CommandGroup>
+                          {filteredTopics.map((topic) => (
+                            <CommandItem
+                              key={topic}
+                              onSelect={() => handleTopicSelect(topic)}
+                              className="cursor-pointer"
+                            >
+                              {topic}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      ) : (
+                        currentTopic.trim() && <CommandEmpty>No results found.</CommandEmpty>
+                      )}
+                    </CommandList>
+                  </Command>
               </PopoverContent>
              </Popover>
           </div>
