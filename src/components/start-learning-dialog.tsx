@@ -41,7 +41,6 @@ export function StartLearningDialog({
   const [topics, setTopics] = useState<string[]>([]);
   const [currentTopic, setCurrentTopic] = useState("");
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const topicInputRef = useRef<HTMLInputElement>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
 
 
@@ -80,17 +79,16 @@ export function StartLearningDialog({
 
   const handleRemoveTopic = (topicToRemove: string) => {
     setTopics(topics.filter((topic) => topic !== topicToRemove));
-    topicInputRef.current?.focus();
   };
   
   const handleTopicSelect = useCallback((topic: string) => {
-    setPopoverOpen(false);
     const trimmedTopic = topic.trim();
     if (trimmedTopic && !topics.includes(trimmedTopic)) {
       setTopics(prev => [...prev, trimmedTopic]);
     }
     setCurrentTopic("");
-    topicInputRef.current?.focus();
+    commandInputRef.current?.focus();
+    setPopoverOpen(true);
   }, [topics]);
 
   const handleTopicInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -99,19 +97,8 @@ export function StartLearningDialog({
       handleRemoveTopic(topics[topics.length - 1]);
       return;
     }
-     if(event.key === 'Enter' && currentTopic.trim()) {
-        event.preventDefault();
-        handleTopicSelect(currentTopic.trim());
-    }
   };
 
-  // When the popover opens, focus the command input
-  useEffect(() => {
-    if (popoverOpen) {
-      commandInputRef.current?.focus();
-    }
-  }, [popoverOpen]);
-  
   const filteredTopics = allTopics.filter(topic => 
     !topics.includes(topic) && topic.toLowerCase().includes(currentTopic.toLowerCase())
   );
@@ -144,7 +131,7 @@ export function StartLearningDialog({
               <PopoverTrigger asChild>
                 <div
                   className="flex flex-wrap items-center gap-2 rounded-md border border-input p-1 pl-2 bg-transparent cursor-text min-h-11"
-                  onClick={() => topicInputRef.current?.focus()}
+                  onClick={() => commandInputRef.current?.focus()}
                 >
                   {topics.map((topic) => (
                     <Badge key={topic} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
@@ -161,28 +148,22 @@ export function StartLearningDialog({
                       </button>
                     </Badge>
                   ))}
-                  <Input
-                    ref={topicInputRef}
-                    id="topics"
-                    placeholder={topics.length > 0 ? '' : t('addTopicPlaceholder')}
-                    value={currentTopic}
-                    onChange={(e) => {
-                        setCurrentTopic(e.target.value)
-                        if(!popoverOpen) setPopoverOpen(true);
-                    }}
-                    onFocus={() => setPopoverOpen(true)}
-                    onKeyDown={handleTopicInputKeyDown}
-                    className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1 min-w-[120px]"
-                  />
+                  <Command className="flex-1 min-w-[120px]">
+                    <CommandInput
+                      ref={commandInputRef}
+                      placeholder={topics.length > 0 ? '' : t('addTopicPlaceholder')}
+                      value={currentTopic}
+                      onValueChange={setCurrentTopic}
+                      onKeyDown={handleTopicInputKeyDown}
+                      onFocus={() => setPopoverOpen(true)}
+                      className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    />
+                  </Command>
                 </div>
               </PopoverTrigger>
               <PopoverContent asChild className="w-[--radix-popover-trigger-width] p-0">
-                <Command>
-                  <CommandInput
-                    ref={commandInputRef}
-                    placeholder={t('addTopicPlaceholder')}
-                  />
-                  <CommandList>
+                 <Command>
+                   <CommandList>
                     {(filteredTopics.length === 0 && !currentTopic.trim()) && <CommandEmpty>{t('addTopicPlaceholder')}</CommandEmpty>}
                     
                     <CommandGroup>
