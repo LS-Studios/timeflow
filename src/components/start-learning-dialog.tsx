@@ -84,29 +84,25 @@ export function StartLearningDialog({
           <div className="space-y-3">
             <Label htmlFor="objectives">{t('learningObjectives')}</Label>
             {objectives.length > 0 && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap gap-2 rounded-md border p-3 bg-muted/50">
                 {objectives.map((obj, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                     <Badge variant="secondary" className="pl-3 pr-1 py-1 text-sm flex-1 justify-start">
-                        {obj}
-                      </Badge>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveObjective(index)}>
-                        <XIcon className="h-4 w-4 text-muted-foreground" />
-                        <span className="sr-only">Remove {obj}</span>
-                      </Button>
-                  </div>
+                  <Badge key={index} variant="secondary" className="pl-3 pr-1 py-1 text-sm">
+                    {obj}
+                    <button className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2" onClick={() => handleRemoveObjective(index)}>
+                      <XIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                      <span className="sr-only">Remove {obj}</span>
+                    </button>
+                  </Badge>
                 ))}
               </div>
             )}
-            <div className="flex items-center gap-2">
-              <Input
-                id="objectives"
-                placeholder={t('addObjectivePlaceholder')}
-                value={currentObjective}
-                onChange={(e) => setCurrentObjective(e.target.value)}
-                onKeyDown={handleObjectiveKeyDown}
-              />
-            </div>
+            <Input
+              id="objectives"
+              placeholder={t('addObjectivePlaceholder')}
+              value={currentObjective}
+              onChange={(e) => setCurrentObjective(e.target.value)}
+              onKeyDown={handleObjectiveKeyDown}
+            />
           </div>
         </div>
         <DialogFooter>

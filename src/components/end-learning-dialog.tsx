@@ -52,6 +52,12 @@ export function EndLearningDialog({
     newObjectives[index].completed = completion;
     setInternalObjectives(newObjectives);
   };
+  
+  const handleCheckboxChange = (index: number, checked: boolean) => {
+    const newObjectives = [...internalObjectives];
+    newObjectives[index].completed = checked ? 100 : 0;
+    setInternalObjectives(newObjectives);
+  }
 
   const totalCompletion = useMemo(() => {
     if (internalObjectives.length === 0) return 0;
@@ -97,7 +103,7 @@ export function EndLearningDialog({
                    <Checkbox
                     id={`obj-${index}`}
                     checked={obj.completed === 100}
-                    onCheckedChange={(checked) => handleObjectiveChange(index, checked ? 100 : 0)}
+                    onCheckedChange={(checked) => handleCheckboxChange(index, !!checked)}
                   />
                   <Label htmlFor={`obj-${index}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer">
                       {obj.text}
