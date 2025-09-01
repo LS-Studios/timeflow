@@ -128,10 +128,7 @@ export default function Home() {
           pause();
         }
       } else { // No active session
-        // For learning mode, if all sessions are ended, we don't pause, we just idle.
-         if (settings.mode !== 'learning' || (allSessionsEnded && lastTodaySession.type !== 'pause')) {
-           pause();
-        }
+        pause();
       }
     } else {
       // No sessions for today, reset timer
@@ -293,52 +290,57 @@ export default function Home() {
   }
 
   const endLearningSession = (updatedObjectives: LearningObjective[], totalCompletion: number) => {
-     // End all of today's sessions and update the initial one with the results.
-     const now = new Date();
-     const todaySessionIds = new Set(todaySessions.map(s => s.id));
-     
-     setAllSessions(prevAll => {
-        if (!sessionToEnd) return prevAll;
-        let initialSessionUpdated = false;
+    const now = new Date();
+    const todaySessionIds = new Set(todaySessions.map(s => s.id));
+  
+    setAllSessions(prevAll => {
+      if (!sessionToEnd) return prevAll;
+  
+      let initialSessionUpdated = false;
+      
+      const newAll = prevAll.map(session => {
+        // Only modify today's sessions
+        if (!todaySessionIds.has(session.id)) {
+          return session;
+        }
+  
+        let updatedSession = { ...session };
+  
+        // Update the initial learning session with the final results
+        if (session.id === sessionToEnd.id && !initialSessionUpdated) {
+          updatedSession = {
+            ...updatedSession,
+            learningObjectives: updatedObjectives,
+            completionPercentage: totalCompletion,
+          };
+          initialSessionUpdated = true;
+        }
+  
+        // Ensure every session for today has an end time
+        if (!updatedSession.end) {
+          updatedSession.end = now;
+        }
+  
+        return updatedSession;
+      });
 
-        const newAll = prevAll.map(session => {
-            // Only modify today's sessions for the current mode
-            if (!todaySessionIds.has(session.id)) {
-                return session;
-            }
-
-            // Update the initial session with the final learning data
-            if (session.id === sessionToEnd.id && !initialSessionUpdated) {
-                initialSessionUpdated = true;
-                return {
-                    ...session,
-                    learningObjectives: updatedObjectives,
-                    completionPercentage: totalCompletion,
-                    end: session.end || now, // Use existing end time if it was already set (e.g. by a pause)
-                }
-            }
-
-            // End any other open sessions for today
-            if (!session.end) {
-                return { ...session, end: now };
-            }
-            
-            return session;
-        });
-        
-        return newAll;
-     });
-
+      // Also end the last session which might have been a pause started by handleEnd
+      if (newAll.length > 0 && !newAll[newAll.length - 1].end) {
+        newAll[newAll.length - 1].end = now;
+      }
+  
+      return newAll;
+    });
+  
     // Refresh topics so the new ones are available immediately
     setAllTopics(storageService.getAllTopics());
-
+  
     // Reset UI for the next session
     reset(TIMER_TYPES.stopwatch);
-    // Don't clear today's sessions from view, just reset the timer state
     pause(); 
     setEndLearningDialogOpen(false);
     setSessionToEnd(null);
-  }
+  };
 
   const handleSaveNote = (note: string) => {
     updateLastSession({ note });
