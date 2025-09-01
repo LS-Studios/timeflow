@@ -9,8 +9,9 @@ import { MOCK_WORK_DAYS, MOCK_BREAKDOWN_DATA, MOCK_BREAK_TYPE_DATA } from "@/lib
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Clock, Coffee, PlusCircle, MinusCircle } from "lucide-react";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const workBreakdownChartConfig = {
   work: { label: "Work", color: "hsl(var(--primary))" },
@@ -42,6 +43,18 @@ export default function AnalyticsPage() {
   const filteredWorkDays = MOCK_WORK_DAYS.filter(day =>
     formatDate(day.date).toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
+  const OvertimeBadge = ({ overtime }: { overtime: string }) => {
+    const isPositive = overtime.startsWith('+');
+    const Icon = isPositive ? PlusCircle : MinusCircle;
+    
+    return (
+       <Badge variant={isPositive ? 'default' : 'destructive'} className={cn('flex items-center gap-1', isPositive ? 'bg-green-500/20 text-green-700 hover:bg-green-500/30' : 'bg-red-500/20 text-red-700 hover:bg-red-500/30')}>
+          <Icon className="h-3 w-3" />
+          <span>{overtime}</span>
+        </Badge>
+    );
+  }
 
   return (
     <div className="container max-w-5xl py-8 mx-auto px-4">
@@ -143,7 +156,30 @@ export default function AnalyticsPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
              />
           </div>
-          <div className="border rounded-md">
+          {/* Mobile View: List of Cards */}
+          <div className="md:hidden space-y-4">
+            {filteredWorkDays.map((day) => (
+              <Card key={day.id} className="p-4">
+                 <div className="flex justify-between items-center mb-4">
+                  <p className="font-medium">{formatDate(day.date)}</p>
+                  <OvertimeBadge overtime={day.overtime} />
+                </div>
+                <div className="flex justify-around text-center text-sm">
+                  <div>
+                    <p className="text-muted-foreground">{t('workDuration')}</p>
+                    <p className="font-semibold flex items-center gap-1"><Clock className="h-4 w-4" /> {day.workDuration}</p>
+                  </div>
+                  <div>
+                     <p className="text-muted-foreground">{t('breakDuration')}</p>
+                     <p className="font-semibold flex items-center gap-1"><Coffee className="h-4 w-4" /> {day.breakDuration}</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop View: Table */}
+          <div className="hidden md:block border rounded-md">
             <Table>
                 <TableHeader>
                   <TableRow>
