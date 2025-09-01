@@ -55,19 +55,7 @@ export default function AnalyticsPage() {
   useEffect(() => {
     if (!settings) return;
     setIsLoading(true);
-    const allSessions = storageService.getAllSessions();
-
-    // Filter sessions based on mode first
-    const relevantSessions = allSessions.filter(session => {
-        if (settings.mode === 'learning') {
-            return session.learningGoal;
-        }
-        if (settings.mode === 'work') {
-            // Include all work sessions and their associated pauses
-            return !session.learningGoal;
-        }
-        return false;
-    });
+    const relevantSessions = storageService.getSessions(settings.mode);
 
     // Group sessions by day
     const groupedByDay: { [key: string]: Session[] } = {};
@@ -409,7 +397,7 @@ export default function AnalyticsPage() {
         .flatMap(day => day.sessions)
         .map(session => {
             return session.learningGoal && session.completionPercentage !== undefined && session.end
-                ? { date: session.end, completion: session.completionPercentage } 
+                ? { date: new Date(session.end), completion: session.completionPercentage } 
                 : null;
         })
         .filter((item): item is { date: Date; completion: number } => item !== null)
@@ -560,3 +548,5 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
+    
