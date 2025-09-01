@@ -53,22 +53,30 @@ export default function AnalyticsPage() {
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
+    if (!settings) return;
     setIsLoading(true);
     const allHistory = storageService.getAllHistory();
-    // Filter history based on mode
+
     const filtered = allHistory.filter(day => {
-        const hasWorkSessions = day.sessions.some(s => s.type === 'work');
-        // learning sessions are work sessions with a goal
-        const isLearningDay = day.sessions.some(s => s.type ==='work' && s.learningGoal); 
+        const isLearningDay = day.sessions.some(s => s.type ==='work' && s.learningGoal);
         if (settings.mode === 'learning') {
             return isLearningDay;
         }
-        // Work mode should not include days that were purely for learning
-        return hasWorkSessions && !isLearningDay;
+        // In work mode, we want to see days that have work sessions, but are not exclusively learning days
+        return day.sessions.some(s => s.type === 'work' && !s.learningGoal);
+    }).map(day => {
+      // Further filter the sessions within the day to match the mode
+      if (settings.mode === 'work') {
+        return {
+          ...day,
+          sessions: day.sessions.filter(s => s.type === 'pause' || !s.learningGoal)
+        };
+      }
+      return day;
     });
     setHistory(filtered.reverse());
     setIsLoading(false);
-  }, [settings.mode]);
+  }, [settings.mode, settings]);
   
 
   const formatDate = (dateString: string) => {
