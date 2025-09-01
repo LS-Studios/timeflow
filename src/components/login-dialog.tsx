@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, AtSign, KeyRound, User, HardDrive, AlertTriangle } from "lucide-react";
+import { LogIn, AtSign, KeyRound, User, HardDrive, AlertTriangle, Loader2 } from "lucide-react";
 import { Logo } from "./logo";
 import { useTranslation } from "@/lib/i18n";
 import { Separator } from "./ui/separator";
@@ -29,6 +29,7 @@ export function LoginDialog() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   const resetForm = () => {
       setName("");
@@ -39,16 +40,20 @@ export function LoginDialog() {
 
   const handleSubmit = async () => {
     setError(null);
+    setIsLoading(true);
+
     let result;
     if (mode === 'login') {
       if (!email || !password) {
         setError(t('errorFillAllFields'));
+        setIsLoading(false);
         return;
       }
       result = await login(email, password);
     } else { // register
       if (!name || !email || !password) {
         setError(t('errorFillAllFields'));
+        setIsLoading(false);
         return;
       }
       result = await register(name, email, password);
@@ -57,6 +62,8 @@ export function LoginDialog() {
     if (result && !result.success) {
       setError(result.message);
     }
+    // On success, the onAuthStateChanged listener will handle closing the dialog.
+    setIsLoading(false);
   };
   
   const handleGuestLogin = () => {
@@ -100,6 +107,7 @@ export function LoginDialog() {
                   onChange={(e) => setName(e.target.value)}
                   className="pl-9"
                   autoComplete="name"
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -116,6 +124,7 @@ export function LoginDialog() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-9"
                 autoComplete="email"
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -130,6 +139,7 @@ export function LoginDialog() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="pl-9"
                 autoComplete={mode === 'login' ? "current-password" : "new-password"}
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -146,11 +156,11 @@ export function LoginDialog() {
         )}
 
         <div className="flex flex-col gap-2">
-          <Button onClick={handleSubmit} className="w-full">
-            <LogIn className="mr-2 h-4 w-4" />
+          <Button onClick={handleSubmit} className="w-full" disabled={isLoading}>
+            {isLoading ? <Loader2 className="animate-spin" /> : <LogIn />}
             {mode === 'login' ? t('login') : t('createAccount')}
           </Button>
-           <Button onClick={handleGuestLogin} className="w-full" variant="outline">
+           <Button onClick={handleGuestLogin} className="w-full" variant="outline" disabled={isLoading}>
             <HardDrive className="mr-2 h-4 w-4" />
             {t('useWithoutSync')}
           </Button>
@@ -160,7 +170,7 @@ export function LoginDialog() {
         
         <div className="text-center text-sm">
             {mode === 'login' ? t('noAccount') : t('hasAccount')}
-            <Button variant="link" className="pl-1.5" onClick={toggleMode}>
+            <Button variant="link" className="pl-1.5" onClick={toggleMode} disabled={isLoading}>
                 {mode === 'login' ? t('signUp') : t('login')}
             </Button>
         </div>
