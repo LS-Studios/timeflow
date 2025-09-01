@@ -4,6 +4,7 @@ export interface Session {
   end: Date | null;
   note?: string;
   learningGoal?: string;
+  topics?: string[];
   completionPercentage?: number;
 }
 

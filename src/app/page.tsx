@@ -42,8 +42,8 @@ export default function Home() {
     
     // Logic for 'work' mode or for resuming a pause in 'learning' mode.
     const now = new Date();
-    if (sessions.length === 0) { // First start of the day
-      setSessions([{ type: 'work', start: now, end: null }]);
+    if (sessions.length === 0 || !isPaused) { // First start of the day or new work session
+      setSessions([...sessions, { type: 'work', start: now, end: null }]);
     } else if (isPaused) { // Resuming from a pause
       const lastSession = sessions[sessions.length - 1];
       if (lastSession.type === 'pause') {
@@ -54,7 +54,7 @@ export default function Home() {
     start();
   };
   
-  const handleStartLearning = (goal: string) => {
+  const handleStartLearning = (goal: string, topics: string[]) => {
     const now = new Date();
      if (isPaused) { // Resuming from a pause
         const lastSession = sessions[sessions.length - 1];
@@ -62,7 +62,7 @@ export default function Home() {
           lastSession.end = now;
         }
     }
-    setSessions([...sessions, { type: 'work', start: now, end: null, learningGoal: goal }]);
+    setSessions([...sessions, { type: 'work', start: now, end: null, learningGoal: goal, topics }]);
     start();
   }
 

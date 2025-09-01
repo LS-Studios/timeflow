@@ -71,6 +71,11 @@ const translations: Record<Language, Translations> = {
     modeWork: "Track Work",
     modeLearning: "Track Learning",
     startLearningSession: "Start Learning Session",
+    learningGoal: "Learning Goal",
+    topics: "Topics",
+    addTopics: "Add topics...",
+    searchOrAddTopic: "Search or add a new topic...",
+    noTopicsFound: "No topics found. Press Enter to add.",
     learningGoalPlaceholder: "e.g., understand React server components",
     startLearning: "Start Learning",
     whatDidYouLearn: "What's your learning goal for this session?",
@@ -148,6 +153,11 @@ const translations: Record<Language, Translations> = {
     modeWork: "Arbeitszeit erfassen",
     modeLearning: "Lernzeit erfassen",
     startLearningSession: "Lernsitzung starten",
+    learningGoal: "Lernziel",
+    topics: "Themen",
+    addTopics: "Themen hinzufügen...",
+    searchOrAddTopic: "Suchen oder neues Thema hinzufügen...",
+    noTopicsFound: "Keine Themen gefunden. Drücke Enter zum Hinzufügen.",
     learningGoalPlaceholder: "z.B. React Server Components verstehen",
     startLearning: "Lernen starten",
     whatDidYouLearn: "Was ist dein Lernziel für diese Sitzung?",
@@ -183,7 +193,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>
       {children}
-    </LanguageContext.Provider>
+    </Language-context.Provider>
   );
 }
 
