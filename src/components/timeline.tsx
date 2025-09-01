@@ -16,7 +16,7 @@ interface TimelineProps {
   isWorkDayEnded?: boolean;
   showEditButtons?: boolean;
   onEditSession?: (session: Session) => void;
-  onDeleteSession?: (session: Session) => void;
+  onDeleteSession?: (session: Session, index: number) => void;
 }
 
 function formatTime(date: Date | null) {
@@ -103,9 +103,9 @@ export function Timeline({ sessions, isWorkDayEnded = false, showEditButtons = f
         <div className="space-y-8">
             {sessionsToDisplay.map((session, index) => {
               const PauseIcon = getIconForNote(session.note, t);
-              const isFirst = index === 0;
-              const isLast = index === sessionsToDisplay.length - 1;
-              const isDeletable = session.type === 'pause' || (!isFirst && !isLast);
+              const isFirstWorkSession = index === 0 && session.type === 'work';
+              const isDeletable = !isFirstWorkSession && session.note !== 'Day ended';
+
 
               return (
                 <motion.div
@@ -137,7 +137,7 @@ export function Timeline({ sessions, isWorkDayEnded = false, showEditButtons = f
                              </Button>
                            )}
                            {showEditButtons && onDeleteSession && isDeletable && (
-                             <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive" onClick={() => onDeleteSession(session)}>
+                             <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive" onClick={() => onDeleteSession(session, index)}>
                                 <Trash2 className="h-3 w-3" />
                              </Button>
                            )}
