@@ -1,5 +1,6 @@
 
 export interface Session {
+  id: string; // Unique ID for each session
   type: 'work' | 'pause';
   start: Date;
   end: Date | null;
@@ -20,6 +21,7 @@ export interface AppSettings {
     weeklyGoal?: number;
 }
 
+// DayHistory is no longer the primary storage unit, but a derived type for analytics.
 export interface DayHistory {
     id: string; // e.g., '2024-07-28'
     date: string;

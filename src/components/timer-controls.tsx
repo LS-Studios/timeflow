@@ -26,6 +26,7 @@ interface TimerControlsProps {
   onPause: () => void;
   onReset: () => void;
   onEnd: () => void;
+  endLabel?: string;
 }
 
 const buttonVariants = {
@@ -41,6 +42,7 @@ export function TimerControls({
   onPause,
   onReset,
   onEnd,
+  endLabel
 }: TimerControlsProps) {
   const { t } = useTranslation();
   const { settings } = useSettings();
@@ -100,7 +102,7 @@ export function TimerControls({
           variant="ghost"
           size="icon"
           className="h-14 w-14"
-          aria-label={t('endDay')}
+          aria-label={endLabel || t('endDay')}
           onClick={onEnd}
         >
           <Flag className="h-7 w-7 text-muted-foreground" />
@@ -108,5 +110,3 @@ export function TimerControls({
     </div>
   );
 }
-
-    

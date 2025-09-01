@@ -1,21 +1,27 @@
+
 "use client";
-import type { AppSettings, DayHistory } from "./types";
+import type { AppSettings, Session } from "./types";
+import { format } from "date-fns";
 
 const SETTINGS_KEY = 'timeflow_settings';
-const HISTORY_KEY_PREFIX = 'timeflow_history_';
+const SESSIONS_KEY = 'timeflow_sessions';
 
 /**
  * An interface for a service that handles data persistence.
- * This allows for swapping between localStorage, Firebase, etc.
  */
 interface StorageService {
     saveSettings(settings: AppSettings): void;
     getSettings(): AppSettings | null;
-    saveDayHistory(history: DayHistory): void;
-    getDayHistory(dateKey: string): DayHistory | null;
-    getAllHistory(): DayHistory[];
+    
+    // Session-based storage
+    getAllSessions(): Session[];
+    saveAllSessions(sessions: Session[]): void;
+    
+    // Derived data getters
     getAllTopics(): string[];
-    clearDayHistory(dateKey: string): void;
+    
+    // Utility
+    clearAllHistory(): void;
 }
 
 /**
@@ -23,7 +29,6 @@ interface StorageService {
  */
 class LocalStorageService implements StorageService {
     
-    // Check if localStorage is available
     private isLocalStorageAvailable(): boolean {
         try {
             const testKey = '__test__';
@@ -45,65 +50,42 @@ class LocalStorageService implements StorageService {
         const settingsJson = localStorage.getItem(SETTINGS_KEY);
         return settingsJson ? JSON.parse(settingsJson) : null;
     }
-
-    saveDayHistory(history: DayHistory): void {
-        if (!this.isLocalStorageAvailable()) return;
-        localStorage.setItem(`${HISTORY_KEY_PREFIX}${history.id}`, JSON.stringify(history));
-    }
-
-    getDayHistory(dateKey: string): DayHistory | null {
-        if (!this.isLocalStorageAvailable()) return null;
-        const historyJson = localStorage.getItem(`${HISTORY_KEY_PREFIX}${dateKey}`);
-        if (!historyJson) return null;
+    
+    getAllSessions(): Session[] {
+        if (!this.isLocalStorageAvailable()) return [];
+        const sessionsJson = localStorage.getItem(SESSIONS_KEY);
+        if (!sessionsJson) return [];
         
-        const parsed = JSON.parse(historyJson);
-        // Ensure dates are parsed correctly
-        parsed.sessions = parsed.sessions.map((s: any) => ({
+        const parsed = JSON.parse(sessionsJson);
+        // Ensure dates are parsed correctly from ISO strings
+        return parsed.map((s: any) => ({
             ...s,
             start: new Date(s.start),
             end: s.end ? new Date(s.end) : null
         }));
-
-        return parsed;
     }
 
-    getAllHistory(): DayHistory[] {
-        if (!this.isLocalStorageAvailable()) return [];
-        const history: DayHistory[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith(HISTORY_KEY_PREFIX)) {
-                const dayHistory = this.getDayHistory(key.replace(HISTORY_KEY_PREFIX, ''));
-                if (dayHistory) {
-                    history.push(dayHistory);
-                }
-            }
-        }
-        // Sort by date descending
-        return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    saveAllSessions(sessions: Session[]): void {
+        if (!this.isLocalStorageAvailable()) return;
+        localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
     }
-    
+
     getAllTopics(): string[] {
-        const allHistory = this.getAllHistory();
+        const allSessions = this.getAllSessions();
         const topics = new Set<string>();
-        allHistory.forEach(day => {
-            day.sessions.forEach(session => {
-                if (session.topics) {
-                    session.topics.forEach(topic => topics.add(topic));
-                }
-            })
-        })
+        allSessions.forEach(session => {
+            if (session.topics) {
+                session.topics.forEach(topic => topics.add(topic));
+            }
+        });
         return Array.from(topics);
     }
 
-    clearDayHistory(dateKey: string): void {
+    clearAllHistory(): void {
         if (!this.isLocalStorageAvailable()) return;
-        localStorage.removeItem(`${HISTORY_KEY_PREFIX}${dateKey}`);
+        localStorage.removeItem(SESSIONS_KEY);
     }
 }
 
-
 // Export a singleton instance of the service
 export const storageService: StorageService = new LocalStorageService();
-
-    

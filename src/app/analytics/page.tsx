@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Search, Clock, Coffee, Target, BookOpen, BarChart2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { DayHistory, Session } from "@/lib/types";
 import { storageService } from "@/lib/storage";
@@ -49,32 +49,43 @@ export default function AnalyticsPage() {
   const { t, language } = useTranslation();
   const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState("");
-  const [history, setHistory] = useState<DayHistory[]>([]);
+  const [groupedHistory, setGroupedHistory] = useState<DayHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     if (!settings) return;
     setIsLoading(true);
-    const allHistory = storageService.getAllHistory();
+    const allSessions = storageService.getAllSessions();
 
-    const filtered = allHistory.filter(day => {
-        const isLearningDay = day.sessions.some(s => s.type ==='work' && s.learningGoal);
+    // Filter sessions based on mode first
+    const relevantSessions = allSessions.filter(session => {
         if (settings.mode === 'learning') {
-            return isLearningDay;
+            return session.learningGoal;
         }
-        // In work mode, we want to see days that have work sessions, but are not exclusively learning days
-        return day.sessions.some(s => s.type === 'work' && !s.learningGoal);
-    }).map(day => {
-      // Further filter the sessions within the day to match the mode
-      if (settings.mode === 'work') {
-        return {
-          ...day,
-          sessions: day.sessions.filter(s => s.type === 'pause' || !s.learningGoal)
-        };
-      }
-      return day;
+        if (settings.mode === 'work') {
+            // Include all work sessions and their associated pauses
+            return !session.learningGoal;
+        }
+        return false;
     });
-    setHistory(filtered.reverse());
+
+    // Group sessions by day
+    const groupedByDay: { [key: string]: Session[] } = {};
+    relevantSessions.forEach(session => {
+        const dayKey = format(new Date(session.start), 'yyyy-MM-dd');
+        if (!groupedByDay[dayKey]) {
+            groupedByDay[dayKey] = [];
+        }
+        groupedByDay[dayKey].push(session);
+    });
+
+    const finalHistory: DayHistory[] = Object.keys(groupedByDay).map(dayKey => ({
+        id: dayKey,
+        date: dayKey,
+        sessions: groupedByDay[dayKey]
+    })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    setGroupedHistory(finalHistory);
     setIsLoading(false);
   }, [settings.mode, settings]);
   
@@ -114,7 +125,7 @@ export default function AnalyticsPage() {
     return { workMs, breakMs };
   }
 
-  const filteredHistory = history.filter(day =>
+  const filteredHistory = groupedHistory.filter(day =>
     formatDate(day.date).toLowerCase().includes(searchTerm.toLowerCase()) ||
     (settings.mode === 'learning' && day.sessions.some(s => s.learningGoal?.toLowerCase().includes(searchTerm.toLowerCase())))
   );
@@ -187,18 +198,18 @@ export default function AnalyticsPage() {
   );
 
   const renderWorkAnalytics = () => {
-     if (history.length === 0) {
+     if (groupedHistory.length === 0) {
       return <NoDataPlaceholder message={t('noHistoryDescriptionWork')} />
     }
     // Aggregate data for charts
-    const totalWorkMs = history.reduce((acc, day) => acc + getDurations(day.sessions).workMs, 0);
-    const totalBreakMs = history.reduce((acc, day) => acc + getDurations(day.sessions).breakMs, 0);
-    const totalOvertimeMs = history.reduce((acc, day) => {
+    const totalWorkMs = groupedHistory.reduce((acc, day) => acc + getDurations(day.sessions).workMs, 0);
+    const totalBreakMs = groupedHistory.reduce((acc, day) => acc + getDurations(day.sessions).breakMs, 0);
+    const totalOvertimeMs = groupedHistory.reduce((acc, day) => {
         const { workMs } = getDurations(day.sessions);
         const dailyGoalMs = (settings.dailyGoal || 8) * 60 * 60 * 1000;
         return acc + (workMs - dailyGoalMs);
     }, 0);
-    const breakTypeCounts = history
+    const breakTypeCounts = groupedHistory
         .flatMap(day => day.sessions)
         .filter(s => s.type === 'pause' && s.note)
         .reduce((acc, s) => {
@@ -376,12 +387,12 @@ export default function AnalyticsPage() {
   )};
   
   const renderLearningAnalytics = () => {
-    if (history.length === 0) {
+    if (groupedHistory.length === 0) {
       return <NoDataPlaceholder message={t('noHistoryDescriptionLearning')} />
     }
 
     // Aggregate learning data
-    const allLearningSessions = history.flatMap(day => day.sessions.filter(s => s.learningGoal));
+    const allLearningSessions = groupedHistory.flatMap(day => day.sessions.filter(s => s.learningGoal));
     const learningFocusData = allLearningSessions
       .flatMap(s => s.topics || [])
       .reduce((acc, topic) => {
@@ -394,12 +405,15 @@ export default function AnalyticsPage() {
         .map(([topic, sessions]) => ({ topic, sessions }))
         .sort((a,b) => b.sessions - a.sessions);
 
-    const completionOverTimeData = history
-        .map(day => {
-            const learningSession = day.sessions.find(s => s.learningGoal && s.completionPercentage !== undefined);
-            return learningSession ? { date: day.date, completion: learningSession.completionPercentage } : null;
+    const completionOverTimeData = groupedHistory
+        .flatMap(day => day.sessions)
+        .map(session => {
+            return session.learningGoal && session.completionPercentage !== undefined && session.end
+                ? { date: session.end, completion: session.completionPercentage } 
+                : null;
         })
-        .filter((item): item is { date: string; completion: number } => item !== null);
+        .filter((item): item is { date: Date; completion: number } => item !== null)
+        .sort((a,b) => a.date.getTime() - b.date.getTime());
 
 
     return (
@@ -498,28 +512,29 @@ export default function AnalyticsPage() {
             
              <div className="space-y-4">
               {filteredHistory.map((day) => {
-                const learningSession = day.sessions.find(s => s.learningGoal);
-                if (!learningSession) return null;
+                return day.sessions.map(learningSession => {
+                  if (!learningSession.learningGoal) return null;
+                  
+                  const { workMs } = getDurations([learningSession]);
 
-                const { workMs } = getDurations(day.sessions);
-
-                return (
-                    <Card key={day.id} className="p-4">
-                        <div className="flex justify-between items-center mb-2">
-                        <p className="font-medium text-sm">{formatDate(day.date)}</p>
-                        {learningSession.completionPercentage !== undefined && (
-                            <CompletionBadge completion={learningSession.completionPercentage} />
-                        )}
-                        </div>
-                        <p className="font-semibold text-base mb-2">{learningSession.learningGoal}</p>
-                        <div className="flex items-center text-sm text-muted-foreground gap-4">
-                            <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {formatDuration(workMs)}</div>
-                            {learningSession.topics && learningSession.topics.length > 0 && (
-                                <div className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" /> {learningSession.topics.join(', ')}</div>
-                            )}
-                        </div>
-                    </Card>
-                )
+                  return (
+                      <Card key={learningSession.id} className="p-4">
+                          <div className="flex justify-between items-center mb-2">
+                          <p className="font-medium text-sm">{formatDate(day.date)}</p>
+                          {learningSession.completionPercentage !== undefined && (
+                              <CompletionBadge completion={learningSession.completionPercentage} />
+                          )}
+                          </div>
+                          <p className="font-semibold text-base mb-2">{learningSession.learningGoal}</p>
+                          <div className="flex items-center text-sm text-muted-foreground gap-4">
+                              <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {formatDuration(workMs)}</div>
+                              {learningSession.topics && learningSession.topics.length > 0 && (
+                                  <div className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" /> {learningSession.topics.join(', ')}</div>
+                              )}
+                          </div>
+                      </Card>
+                  )
+                });
               })}
             </div>
           </CardContent>
@@ -545,5 +560,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-
-    
