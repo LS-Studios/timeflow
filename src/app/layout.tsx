@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers";
@@ -5,6 +6,7 @@ import { Header } from "@/components/header";
 import { Toaster } from "@/components/ui/toaster";
 import { LanguageProvider } from "@/lib/i18n.tsx";
 import { SettingsProvider } from "@/lib/settings-provider";
+import { AuthProvider } from "@/lib/auth-provider";
 
 export const metadata: Metadata = {
   title: "Timeflow",
@@ -35,13 +37,15 @@ export default function RootLayout({
         >
           <LanguageProvider>
             <SettingsProvider>
-              <div className="min-h-screen flex flex-col">
-                <Header />
-                <main className="flex-1 flex flex-col">
-                  {children}
-                </main>
-                <Toaster />
-              </div>
+              <AuthProvider>
+                <div className="min-h-screen flex flex-col">
+                  <Header />
+                  <main className="flex-1 flex flex-col">
+                    {children}
+                  </main>
+                  <Toaster />
+                </div>
+              </AuthProvider>
             </SettingsProvider>
           </LanguageProvider>
         </ThemeProvider>
