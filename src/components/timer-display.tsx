@@ -23,7 +23,11 @@ export function TimerDisplay({ time, isActive, isPaused }: TimerDisplayProps) {
 
   return (
     <div className="relative w-80 h-80 sm:w-96 sm:h-96 flex items-center justify-center">
-      <svg className="absolute w-full h-full" viewBox="0 0 200 200">
+      <motion.svg
+        className="absolute w-full h-full"
+        viewBox="0 0 200 200"
+        initial={false}
+      >
         <circle
           cx="100"
           cy="100"
@@ -38,16 +42,13 @@ export function TimerDisplay({ time, isActive, isPaused }: TimerDisplayProps) {
           r={95}
           strokeWidth="8"
           className={cn({
-            "stroke-primary": isRunning,
-            "stroke-accent": isPaused,
+            "stroke-primary": isRunning || isPaused,
             "stroke-secondary": !isActive && !isPaused,
+            "animate-pulse": isRunning,
           })}
           fill="transparent"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
         />
-      </svg>
+      </motion.svg>
       <div
         className="text-5xl sm:text-6xl font-bold font-mono text-center tabular-nums"
       >
