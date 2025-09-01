@@ -27,14 +27,14 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <LanguageProvider>
-          <SettingsProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <LanguageProvider>
+            <SettingsProvider>
               <div className="min-h-screen flex flex-col">
                 <Header />
                 <main className="flex-1 flex flex-col">
@@ -42,9 +42,9 @@ export default function RootLayout({
                 </main>
                 <Toaster />
               </div>
-            </ThemeProvider>
-          </SettingsProvider>
-        </LanguageProvider>
+            </SettingsProvider>
+          </LanguageProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

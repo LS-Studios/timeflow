@@ -33,6 +33,11 @@ export const useTimer = (initialConfig: TimerConfig) => {
     setTime(newConfig.initialTime);
     setProgress(100);
   }, []);
+  
+  // Expose setTime for manual adjustments (e.g. loading from storage)
+  const manualSetTime = useCallback((newTime: number) => {
+      setTime(newTime);
+  }, []);
 
   useEffect(() => {
     if (isActive && !isPaused) {
@@ -74,6 +79,7 @@ export const useTimer = (initialConfig: TimerConfig) => {
 
   return {
     time,
+    setTime: manualSetTime,
     isActive,
     isPaused,
     start,

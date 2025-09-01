@@ -32,9 +32,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
 export function SettingsForm() {
-  const { theme, setTheme } = useTheme();
-  const { t, language, setLanguage } = useTranslation();
-  const { mode, setMode } = useSettings();
+  const { setTheme } = useTheme();
+  const { t, setLanguage } = useTranslation();
+  const { settings, setMode } = useSettings();
 
   // In a real app, these values would come from a settings context or API
   const dailyGoal = 8;
@@ -53,14 +53,14 @@ export function SettingsForm() {
           <CardDescription>{t('appModeDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
-           <RadioGroup value={mode} onValueChange={(value: AppMode) => setMode(value)} className="grid grid-cols-2 gap-4">
+           <RadioGroup value={settings.mode} onValueChange={(value: AppMode) => setMode(value)} className="grid grid-cols-2 gap-4">
               {appModeOptions.map((option) => (
                 <Label
                   key={option.id}
                   htmlFor={option.id}
                   className={cn(
                     "flex flex-col items-center justify-center gap-2 rounded-md border-2 p-4 cursor-pointer transition-colors hover:border-primary h-28",
-                    mode === option.id && "border-primary bg-primary/5"
+                    settings.mode === option.id && "border-primary bg-primary/5"
                   )}
                 >
                   <RadioGroupItem value={option.id} id={option.id} className="sr-only" />
@@ -72,7 +72,7 @@ export function SettingsForm() {
         </CardContent>
       </Card>
       
-      {mode === 'work' && (
+      {settings.mode === 'work' && (
         <Card>
           <CardHeader>
             <CardTitle>{t('workGoals')}</CardTitle>
@@ -100,7 +100,7 @@ export function SettingsForm() {
         <CardContent>
           <div className="grid grid-cols-3 gap-4">
             <Button
-              variant={theme === "light" ? "default" : "outline"}
+              variant={settings.theme === "light" ? "default" : "outline"}
               onClick={() => setTheme("light")}
               className="flex flex-col h-24"
             >
@@ -108,7 +108,7 @@ export function SettingsForm() {
               {t('light')}
             </Button>
             <Button
-              variant={theme === "dark" ? "default" : "outline"}
+              variant={settings.theme === "dark" ? "default" : "outline"}
               onClick={() => setTheme("dark")}
               className="flex flex-col h-24"
             >
@@ -116,7 +116,7 @@ export function SettingsForm() {
               {t('dark')}
             </Button>
             <Button
-              variant={theme === "system" ? "default" : "outline"}
+              variant={settings.theme === "system" ? "default" : "outline"}
               onClick={() => setTheme("system")}
               className="flex flex-col h-24"
             >
@@ -133,7 +133,7 @@ export function SettingsForm() {
           <CardDescription>{t('languageDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
-            <Select onValueChange={(value: Language) => setLanguage(value)} defaultValue={language}>
+            <Select onValueChange={(value: Language) => setLanguage(value)} defaultValue={settings.language}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder={t('selectLanguage')} />
               </SelectTrigger>

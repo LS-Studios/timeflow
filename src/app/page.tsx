@@ -13,7 +13,8 @@ import { EndLearningDialog } from "@/components/end-learning-dialog";
 import { TIMER_TYPES } from "@/lib/constants";
 import { useTranslation } from "@/lib/i18n.tsx";
 import { Timeline } from "@/components/timeline";
-import type { Session } from "@/lib/types";
+import type { Session, DayHistory } from "@/lib/types";
+import { storageService } from "@/lib/storage";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,12 +24,13 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { format } from "date-fns";
 
 export default function Home() {
   const {
     time,
+    setTime,
     isActive,
     isPaused,
     start,
@@ -36,7 +38,7 @@ export default function Home() {
     reset,
   } = useTimer(TIMER_TYPES.stopwatch);
   
-  const { mode } = useSettings();
+  const { settings } = useSettings();
   const [isPauseNoteDialogOpen, setPauseNoteDialogOpen] = useState(false);
   const [isStartLearningDialogOpen, setStartLearningDialogOpen] = useState(false);
   const [isEndLearningDialogOpen, setEndLearningDialogOpen] = useState(false);
@@ -47,47 +49,85 @@ export default function Home() {
   
   const { t } = useTranslation();
 
+  // Load sessions from storage on mount
+  useEffect(() => {
+    const todayKey = format(new Date(), 'yyyy-MM-dd');
+    const loadedHistory = storageService.getDayHistory(todayKey);
+    if (loadedHistory) {
+      // Convert string dates back to Date objects
+      const parsedSessions = loadedHistory.sessions.map(s => ({
+        ...s,
+        start: new Date(s.start),
+        end: s.end ? new Date(s.end) : null,
+      }));
+      setSessions(parsedSessions);
+      
+      // Recalculate current time
+      const { newCurrentTime } = calculateDurations(parsedSessions);
+      setTime(Math.floor(newCurrentTime / 1000));
+    }
+  }, [setTime]);
+
+  // Persist sessions whenever they change
+  useEffect(() => {
+    if (sessions.length > 0) {
+      const todayKey = format(new Date(), 'yyyy-MM-dd');
+      storageService.saveDayHistory({
+        id: todayKey,
+        date: todayKey,
+        sessions: sessions,
+      });
+    }
+  }, [sessions]);
+
+
   const handleGenericStart = () => {
-    // If we're in learning mode and NOT resuming from a pause, show the goal dialog.
-    if (mode === 'learning' && !isPaused) {
+    if (settings.mode === 'learning' && !isPaused && sessions.length === 0) {
       setStartLearningDialogOpen(true);
       return;
     }
     
-    // Logic for 'work' mode or for resuming a pause in 'learning' mode.
     const now = new Date();
-    if (sessions.length === 0 || !isPaused) { // First start of the day or new work session
-      setSessions([...sessions, { type: 'work', start: now, end: null }]);
-    } else if (isPaused) { // Resuming from a pause
-      const lastSession = sessions[sessions.length - 1];
+    let newSessions = [...sessions];
+
+    if (isPaused) { // Resuming from a pause
+      const lastSession = newSessions[newSessions.length - 1];
       if (lastSession.type === 'pause') {
         lastSession.end = now;
       }
-      setSessions([...sessions, { type: 'work', start: now, end: null }]);
+      newSessions = [...newSessions, { type: 'work', start: now, end: null }];
+    } else { // First start of the day or new work session
+      newSessions = [...newSessions, { type: 'work', start: now, end: null }];
     }
+    
+    setSessions(newSessions);
     start();
   };
   
   const handleStartLearning = (goal: string, topics: string[]) => {
     const now = new Date();
-     if (isPaused) { // Resuming from a pause
-        const lastSession = sessions[sessions.length - 1];
+    let newSessions = [...sessions];
+     if (isPaused) { 
+        const lastSession = newSessions[newSessions.length - 1];
         if (lastSession.type === 'pause') {
           lastSession.end = now;
         }
     }
-    setSessions([...sessions, { type: 'work', start: now, end: null, learningGoal: goal, topics }]);
+    newSessions = [...newSessions, { type: 'work', start: now, end: null, learningGoal: goal, topics }];
+    setSessions(newSessions);
     start();
   }
 
   const handlePause = () => {
     pause();
     const now = new Date();
-    const lastSession = sessions[sessions.length - 1];
+    let newSessions = [...sessions];
+    const lastSession = newSessions[newSessions.length - 1];
     if (lastSession && lastSession.type === 'work') {
       lastSession.end = now;
     }
-    setSessions([...sessions, { type: 'pause', start: now, end: null, note: '' }]);
+    newSessions = [...newSessions, { type: 'pause', start: now, end: null, note: '' }];
+    setSessions(newSessions);
     setPauseNoteDialogOpen(true);
   };
   
@@ -96,76 +136,91 @@ export default function Home() {
   };
 
   const confirmReset = () => {
+    const todayKey = format(new Date(), 'yyyy-MM-dd');
+    storageService.clearDayHistory(todayKey);
     reset(TIMER_TYPES.stopwatch);
     setSessions([]);
     setResetDialogOpen(false);
   }
   
   const handleGenericEnd = () => {
-    if (mode === 'learning' && sessions.some(s => s.type === 'work')) {
+    if (settings.mode === 'learning' && sessions.some(s => s.type === 'work')) {
        setEndLearningDialogOpen(true);
     } else {
       setEndWorkDialogOpen(true);
     }
   }
 
-  const endWorkDay = () => {
+  const endDay = (completionPercentage?: number) => {
     const now = new Date();
-    const lastSession = sessions[sessions.length - 1];
+    let finalSessions = [...sessions];
+    const lastSession = finalSessions[finalSessions.length - 1];
     
-    // Finalize last session if it exists and is ongoing
     if (lastSession && !lastSession.end) {
       lastSession.end = now;
     }
     
-    // In a real app, you'd save the finalized sessions here.
-    console.log("Final sessions:", sessions);
+    // If learning mode, find last work session and add completion
+    if (settings.mode === 'learning' && completionPercentage !== undefined) {
+       const lastWorkSession = [...finalSessions].reverse().find(s => s.type === 'work');
+       if (lastWorkSession) {
+         lastWorkSession.completionPercentage = completionPercentage;
+       }
+    }
+    
+    // Save the finalized day
+    const todayKey = format(new Date(), 'yyyy-MM-dd');
+    storageService.saveDayHistory({
+      id: todayKey,
+      date: todayKey,
+      sessions: finalSessions
+    });
+
+    console.log("Final sessions:", finalSessions);
 
     // Reset everything for the next day
     setSessions([]);
     reset(TIMER_TYPES.stopwatch);
     setEndWorkDialogOpen(false);
+    setEndLearningDialogOpen(false);
   }
-
-  const handleEndLearning = (completionPercentage: number) => {
-    const now = new Date();
-    const lastWorkSession = [...sessions].reverse().find(s => s.type === 'work');
-
-    if (lastWorkSession) {
-      if (!lastWorkSession.end) {
-        lastWorkSession.end = now;
-      }
-      lastWorkSession.completionPercentage = completionPercentage;
-    }
-    
-     // Also end a potential ongoing pause
-    const lastSession = sessions[sessions.length-1];
-    if(lastSession.type === 'pause' && !lastSession.end) {
-        lastSession.end = now;
-    }
-
-    // In a real app, you'd save the finalized sessions here.
-    console.log("Final learning sessions:", sessions);
-
-    // Reset everything for the next day
-    setSessions([]);
-    reset(TIMER_TYPES.stopwatch);
-  }
-
 
   const handleSaveNote = (note: string) => {
-    const lastSession = sessions[sessions.length-1];
+    let newSessions = [...sessions];
+    const lastSession = newSessions[newSessions.length-1];
     if (lastSession && lastSession.type === 'pause') {
       lastSession.note = note;
-      setSessions([...sessions]);
+      setSessions(newSessions);
     }
   };
   
-  // Reset sessions if mode changes - using useEffect to avoid violating rules of hooks
+  // Reset sessions if mode changes
   useEffect(() => {
     reset(TIMER_TYPES.stopwatch);
     setSessions([]);
-  }, [mode, reset]);
+    const todayKey = format(new Date(), 'yyyy-MM-dd');
+    storageService.clearDayHistory(todayKey);
+  }, [settings.mode, reset]);
+
+  // Helper function to calculate durations from sessions
+  const calculateDurations = (sessionList: Session[]) => {
+      let newWorkTime = 0;
+      let newPauseTime = 0;
+
+      sessionList.forEach(session => {
+        const endTime = session.end || new Date();
+        const duration = endTime.getTime() - session.start.getTime();
+        if (session.type === 'work') {
+          newWorkTime += duration;
+        } else {
+          newPauseTime += duration;
+        }
+      });
+      
+      const newCurrentTime = settings.mode === 'work' ? newWorkTime : newWorkTime + newPauseTime;
+
+      return { newWorkTime, newPauseTime, newCurrentTime };
+  };
 
 
   return (
@@ -211,7 +266,7 @@ export default function Home() {
       <EndLearningDialog
         isOpen={isEndLearningDialogOpen}
         onOpenChange={setEndLearningDialogOpen}
-        onEnd={handleEndLearning}
+        onEnd={endDay}
       />
       
       <AlertDialog open={isResetDialogOpen} onOpenChange={setResetDialogOpen}>
@@ -241,7 +296,7 @@ export default function Home() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={endWorkDay} className="bg-primary hover:bg-primary/90">
+            <AlertDialogAction onClick={() => endDay()} className="bg-primary hover:bg-primary/90">
               {t('confirmEndDay')}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -1,18 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-provider";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, YAxis, Cell, LineChart, Line, Label } from "recharts";
-import { MOCK_WORK_DAYS, MOCK_BREAKDOWN_DATA, MOCK_BREAK_TYPE_DATA, MOCK_LEARNING_SESSIONS, MOCK_LEARNING_FOCUS, MOCK_LEARNING_COMPLETION } from "@/lib/mock-data";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Search, Clock, Coffee, Target, BookOpen } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import type { DayHistory, Session } from "@/lib/types";
+import { storageService } from "@/lib/storage";
 
 const workBreakdownChartConfig = {
   work: { label: "Work", color: "hsl(var(--primary))" },
@@ -29,10 +30,10 @@ const breakTypeChartConfig = {
 
 const learningFocusChartConfig = {
   sessions: { label: "Sessions" },
-  react: { label: "React", color: "hsl(var(--chart-1))" },
-  typescript: { label: "TypeScript", color: "hsl(var(--chart-2))" },
-  figma: { label: "Figma", color: "hsl(var(--chart-3))" },
-  go: { label: "Go", color: "hsl(var(--chart-4))" },
+  React: { label: "React", color: "hsl(var(--chart-1))" },
+  TypeScript: { label: "TypeScript", color: "hsl(var(--chart-2))" },
+  Figma: { label: "Figma", color: "hsl(var(--chart-3))" },
+  Go: { label: "Go", color: "hsl(var(--chart-4))" },
 } satisfies ChartConfig;
 
 const completionChartConfig = {
@@ -42,33 +43,74 @@ const completionChartConfig = {
 
 export default function AnalyticsPage() {
   const { t, language } = useTranslation();
-  const { mode } = useSettings();
+  const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState("");
+  const [history, setHistory] = useState<DayHistory[]>([]);
+  
+  useEffect(() => {
+    const allHistory = storageService.getAllHistory();
+    // Filter history based on mode
+    const filtered = allHistory.filter(day => {
+        const hasWorkSessions = day.sessions.some(s => s.type === 'work');
+        // learning sessions are work sessions with a goal
+        const isLearningDay = day.sessions.some(s => s.type ==='work' && s.learningGoal); 
+        if (settings.mode === 'learning') {
+            return isLearningDay;
+        }
+        // Work mode should not include days that were purely for learning
+        return hasWorkSessions && !isLearningDay;
+    });
+    setHistory(filtered.reverse());
+  }, [settings.mode]);
+  
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const formatString = language === 'de' ? 'dd.MM.yyyy' : 'MM/dd/yyyy';
+      return format(date, formatString);
+    } catch (e) {
       return dateString;
     }
-    const formatString = language === 'de' ? 'dd.MM.yyyy' : 'MM/dd/yyyy';
-    return format(date, formatString);
   };
 
-  const filteredWorkDays = MOCK_WORK_DAYS.filter(day =>
-    formatDate(day.date).toLowerCase().includes(searchTerm.toLowerCase())
+  const formatDuration = (ms: number) => {
+    if (ms < 0) ms = 0;
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    return `${hours}h ${minutes}m`;
+  };
+
+  const getDurations = (sessions: Session[]) => {
+    let workMs = 0;
+    let breakMs = 0;
+    sessions.forEach(s => {
+      if (s.end) {
+        const duration = new Date(s.end).getTime() - new Date(s.start).getTime();
+        if (s.type === 'work') {
+          workMs += duration;
+        } else {
+          breakMs += duration;
+        }
+      }
+    });
+    return { workMs, breakMs };
+  }
+
+  const filteredHistory = history.filter(day =>
+    formatDate(day.date).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (settings.mode === 'learning' && day.sessions.some(s => s.learningGoal?.toLowerCase().includes(searchTerm.toLowerCase())))
   );
   
-  const filteredLearningSessions = MOCK_LEARNING_SESSIONS.filter(session =>
-    formatDate(session.date).toLowerCase().includes(searchTerm.toLowerCase()) ||
-    session.goal.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  const OvertimeBadge = ({ overtime }: { overtime: string }) => {
-    const isPositive = overtime.startsWith('+');
+  const OvertimeBadge = ({ overtimeMs }: { overtimeMs: number }) => {
+    const isPositive = overtimeMs >= 0;
+    const overtimeString = formatDuration(Math.abs(overtimeMs));
     
     return (
-       <Badge variant={isPositive ? 'default' : 'destructive'} className={cn('items-center justify-center', isPositive ? 'bg-green-500/20 text-green-700 hover:bg-green-500/30' : 'bg-red-500/20 text-red-700 hover:bg-red-500/30')}>
-          <span>{overtime}</span>
+       <Badge variant={isPositive ? 'default' : 'destructive'} className={cn('items-center justify-center min-w-[60px]', isPositive ? 'bg-green-500/20 text-green-700 hover:bg-green-500/30' : 'bg-red-500/20 text-red-700 hover:bg-red-500/30')}>
+          <span>{isPositive ? '+' : '-'}{overtimeString}</span>
         </Badge>
     );
   }
@@ -86,7 +128,35 @@ export default function AnalyticsPage() {
     )
   }
 
-  const renderWorkAnalytics = () => (
+  const renderWorkAnalytics = () => {
+    // Aggregate data for charts
+    const totalWorkMs = history.reduce((acc, day) => acc + getDurations(day.sessions).workMs, 0);
+    const totalBreakMs = history.reduce((acc, day) => acc + getDurations(day.sessions).breakMs, 0);
+    const totalOvertimeMs = history.reduce((acc, day) => {
+        const { workMs } = getDurations(day.sessions);
+        const dailyGoalMs = 8 * 60 * 60 * 1000;
+        return acc + (workMs - dailyGoalMs);
+    }, 0);
+    const breakTypeCounts = history
+        .flatMap(day => day.sessions)
+        .filter(s => s.type === 'pause' && s.note)
+        .reduce((acc, s) => {
+            const note = s.note!;
+            if (note === t('breakCoffee')) acc.coffee = (acc.coffee || 0) + 1;
+            else if (note === t('breakLunch')) acc.lunch = (acc.lunch || 0) + 1;
+            else if (note === t('breakFreshAir')) acc.walk = (acc.walk || 0) + 1;
+            else acc.other = (acc.other || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+    const workBreakdownData = [
+        { type: "work", total: totalWorkMs, fill: "var(--color-work)" },
+        { type: "breaks", total: totalBreakMs, fill: "var(--color-breaks)" },
+    ];
+    const breakTypeData = Object.entries(breakTypeCounts).map(([type, count]) => ({ type, count }));
+
+
+    return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <Card>
@@ -104,13 +174,13 @@ export default function AnalyticsPage() {
                       content={<ChartTooltipContent hideLabel />}
                     />
                     <Pie
-                      data={MOCK_BREAKDOWN_DATA}
+                      data={workBreakdownData}
                       dataKey="total"
                       nameKey="type"
                       innerRadius={60}
                       strokeWidth={12}
                     >
-                      {MOCK_BREAKDOWN_DATA.map((entry) => (
+                      {workBreakdownData.map((entry) => (
                         <Cell key={`cell-${entry.type}`} fill={workBreakdownChartConfig[entry.type as keyof typeof workBreakdownChartConfig].color} />
                       ))}
                     </Pie>
@@ -128,7 +198,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer config={breakTypeChartConfig} className="h-[200px] w-full">
-                <BarChart accessibilityLayer data={MOCK_BREAK_TYPE_DATA} layout="vertical" margin={{ left: 10, right: 10 }}>
+                <BarChart accessibilityLayer data={breakTypeData} layout="vertical" margin={{ left: 10, right: 10 }}>
                   <CartesianGrid vertical={false} />
                   <XAxis type="number" dataKey="count" hide />
                   <YAxis
@@ -146,8 +216,8 @@ export default function AnalyticsPage() {
                     content={<ChartTooltipContent indicator="dot" />}
                   />
                   <Bar dataKey="count" layout="vertical" radius={5}>
-                    {MOCK_BREAK_TYPE_DATA.map((entry) => (
-                        <Cell key={`cell-${entry.type}`} fill={breakTypeChartConfig[entry.type as keyof typeof breakTypeChartConfig].color} />
+                    {breakTypeData.map((entry) => (
+                        <Cell key={`cell-${entry.type}`} fill={breakTypeChartConfig[entry.type as keyof typeof breakTypeChartConfig]?.color || '#ccc'} />
                       ))}
                   </Bar>
                 </BarChart>
@@ -160,8 +230,9 @@ export default function AnalyticsPage() {
               <CardDescription>{t('overtimeDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center h-[160px]">
-              <div className="text-5xl font-bold text-green-500">+8.5h</div>
-              <p className="text-sm text-muted-foreground mt-2">{t('last30days')}</p>
+              <div className={cn("text-5xl font-bold", totalOvertimeMs >= 0 ? "text-green-500" : "text-red-500")}>
+                {totalOvertimeMs >= 0 ? '+' : '-'}{formatDuration(Math.abs(totalOvertimeMs))}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -183,24 +254,28 @@ export default function AnalyticsPage() {
             </div>
             {/* Mobile View: List of Cards */}
             <div className="md:hidden space-y-4">
-              {filteredWorkDays.map((day) => (
-                <Card key={day.id} className="p-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <p className="font-medium">{formatDate(day.date)}</p>
-                    <OvertimeBadge overtime={day.overtime} />
-                  </div>
-                  <div className="flex justify-around text-center text-sm gap-8">
-                    <div>
-                      <p className="text-muted-foreground">{t('workDuration')}</p>
-                      <p className="font-semibold flex items-center gap-1 justify-center"><Clock className="h-4 w-4" /> {day.workDuration}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">{t('breakDuration')}</p>
-                      <p className="font-semibold flex items-center gap-1 justify-center"><Coffee className="h-4 w-4" /> {day.breakDuration}</p>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+              {filteredHistory.map((day) => {
+                  const { workMs, breakMs } = getDurations(day.sessions);
+                  const overtimeMs = workMs - (8 * 60 * 60 * 1000);
+                  return (
+                    <Card key={day.id} className="p-4">
+                      <div className="flex justify-between items-center mb-4">
+                        <p className="font-medium">{formatDate(day.date)}</p>
+                        <OvertimeBadge overtimeMs={overtimeMs} />
+                      </div>
+                      <div className="flex justify-around text-center text-sm gap-8">
+                        <div>
+                          <p className="text-muted-foreground">{t('workDuration')}</p>
+                          <p className="font-semibold flex items-center gap-1 justify-center"><Clock className="h-4 w-4" /> {formatDuration(workMs)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">{t('breakDuration')}</p>
+                          <p className="font-semibold flex items-center gap-1 justify-center"><Coffee className="h-4 w-4" /> {formatDuration(breakMs)}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+              })}
             </div>
 
             {/* Desktop View: Table */}
@@ -215,27 +290,52 @@ export default function AnalyticsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredWorkDays.map((day) => (
-                      <TableRow key={day.id}>
-                        <TableCell className="font-medium">{formatDate(day.date)}</TableCell>
-                        <TableCell>{day.workDuration}</TableCell>
-                        <TableCell>{day.breakDuration}</TableCell>
-                        <TableCell>
-                          <div className="flex justify-end">
-                              <OvertimeBadge overtime={day.overtime} />
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filteredHistory.map((day) => {
+                      const { workMs, breakMs } = getDurations(day.sessions);
+                      const overtimeMs = workMs - (8 * 60 * 60 * 1000);
+                      return (
+                        <TableRow key={day.id}>
+                          <TableCell className="font-medium">{formatDate(day.date)}</TableCell>
+                          <TableCell>{formatDuration(workMs)}</TableCell>
+                          <TableCell>{formatDuration(breakMs)}</TableCell>
+                          <TableCell>
+                            <div className="flex justify-end">
+                                <OvertimeBadge overtimeMs={overtimeMs} />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
             </div>
           </CardContent>
         </Card>
     </>
-  );
+  )};
   
-  const renderLearningAnalytics = () => (
+  const renderLearningAnalytics = () => {
+    // Aggregate learning data
+    const allLearningSessions = history.flatMap(day => day.sessions.filter(s => s.learningGoal));
+    const learningFocusData = allLearningSessions
+      .flatMap(s => s.topics || [])
+      .reduce((acc, topic) => {
+          acc[topic] = (acc[topic] || 0) + 1;
+          return acc;
+      }, {} as Record<string, number>);
+      
+    const learningFocusChartData = Object.entries(learningFocusData).map(([topic, sessions]) => ({ topic, sessions }));
+
+    const completionOverTimeData = history
+        .map(day => {
+            const learningSession = day.sessions.find(s => s.learningGoal && s.completionPercentage !== undefined);
+            return learningSession ? { date: day.date, completion: learningSession.completionPercentage } : null;
+        })
+        .filter(Boolean)
+        .map(item => item!);
+
+
+    return (
       <>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-8">
           <Card>
@@ -244,7 +344,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer config={learningFocusChartConfig} className="h-[200px] w-full">
-                <BarChart accessibilityLayer data={MOCK_LEARNING_FOCUS} layout="vertical" margin={{ left: 10, right: 10 }}>
+                <BarChart accessibilityLayer data={learningFocusChartData} layout="vertical" margin={{ left: 10, right: 10 }}>
                   <CartesianGrid vertical={false} />
                   <XAxis type="number" dataKey="sessions" hide />
                   <YAxis
@@ -253,17 +353,16 @@ export default function AnalyticsPage() {
                     tickLine={false}
                     tickMargin={10}
                     axisLine={false}
-                    tickFormatter={(value) =>
-                      learningFocusChartConfig[value as keyof typeof learningFocusChartConfig]?.label
-                    }
+                    // Capitalize topic
+                    tickFormatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
                   />
                   <ChartTooltip
                     cursor={false}
                     content={<ChartTooltipContent indicator="dot" />}
                   />
                   <Bar dataKey="sessions" layout="vertical" radius={5}>
-                    {MOCK_LEARNING_FOCUS.map((entry) => (
-                        <Cell key={`cell-${entry.topic}`} fill={learningFocusChartConfig[entry.topic as keyof typeof learningFocusChartConfig].color} />
+                    {learningFocusChartData.map((entry) => (
+                        <Cell key={`cell-${entry.topic}`} fill={learningFocusChartConfig[entry.topic as keyof typeof learningFocusChartConfig]?.color || '#8884d8'} />
                       ))}
                   </Bar>
                 </BarChart>
@@ -278,7 +377,7 @@ export default function AnalyticsPage() {
                <ChartContainer config={completionChartConfig} className="h-[200px] w-full">
                 <LineChart
                   accessibilityLayer
-                  data={MOCK_LEARNING_COMPLETION}
+                  data={completionOverTimeData}
                   margin={{
                     top: 5,
                     right: 20,
@@ -292,7 +391,7 @@ export default function AnalyticsPage() {
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
-                    tickFormatter={(value) => value.slice(-2)}
+                    tickFormatter={(value) => format(new Date(value), 'MM/dd')}
                   />
                   <YAxis
                     tickFormatter={(value) => `${value}%`}
@@ -331,33 +430,44 @@ export default function AnalyticsPage() {
             </div>
             
              <div className="space-y-4">
-              {filteredLearningSessions.map((session) => (
-                <Card key={session.id} className="p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="font-medium text-sm">{formatDate(session.date)}</p>
-                    <CompletionBadge completion={session.completion} />
-                  </div>
-                  <p className="font-semibold text-base mb-2">{session.goal}</p>
-                  <div className="flex items-center text-sm text-muted-foreground gap-4">
-                     <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {session.duration}</div>
-                     <div className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" /> {session.topic}</div>
-                  </div>
-                </Card>
-              ))}
+              {filteredHistory.map((day) => {
+                const learningSession = day.sessions.find(s => s.learningGoal);
+                if (!learningSession) return null;
+
+                const { workMs } = getDurations(day.sessions);
+
+                return (
+                    <Card key={day.id} className="p-4">
+                        <div className="flex justify-between items-center mb-2">
+                        <p className="font-medium text-sm">{formatDate(day.date)}</p>
+                        {learningSession.completionPercentage !== undefined && (
+                            <CompletionBadge completion={learningSession.completionPercentage} />
+                        )}
+                        </div>
+                        <p className="font-semibold text-base mb-2">{learningSession.learningGoal}</p>
+                        <div className="flex items-center text-sm text-muted-foreground gap-4">
+                            <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {formatDuration(workMs)}</div>
+                            {learningSession.topics && learningSession.topics.length > 0 && (
+                                <div className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" /> {learningSession.topics.join(', ')}</div>
+                            )}
+                        </div>
+                    </Card>
+                )
+              })}
             </div>
           </CardContent>
         </Card>
       </>
-  );
+  )};
 
   return (
     <div className="container max-w-5xl py-8 mx-auto px-4">
       <h1 className="text-2xl font-bold mb-2">{t('analytics')}</h1>
       <p className="text-muted-foreground mb-8">
-        {mode === 'work' ? t('analyticsDescription') : t('learningAnalyticsDescription')}
+        {settings.mode === 'work' ? t('analyticsDescription') : t('learningAnalyticsDescription')}
       </p>
 
-      {mode === 'work' ? renderWorkAnalytics() : renderLearningAnalytics()}
+      {settings.mode === 'work' ? renderWorkAnalytics() : renderLearningAnalytics()}
 
     </div>
   );
