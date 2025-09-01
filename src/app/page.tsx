@@ -129,8 +129,8 @@ export default function Home() {
         }
       } else { // No active session
         // For learning mode, if all sessions are ended, we don't pause, we just idle.
-        if (settings.mode !== 'learning' || !allSessionsEnded) {
-            pause();
+         if (settings.mode !== 'learning' || (allSessionsEnded && lastTodaySession.type !== 'pause')) {
+           pause();
         }
       }
     } else {
@@ -192,7 +192,19 @@ export default function Home() {
          updateLastSession({ end: now });
       }
     }
-    addSession({ type: 'work', start: now, end: null });
+
+    // For learning mode, carry over the goal from the previous session if resuming
+    const newSessionData: Omit<Session, 'id'> = { type: 'work', start: now, end: null };
+    if (settings.mode === 'learning') {
+       const lastLearningSession = [...todaySessions].reverse().find(s => s.type === 'work');
+       if (lastLearningSession) {
+          newSessionData.learningGoal = lastLearningSession.learningGoal;
+          newSessionData.learningObjectives = lastLearningSession.learningObjectives;
+          newSessionData.topics = lastLearningSession.topics;
+       }
+    }
+
+    addSession(newSessionData);
     start();
   };
   
@@ -247,17 +259,15 @@ export default function Home() {
   const handleEnd = () => {
     const now = new Date();
     
-    // Find the last active work session for today
-    const lastSession = [...todaySessions].reverse().find(s => s.type === 'work' && !s.end);
+    // Find the first learning session of the day to get the objectives.
+    // This is more robust than looking at the last one, especially after pauses.
+    const initialLearningSession = todaySessions.find(s => s.type === 'work' && s.learningGoal);
     
-    if (settings.mode === 'learning' && lastSession) {
-      // Pass this active session to the dialog
-      setSessionToEnd(lastSession);
-      // Open the dialog
+    if (settings.mode === 'learning' && initialLearningSession) {
+      // Pass this initial session to the dialog
+      setSessionToEnd(initialLearningSession);
       setEndLearningDialogOpen(true);
-      // Immediately pause the timer, but DON'T end the session in the state yet.
-      // The dialog will be responsible for ending it.
-      pause();
+      pause(); // Immediately pause the timer, but DON'T end the session in the state yet.
     } else {
       if (isActive || isPaused) {
         // End any active session (work or pause)
@@ -283,19 +293,39 @@ export default function Home() {
   }
 
   const endLearningSession = (updatedObjectives: LearningObjective[], totalCompletion: number) => {
+     // End all of today's sessions and update the initial one with the results.
+     const now = new Date();
+     const todaySessionIds = new Set(todaySessions.map(s => s.id));
+     
      setAllSessions(prevAll => {
         if (!sessionToEnd) return prevAll;
-        const newAll = [...prevAll];
-        const sessionIndex = newAll.findIndex(s => s.id === sessionToEnd.id);
+        let initialSessionUpdated = false;
+
+        const newAll = prevAll.map(session => {
+            // Only modify today's sessions for the current mode
+            if (!todaySessionIds.has(session.id)) {
+                return session;
+            }
+
+            // Update the initial session with the final learning data
+            if (session.id === sessionToEnd.id && !initialSessionUpdated) {
+                initialSessionUpdated = true;
+                return {
+                    ...session,
+                    learningObjectives: updatedObjectives,
+                    completionPercentage: totalCompletion,
+                    end: session.end || now, // Use existing end time if it was already set (e.g. by a pause)
+                }
+            }
+
+            // End any other open sessions for today
+            if (!session.end) {
+                return { ...session, end: now };
+            }
+            
+            return session;
+        });
         
-        if (sessionIndex !== -1) {
-             newAll[sessionIndex] = { 
-                ...newAll[sessionIndex],
-                end: new Date(), // End time is now
-                learningObjectives: updatedObjectives,
-                completionPercentage: totalCompletion,
-            };
-        }
         return newAll;
      });
 
@@ -304,7 +334,8 @@ export default function Home() {
 
     // Reset UI for the next session
     reset(TIMER_TYPES.stopwatch);
-    setTodaySessions([]);
+    // Don't clear today's sessions from view, just reset the timer state
+    pause(); 
     setEndLearningDialogOpen(false);
     setSessionToEnd(null);
   }
@@ -398,8 +429,9 @@ export default function Home() {
         onOpenChange={(isOpen) => {
           if (!isOpen) {
              setSessionToEnd(null);
-             // If dialog is closed without saving, we might need to resume the timer
-             if (isPaused && !isActive) start(); 
+             // If dialog is closed without saving, and there's an active timer, it should continue.
+             // We check for isPaused because handleEnd pauses the timer.
+             if (isPaused && !isActive && allSessions[allSessions.length-1]?.type === 'work') start(); 
           }
           setEndLearningDialogOpen(isOpen);
         }}
@@ -426,3 +458,5 @@ export default function Home() {
     </>
   );
 }
+
+    
