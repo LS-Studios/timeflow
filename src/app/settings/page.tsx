@@ -1,5 +1,5 @@
 import { SettingsForm } from "@/components/settings-form";
-import { useTranslation } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n.tsx";
 
 export default function SettingsPage() {
   const { t } = useTranslation();

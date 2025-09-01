@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, RotateCcw } from "lucide-react";
-import { useTranslation } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n.tsx";
 
 interface TimerControlsProps {
   isActive: boolean;

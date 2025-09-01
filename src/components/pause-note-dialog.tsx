@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useTranslation } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n.tsx";
 
 interface PauseNoteDialogProps {
   isOpen: boolean;

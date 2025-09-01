@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { Monitor, Moon, Sun, Trash2 } from "lucide-react";
-import { useTranslation, type Language } from "@/lib/i18n";
+import { useTranslation, type Language } from "@/lib/i18n.tsx";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

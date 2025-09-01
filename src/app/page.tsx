@@ -8,7 +8,7 @@ import { TimerDisplay } from "@/components/timer-display";
 import { TimerControls } from "@/components/timer-controls";
 import { PauseNoteDialog } from "@/components/pause-note-dialog";
 import { TIMER_TYPES, type TimerType } from "@/lib/constants";
-import { useTranslation } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n.tsx";
 
 export default function Home() {
   const [timerType, setTimerType] = useState<TimerType>("pomodoro");

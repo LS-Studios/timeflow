@@ -3,7 +3,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers";
 import { Header } from "@/components/header";
 import { Toaster } from "@/components/ui/toaster";
-import { LanguageProvider } from "@/lib/i18n";
+import { LanguageProvider } from "@/lib/i18n.tsx";
 
 export const metadata: Metadata = {
   title: "Timeflow",
