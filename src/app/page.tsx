@@ -64,8 +64,11 @@ export default function Home() {
 
   useEffect(() => {
     setTimerResetCallback(clearTimerState);
+  }, [clearTimerState, setTimerResetCallback]);
+
+  useEffect(() => {
     setTimerIsActiveCallback(isActive || isPaused);
-  }, [clearTimerState, setTimerResetCallback, isActive, isPaused, setTimerIsActiveCallback]);
+  }, [isActive, isPaused, setTimerIsActiveCallback]);
 
 
   // Load sessions from storage on mode change or initial load
@@ -73,6 +76,15 @@ export default function Home() {
     if (!settingsLoaded) return;
     setIsLoading(true);
     
+    // For learning mode, always start fresh on page load.
+    if (settings.mode === 'learning') {
+        setAllSessions(storageService.getSessions('learning'));
+        setTodaySessions([]);
+        reset(TIMER_TYPES.stopwatch);
+        setIsLoading(false);
+        return;
+    }
+
     const loadedSessions = storageService.getSessions(settings.mode);
     setAllSessions(loadedSessions);
 
@@ -174,7 +186,7 @@ export default function Home() {
     const now = new Date();
     // If resuming from a pause, end the pause session
     if (isPaused) { 
-      const lastSession = allSessions.length > 0 ? allSessions[allSessions.length-1] : null;
+      const lastSession = allSessions[allSessions.length-1];
       if (lastSession && lastSession.type === 'pause') {
          updateLastSession({ end: now });
       }
@@ -223,7 +235,7 @@ export default function Home() {
       }
     }
     pause();
-  }, [allSessions, isActive, isPaused, pause]);
+  }, [allSessions, isActive, isPaused, pause, updateLastSession]);
 
   useEffect(() => {
     setEndCurrentSessionCallback(endCurrentSessionAndPause);
@@ -252,17 +264,20 @@ export default function Home() {
   const endLearningSession = (completionPercentage: number) => {
      setAllSessions(prevAll => {
         const newAll = [...prevAll];
-        // Find the last session that was a learning session and update it
         let lastLearningIndex = -1;
         for(let i = newAll.length - 1; i >= 0; i--) {
-            if(newAll[i].learningGoal) {
+            if(newAll[i].learningGoal && !newAll[i].end) {
                 lastLearningIndex = i;
                 break;
             }
         }
         
         if (lastLearningIndex !== -1) {
-            newAll[lastLearningIndex] = { ...newAll[lastLearningIndex], completionPercentage };
+            newAll[lastLearningIndex] = { 
+              ...newAll[lastLearningIndex], 
+              completionPercentage,
+              end: new Date()
+            };
         }
         return newAll;
      });
