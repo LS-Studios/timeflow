@@ -130,9 +130,9 @@ export default function Home() {
       if (lastSession.type === 'pause') {
         lastSession.end = now;
       }
-      newSessions = [...newSessions, { type: 'work', start: now, end: null }];
+      newSessions.push({ type: 'work', start: now, end: null });
     } else { 
-      newSessions = [...newSessions, { type: 'work', start: now, end: null }];
+      newSessions.push({ type: 'work', start: now, end: null });
     }
     
     setSessions(newSessions);
@@ -148,7 +148,7 @@ export default function Home() {
           lastSession.end = now;
         }
     }
-    newSessions = [...newSessions, { type: 'work', start: now, end: null, learningGoal: goal, topics }];
+    newSessions.push({ type: 'work', start: now, end: null, learningGoal: goal, topics });
     setSessions(newSessions);
     start();
   }
@@ -156,12 +156,13 @@ export default function Home() {
   const handlePause = () => {
     const now = new Date();
     setSessions(prevSessions => {
-        let newSessions = [...prevSessions];
+        const newSessions = [...prevSessions];
         const lastSession = newSessions[newSessions.length - 1];
         if (lastSession && lastSession.type === 'work') {
             lastSession.end = now;
         }
-        return [...newSessions, { type: 'pause', start: now, end: null, note: '' }];
+        newSessions.push({ type: 'pause', start: now, end: null, note: '' });
+        return newSessions;
     });
     pause();
     setPauseNoteDialogOpen(true);
@@ -184,7 +185,7 @@ export default function Home() {
         pause(); 
         const now = new Date();
         setSessions(prevSessions => {
-            let newSessions = [...prevSessions];
+            const newSessions = [...prevSessions];
             const lastSession = newSessions[newSessions.length - 1];
             if (lastSession && !lastSession.end) {
                 lastSession.end = now;
@@ -193,7 +194,7 @@ export default function Home() {
         });
     }
 
-    if (settings.mode === 'learning' && sessions.some(s => s.type === 'work')) {
+    if (settings.mode === 'learning' && sessions.some(s => s.type === 'work' && s.learningGoal)) {
         setEndLearningDialogOpen(true);
     } else {
         setEndWorkDialogOpen(true);
@@ -210,6 +211,7 @@ export default function Home() {
     }
     
     if (settings.mode === 'learning' && completionPercentage !== undefined) {
+       // Find the last work session to assign the completion percentage to the whole day
        const lastWorkSession = [...finalSessions].reverse().find(s => s.type === 'work');
        if (lastWorkSession) {
          lastWorkSession.completionPercentage = completionPercentage;
@@ -223,8 +225,7 @@ export default function Home() {
       sessions: finalSessions
     });
 
-    // Clear state for a fresh start
-    storageService.clearDayHistory(todayKey); // This was missing
+    // Clear state for a fresh start for the next day, but don't clear the history we just saved.
     setSessions([]);
     reset(TIMER_TYPES.stopwatch);
 
@@ -234,10 +235,10 @@ export default function Home() {
 
   const handleSaveNote = (note: string) => {
     setSessions(prevSessions => {
-        let newSessions = [...prevSessions];
+        const newSessions = [...prevSessions];
         const lastSession = newSessions[newSessions.length-1];
         if (lastSession && lastSession.type === 'pause') {
-        lastSession.note = note;
+           lastSession.note = note;
         }
         return newSessions;
     });
@@ -355,5 +356,3 @@ export default function Home() {
     </>
   );
 }
-
-    
