@@ -17,10 +17,10 @@ const formatTime = (time: number) => {
 };
 
 export function TimerDisplay({ time, isActive }: TimerDisplayProps) {
-  const radius = 90;
+  const radius = 95;
 
   return (
-    <div className="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center">
+    <div className="relative w-72 h-72 sm:w-80 sm:h-80 flex items-center justify-center">
       <svg className="absolute w-full h-full" viewBox="0 0 200 200">
         <circle
           cx="100"
