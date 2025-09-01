@@ -54,7 +54,7 @@ export default function AnalyticsPage() {
                     dataKey="total"
                     nameKey="type"
                     innerRadius={60}
-                    strokeWidth={5}
+                    strokeWidth={8}
                   >
                      {MOCK_BREAKDOWN_DATA.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={workBreakdownChartConfig[entry.type as keyof typeof workBreakdownChartConfig].color} />
@@ -62,7 +62,7 @@ export default function AnalyticsPage() {
                   </Pie>
                    <ChartLegend
                     content={<ChartLegendContent nameKey="type" />}
-                    className="-translate-y-[2rem] flex-wrap gap-2 [&>*]:basis-1/4 [&>*]:justify-center"
+                    className="flex-wrap gap-2 [&>*]:basis-1/4 [&>*]:justify-center"
                   />
                 </PieChart>
               </ChartContainer>
