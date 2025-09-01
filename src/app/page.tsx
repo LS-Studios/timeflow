@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -13,7 +14,7 @@ import { EndLearningDialog } from "@/components/end-learning-dialog";
 import { TIMER_TYPES } from "@/lib/constants";
 import { useTranslation } from "@/lib/i18n.tsx";
 import { Timeline } from "@/components/timeline";
-import type { Session } from "@/lib/types";
+import type { Session, LearningObjective } from "@/lib/types";
 import { storageService } from "@/lib/storage";
 import {
   AlertDialog,
@@ -107,7 +108,7 @@ export default function Home() {
 
       // Check if work day should be considered "ended"
       const allSessionsEnded = sessionsForToday.every(s => s.end !== null);
-      if (settings.mode === 'work' && allSessionsEnded && lastTodaySession) {
+      if (settings.mode === 'work' && allSessionsEnded && lastTodaySession && lastTodaySession.note === 'Day ended') {
          setIsWorkDayEnded(true);
       } else {
         setIsWorkDayEnded(false);
@@ -195,12 +196,13 @@ export default function Home() {
     start();
   };
   
-  const handleStartLearning = (goal: string, topics: string[]) => {
+  const handleStartLearning = (goal: string, objectives: string[]) => {
     const now = new Date();
     if (isPaused) { 
         updateLastSession({ end: now });
     }
-    addSession({ type: 'work', start: now, end: null, learningGoal: goal, topics });
+    const learningObjectives: LearningObjective[] = objectives.map(obj => ({ text: obj, completed: 0 }));
+    addSession({ type: 'work', start: now, end: null, learningGoal: goal, learningObjectives });
     start();
   }
 
@@ -249,47 +251,45 @@ export default function Home() {
     }
     pause();
 
-    if (settings.mode === 'learning' && todaySessions.some(s => s.learningGoal)) {
+    const lastSession = todaySessions.find(s => !s.end && s.type === 'work');
+    if (settings.mode === 'learning' && lastSession) {
       setEndLearningDialogOpen(true);
     } else {
-      addSession({ type: 'pause', start: now, end: null, note: 'Day ended' });
+      addSession({ type: 'pause', start: now, end: now, note: 'Day ended' });
       setIsWorkDayEnded(true);
     }
   }
   
   const handleContinueWork = () => {
     setIsWorkDayEnded(false);
-    handleGenericStart(); // This will end the "Day ended" pause and start a new work session
+    // End the "Day ended" pause and start a new work session immediately
+    const now = new Date();
+    updateLastSession({ end: now });
+    addSession({ type: 'work', start: now, end: null });
+    start();
   }
 
-  const endLearningSession = (completionPercentage: number) => {
+  const endLearningSession = (updatedObjectives: LearningObjective[], totalCompletion: number) => {
      setAllSessions(prevAll => {
         const newAll = [...prevAll];
-        let lastLearningIndex = -1;
-        for(let i = newAll.length - 1; i >= 0; i--) {
-            // Find the last, un-ended learning session to apply the completion rate to.
-            if(newAll[i].learningGoal && !newAll[i].completionPercentage && !newAll[i].end) {
-                lastLearningIndex = i;
-                break;
-            }
-        }
+        // Find the last active learning session to update it
+        const lastLearningSessionIndex = newAll.map(s => s.type === 'work' && !!s.learningGoal).lastIndexOf(true);
         
-        if (lastLearningIndex !== -1) {
-            newAll[lastLearningIndex] = { 
-              ...newAll[lastLearningIndex], 
-              completionPercentage,
-              end: new Date()
-            };
-        } else {
-            // If no active session, might need to update the very last one if it was just completed.
-             const veryLastSession = newAll[newAll.length - 1];
-             if(veryLastSession?.learningGoal && veryLastSession.end) {
-                 newAll[newAll.length - 1] = { ...veryLastSession, completionPercentage };
-             }
+        if (lastLearningSessionIndex !== -1) {
+            const sessionToUpdate = newAll[lastLearningSessionIndex];
+            if (!sessionToUpdate.end) { // Only update if it hasn't been ended
+                 newAll[lastLearningSessionIndex] = { 
+                    ...sessionToUpdate,
+                    end: new Date(),
+                    learningObjectives: updatedObjectives,
+                    completionPercentage: totalCompletion,
+                };
+            }
         }
         return newAll;
      });
-    // Don't reset everything, just prepare for a new session
+
+    // Reset UI for the next session
     pause();
     reset(TIMER_TYPES.stopwatch);
     setTodaySessions([]);
@@ -305,6 +305,8 @@ export default function Home() {
     return acc + (new Date(session.end).getTime() - new Date(session.start).getTime());
   }, 0);
   
+  const activeLearningSessionObjectives = todaySessions.find(s => s.type === 'work' && !s.end && s.learningObjectives)?.learningObjectives || [];
+
   return (
     <>
       <div className="flex-1 w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
@@ -383,6 +385,7 @@ export default function Home() {
         isOpen={isEndLearningDialogOpen}
         onOpenChange={setEndLearningDialogOpen}
         onEnd={endLearningSession}
+        objectives={activeLearningSessionObjectives}
       />
       
       <AlertDialog open={isResetDialogOpen} onOpenChange={setResetDialogOpen}>

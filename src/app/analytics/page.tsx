@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -10,12 +11,20 @@ import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, YAxis, Cell, LineCh
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Clock, Coffee, Target, BookOpen, BarChart2 } from "lucide-react";
-import { format, isSameDay } from "date-fns";
+import { Search, Clock, Coffee, Target, BookOpen, BarChart2, CheckCircle, Circle } from "lucide-react";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import type { DayHistory, Session } from "@/lib/types";
+import type { DayHistory, Session, LearningObjective } from "@/lib/types";
 import { storageService } from "@/lib/storage";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+
 
 const workBreakdownChartConfig = {
   work: { label: "Work", color: "hsl(var(--primary))" },
@@ -51,6 +60,7 @@ export default function AnalyticsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [groupedHistory, setGroupedHistory] = useState<DayHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   
   useEffect(() => {
     if (!settings) return;
@@ -113,10 +123,15 @@ export default function AnalyticsPage() {
     return { workMs, breakMs };
   }
 
-  const filteredHistory = groupedHistory.filter(day =>
-    formatDate(day.date).toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (settings.mode === 'learning' && day.sessions.some(s => s.learningGoal?.toLowerCase().includes(searchTerm.toLowerCase())))
-  );
+  const filteredHistory = groupedHistory.filter(day => {
+    const dateMatch = formatDate(day.date).toLowerCase().includes(searchTerm.toLowerCase());
+    if (settings.mode === 'work') return dateMatch;
+
+    const learningGoalMatch = day.sessions.some(s => s.learningGoal?.toLowerCase().includes(searchTerm.toLowerCase()));
+    const objectiveMatch = day.sessions.some(s => s.learningObjectives?.some(o => o.text.toLowerCase().includes(searchTerm.toLowerCase())));
+    
+    return dateMatch || learningGoalMatch || objectiveMatch;
+  });
   
   const OvertimeBadge = ({ overtimeMs }: { overtimeMs: number }) => {
     const isPositive = overtimeMs >= 0;
@@ -379,13 +394,12 @@ export default function AnalyticsPage() {
       return <NoDataPlaceholder message={t('noHistoryDescriptionLearning')} />
     }
 
-    // Aggregate learning data
-    const allLearningSessions = groupedHistory.flatMap(day => day.sessions.filter(s => s.learningGoal));
+    const allLearningSessions = groupedHistory.flatMap(day => day.sessions.filter(s => s.learningGoal && s.end));
     const learningFocusData = allLearningSessions
-      .flatMap(s => s.topics || [])
+      .flatMap(s => s.learningObjectives?.map(o => o.text.toLowerCase()) || [])
       .reduce((acc, topic) => {
-          const key = topic.toLowerCase();
-          acc[key] = (acc[key] || 0) + 1;
+          if (!topic) return acc;
+          acc[topic] = (acc[topic] || 0) + 1;
           return acc;
       }, {} as Record<string, number>);
       
@@ -393,14 +407,8 @@ export default function AnalyticsPage() {
         .map(([topic, sessions]) => ({ topic, sessions }))
         .sort((a,b) => b.sessions - a.sessions);
 
-    const completionOverTimeData = groupedHistory
-        .flatMap(day => day.sessions)
-        .map(session => {
-            return session.learningGoal && session.completionPercentage !== undefined && session.end
-                ? { date: new Date(session.end), completion: session.completionPercentage } 
-                : null;
-        })
-        .filter((item): item is { date: Date; completion: number } => item !== null)
+    const completionOverTimeData = allLearningSessions
+        .map(session => ({ date: new Date(session.end!), completion: session.completionPercentage || 0 }))
         .sort((a,b) => a.date.getTime() - b.date.getTime());
 
 
@@ -422,18 +430,13 @@ export default function AnalyticsPage() {
                     tickLine={false}
                     tickMargin={10}
                     axisLine={false}
-                    // Capitalize topic
-                    tickFormatter={(value) => learningFocusChartConfig[value as keyof typeof learningFocusChartConfig]?.label || (value.charAt(0).toUpperCase() + value.slice(1))}
+                    tickFormatter={(value) => (value.charAt(0).toUpperCase() + value.slice(1))}
                   />
                   <ChartTooltip
                     cursor={false}
                     content={<ChartTooltipContent indicator="dot" />}
                   />
-                  <Bar dataKey="sessions" layout="vertical" radius={5}>
-                    {learningFocusChartData.map((entry) => (
-                        <Cell key={`cell-${entry.topic}`} fill={learningFocusChartConfig[entry.topic as keyof typeof learningFocusChartConfig]?.color || 'hsl(var(--muted))'} />
-                      ))}
-                  </Bar>
+                  <Bar dataKey="sessions" layout="vertical" radius={5} fill="hsl(var(--primary))" />
                 </BarChart>
               </ChartContainer>
             </CardContent>
@@ -491,7 +494,7 @@ export default function AnalyticsPage() {
              <div className="relative mb-4">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder={t('searchHistory')} 
+                placeholder={t('searchHistoryLearning')} 
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -499,36 +502,63 @@ export default function AnalyticsPage() {
             </div>
             
              <div className="space-y-4">
-              {filteredHistory.map((day) => {
-                return day.sessions.map(learningSession => {
-                  if (!learningSession.learningGoal) return null;
-                  
-                  const { workMs } = getDurations([learningSession]);
+              {filteredHistory.flatMap(day => 
+                day.sessions
+                  .filter(s => s.learningGoal && s.end)
+                  .map(learningSession => {
+                    const { workMs } = getDurations([learningSession]);
 
-                  return (
-                      <Card key={learningSession.id} className="p-4">
-                          <div className="flex justify-between items-center mb-2">
-                          <p className="font-medium text-sm">{formatDate(day.date)}</p>
-                          {learningSession.completionPercentage !== undefined && (
-                              <CompletionBadge completion={learningSession.completionPercentage} />
-                          )}
-                          </div>
-                          <p className="font-semibold text-base mb-2">{learningSession.learningGoal}</p>
-                          <div className="flex items-center text-sm text-muted-foreground gap-4">
-                              <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {formatDuration(workMs)}</div>
-                              {learningSession.topics && learningSession.topics.length > 0 && (
-                                  <div className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" /> {learningSession.topics.join(', ')}</div>
-                              )}
-                          </div>
-                      </Card>
-                  )
-                });
-              })}
+                    return (
+                        <Card key={learningSession.id} className="p-4 cursor-pointer hover:bg-muted/50" onClick={() => setSelectedSession(learningSession)}>
+                            <div className="flex justify-between items-center mb-2">
+                            <p className="font-medium text-sm">{formatDate(day.date)}</p>
+                            {learningSession.completionPercentage !== undefined && (
+                                <CompletionBadge completion={learningSession.completionPercentage} />
+                            )}
+                            </div>
+                            <p className="font-semibold text-base mb-2">{learningSession.learningGoal}</p>
+                            <div className="flex items-center text-sm text-muted-foreground gap-4">
+                                <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {formatDuration(workMs)}</div>
+                            </div>
+                        </Card>
+                    )
+                  })
+              )}
             </div>
           </CardContent>
         </Card>
       </>
   )};
+
+  const LearningSessionDetailDialog = () => {
+    if (!selectedSession) return null;
+
+    const { learningGoal, learningObjectives = [], completionPercentage } = selectedSession;
+
+    return (
+      <Dialog open={!!selectedSession} onOpenChange={() => setSelectedSession(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{learningGoal}</DialogTitle>
+            <DialogDescription>{t('learningSessionDetails')}</DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+             {learningObjectives.map((obj, index) => (
+                <div key={index} className="flex items-center gap-3">
+                    {obj.completed === 100 ? <CheckCircle className="h-5 w-5 text-green-500" /> : <Circle className="h-5 w-5 text-yellow-500" />}
+                    <span className="flex-1">{obj.text}</span>
+                    <Badge variant="outline">{obj.completed}%</Badge>
+                </div>
+             ))}
+          </div>
+          <div className="flex justify-between items-center p-3 rounded-lg bg-muted mt-4">
+            <span className="font-semibold">{t('totalCompletion')}</span>
+            <span className="text-xl font-bold text-primary">{completionPercentage}%</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    )
+  }
 
   return (
     <div className="container max-w-5xl py-8 mx-auto px-4">
@@ -544,9 +574,8 @@ export default function AnalyticsPage() {
       ) : (
         renderLearningAnalytics()
       )}
-
+      
+      <LearningSessionDetailDialog />
     </div>
   );
 }
-
-    

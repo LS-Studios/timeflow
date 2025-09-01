@@ -1,13 +1,22 @@
 
+
+export interface LearningObjective {
+  text: string;
+  completed: number; // Percentage from 0 to 100
+}
+
 export interface Session {
   id: string; // Unique ID for each session
   type: 'work' | 'pause';
   start: Date;
   end: Date | null;
   note?: string;
-  learningGoal?: string;
+  // Learning mode specific
+  learningGoal?: string; // Main goal title
+  learningObjectives?: LearningObjective[];
+  completionPercentage?: number; // Overall completion
+  // Deprecated, replaced by learningObjectives
   topics?: string[];
-  completionPercentage?: number;
 }
 
 export type AppMode = 'work' | 'learning';
