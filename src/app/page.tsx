@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTimer } from "@/hooks/use-timer";
 import { useSettings } from "@/lib/settings-provider";
@@ -34,22 +34,24 @@ export default function Home() {
   const { t } = useTranslation();
 
   const handleGenericStart = () => {
-    if (mode === 'learning') {
+    // If we're in learning mode and NOT resuming from a pause, show the goal dialog.
+    if (mode === 'learning' && !isPaused) {
       setStartLearningDialogOpen(true);
-    } else {
-      // Logic for 'work' mode
-      const now = new Date();
-      if (sessions.length === 0) { // First start of the day
-        setSessions([{ type: 'work', start: now, end: null }]);
-      } else if (isPaused) { // Resuming from a pause
-        const lastSession = sessions[sessions.length - 1];
-        if (lastSession.type === 'pause') {
-          lastSession.end = now;
-        }
-        setSessions([...sessions, { type: 'work', start: now, end: null }]);
-      }
-      start();
+      return;
     }
+    
+    // Logic for 'work' mode or for resuming a pause in 'learning' mode.
+    const now = new Date();
+    if (sessions.length === 0) { // First start of the day
+      setSessions([{ type: 'work', start: now, end: null }]);
+    } else if (isPaused) { // Resuming from a pause
+      const lastSession = sessions[sessions.length - 1];
+      if (lastSession.type === 'pause') {
+        lastSession.end = now;
+      }
+      setSessions([...sessions, { type: 'work', start: now, end: null }]);
+    }
+    start();
   };
   
   const handleStartLearning = (goal: string) => {
@@ -139,11 +141,11 @@ export default function Home() {
     }
   };
   
-  // Reset sessions if mode changes
-  useState(() => {
+  // Reset sessions if mode changes - using useEffect to avoid violating rules of hooks
+  useEffect(() => {
     reset(TIMER_TYPES.stopwatch);
     setSessions([]);
-  }, [mode]);
+  }, [mode, reset]);
 
 
   return (
