@@ -1,4 +1,6 @@
 
+"use client";
+
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Dialog,
@@ -37,16 +39,10 @@ export function StartLearningDialog({
   const [objectives, setObjectives] = useState<string[]>([]);
   const [currentObjective, setCurrentObjective] = useState("");
   
-  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-  const [inputValue, setInputValue] = useState("");
-  const [popoverOpen, setPopoverOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isOpen) {
-        inputRef.current?.focus();
-    }
-  }, [isOpen, selectedTopics]);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
 
   const handleStart = () => {
     if (mainGoal.trim()) {
@@ -56,8 +52,8 @@ export function StartLearningDialog({
     }
   };
 
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
+  useEffect(() => {
+    if (!isOpen) {
       setMainGoal("");
       setObjectives([]);
       setCurrentObjective("");
@@ -65,8 +61,7 @@ export function StartLearningDialog({
       setInputValue("");
       setPopoverOpen(false);
     }
-    onOpenChange(open);
-  };
+  }, [isOpen]);
   
   const handleObjectiveKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && currentObjective.trim()) {
@@ -80,20 +75,18 @@ export function StartLearningDialog({
     setObjectives(objectives.filter((_, index) => index !== indexToRemove));
   };
 
-  const handleRemoveTopic = useCallback((topicToRemove: string) => {
-    setSelectedTopics(current => current.filter((topic) => topic !== topicToRemove));
-    inputRef.current?.focus();
-  }, []);
-  
   const handleTopicSelect = useCallback((topic: string) => {
     setInputValue("");
     const trimmedTopic = topic.trim();
     if (trimmedTopic && !selectedTopics.includes(trimmedTopic)) {
       setSelectedTopics(prev => [...prev, trimmedTopic]);
     }
-    setPopoverOpen(false);
-    // Focus gets handled by the useEffect
+    setPopoverOpen(true); 
   }, [selectedTopics]);
+
+  const handleRemoveTopic = useCallback((topicToRemove: string) => {
+    setSelectedTopics(current => current.filter((topic) => topic !== topicToRemove));
+  }, []);
 
   const handleTopicInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Backspace' && inputValue === '' && selectedTopics.length > 0) {
@@ -107,7 +100,7 @@ export function StartLearningDialog({
   );
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-2 mb-2">
@@ -128,59 +121,56 @@ export function StartLearningDialog({
             />
           </div>
           
-           <div className="space-y-2">
+          <div className="space-y-2">
             <Label>{t('topics')}</Label>
-             <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
               <PopoverTrigger asChild>
-                  <div
-                    className="flex flex-wrap items-center gap-2 rounded-md border border-input p-2 bg-transparent cursor-text min-h-11"
-                    onClick={() => inputRef.current?.focus()}
-                  >
-                    {selectedTopics.map((topic) => (
-                      <Badge key={topic} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
-                        {topic}
-                        <button
-                          className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                          onClick={(e) => {
-                            e.stopPropagation(); 
-                            handleRemoveTopic(topic)
-                          }}
-                        >
-                          <XIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-                          <span className="sr-only">Remove {topic}</span>
-                        </button>
-                      </Badge>
-                    ))}
-                    <Command asChild>
-                       <div cmdk-input-wrapper="" className="flex-1 min-w-[120px]">
-                         <CommandInput
-                            ref={inputRef}
-                            placeholder={selectedTopics.length > 0 ? '' : t('addTopicPlaceholder')}
-                            value={inputValue}
-                            onValueChange={setInputValue}
-                            onKeyDown={handleTopicInputKeyDown}
-                            onFocus={() => setPopoverOpen(true)}
-                            className="bg-transparent border-0 shadow-none h-6 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
-                          />
-                        </div>
-                     </Command>
-                  </div>
+                <div className="flex flex-wrap items-center gap-2 rounded-md border border-input p-2 bg-transparent cursor-text min-h-11">
+                  {selectedTopics.map((topic) => (
+                    <Badge key={topic} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
+                      {topic}
+                      <button
+                        className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        onClick={(e) => { e.stopPropagation(); handleRemoveTopic(topic); }}
+                      >
+                        <XIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                        <span className="sr-only">Remove {topic}</span>
+                      </button>
+                    </Badge>
+                  ))}
+                  <Input
+                    ref={inputRef}
+                    placeholder={selectedTopics.length > 0 ? '' : t('addTopicPlaceholder')}
+                    value={inputValue}
+                    onChange={(e) => {
+                      setInputValue(e.target.value);
+                      if (!popoverOpen) {
+                        setPopoverOpen(true);
+                      }
+                    }}
+                    onKeyDown={handleTopicInputKeyDown}
+                    onFocus={() => setPopoverOpen(true)}
+                    className="bg-transparent border-0 shadow-none h-6 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm flex-1 min-w-[120px]"
+                  />
+                </div>
               </PopoverTrigger>
               <PopoverContent asChild className="w-[--radix-popover-trigger-width] p-0">
-                 <Command>
-                   <CommandList>
-                    {(filteredTopics.length === 0 && !inputValue.trim()) && <CommandEmpty>{t('addTopicPlaceholder')}</CommandEmpty>}
+                <Command>
+                  <CommandList>
+                    {(filteredTopics.length === 0 && !inputValue.trim()) ? (
+                      <CommandEmpty>{t('addTopicPlaceholder')}</CommandEmpty>
+                    ) : null}
                     
                     <CommandGroup>
                         {filteredTopics.map((topic) => (
-                        <CommandItem
+                          <CommandItem
                             key={topic}
                             onSelect={() => handleTopicSelect(topic)}
                             className="cursor-pointer"
-                        >
+                          >
                              <Check className={cn("mr-2 h-4 w-4", selectedTopics.includes(topic) ? "opacity-100" : "opacity-0")} />
                             {topic}
-                        </CommandItem>
+                          </CommandItem>
                         ))}
                     </CommandGroup>
                     
@@ -237,5 +227,3 @@ export function StartLearningDialog({
     </Dialog>
   );
 }
-
-    
