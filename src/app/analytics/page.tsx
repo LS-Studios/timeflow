@@ -3,7 +3,7 @@
 import { useTranslation } from "@/lib/i18n";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
-import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart } from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, YAxis, Cell } from "recharts";
 import { MOCK_WORK_DAYS, MOCK_BREAKDOWN_DATA, MOCK_BREAK_TYPE_DATA } from "@/lib/mock-data";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -93,7 +93,7 @@ export default function AnalyticsPage() {
                     ))}
                 </Bar>
               </BarChart>
-            </ChartContainer>
+            </Container>
           </CardContent>
         </Card>
         <Card>
@@ -149,7 +149,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-
-// Recharts Pie and Bar components need Cell, but it's not exported from shadcn
-const Cell = ({...props}) => <div {...props} />;
-import { Label, Pie, PieChart, YAxis } from "recharts"
