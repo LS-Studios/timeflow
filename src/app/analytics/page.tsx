@@ -48,7 +48,7 @@ export default function AnalyticsPage() {
     const isPositive = overtime.startsWith('+');
     
     return (
-       <Badge variant={isPositive ? 'default' : 'destructive'} className={cn('flex items-center', isPositive ? 'bg-green-500/20 text-green-700 hover:bg-green-500/30' : 'bg-red-500/20 text-red-700 hover:bg-red-500/30')}>
+       <Badge variant={isPositive ? 'default' : 'destructive'} className={cn('flex items-center justify-center', isPositive ? 'bg-green-500/20 text-green-700 hover:bg-green-500/30' : 'bg-red-500/20 text-red-700 hover:bg-red-500/30')}>
           <span>{overtime}</span>
         </Badge>
     );
@@ -61,7 +61,7 @@ export default function AnalyticsPage() {
         {t('analyticsDescription')}
       </p>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <Card>
           <CardHeader>
             <CardTitle>{t('workLifeBalance')}</CardTitle>
@@ -83,13 +83,13 @@ export default function AnalyticsPage() {
                     innerRadius={60}
                     strokeWidth={12}
                   >
-                     {MOCK_BREAKDOWN_DATA.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={workBreakdownChartConfig[entry.type as keyof typeof workBreakdownChartConfig].color} />
+                     {MOCK_BREAKDOWN_DATA.map((entry) => (
+                      <Cell key={`cell-${entry.type}`} fill={workBreakdownChartConfig[entry.type as keyof typeof workBreakdownChartConfig].color} />
                     ))}
                   </Pie>
                    <ChartLegend
                     content={<ChartLegendContent nameKey="type" />}
-                    className="mt-4 flex-wrap gap-2 [&>*]:basis-1/4 [&>*]:justify-center"
+                    className="-mt-4 flex-wrap gap-2 [&>*]:basis-1/4 [&>*]:justify-center"
                   />
                 </PieChart>
               </ChartContainer>
@@ -119,8 +119,8 @@ export default function AnalyticsPage() {
                   content={<ChartTooltipContent indicator="dot" />}
                 />
                 <Bar dataKey="count" layout="vertical" radius={5}>
-                   {MOCK_BREAK_TYPE_DATA.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={breakTypeChartConfig[entry.type as keyof typeof breakTypeChartConfig].color} />
+                   {MOCK_BREAK_TYPE_DATA.map((entry) => (
+                      <Cell key={`cell-${entry.type}`} fill={breakTypeChartConfig[entry.type as keyof typeof breakTypeChartConfig].color} />
                     ))}
                 </Bar>
               </BarChart>
@@ -165,11 +165,11 @@ export default function AnalyticsPage() {
                 <div className="flex justify-around text-center text-sm gap-8">
                   <div>
                     <p className="text-muted-foreground">{t('workDuration')}</p>
-                    <p className="font-semibold flex items-center gap-1"><Clock className="h-4 w-4" /> {day.workDuration}</p>
+                    <p className="font-semibold flex items-center gap-1 justify-center"><Clock className="h-4 w-4" /> {day.workDuration}</p>
                   </div>
                   <div>
                      <p className="text-muted-foreground">{t('breakDuration')}</p>
-                     <p className="font-semibold flex items-center gap-1"><Coffee className="h-4 w-4" /> {day.breakDuration}</p>
+                     <p className="font-semibold flex items-center gap-1 justify-center"><Coffee className="h-4 w-4" /> {day.breakDuration}</p>
                   </div>
                 </div>
               </Card>
@@ -194,9 +194,7 @@ export default function AnalyticsPage() {
                       <TableCell>{day.workDuration}</TableCell>
                       <TableCell>{day.breakDuration}</TableCell>
                       <TableCell className="text-right">
-                         <Badge variant={day.overtime.startsWith('+') ? 'default' : 'destructive'} className={day.overtime.startsWith('+') ? 'bg-green-500/20 text-green-700 hover:bg-green-500/30' : 'bg-red-500/20 text-red-700 hover:bg-red-500/30'}>
-                          {day.overtime}
-                        </Badge>
+                         <OvertimeBadge overtime={day.overtime} />
                       </TableCell>
                     </TableRow>
                   ))}
