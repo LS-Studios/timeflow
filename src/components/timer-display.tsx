@@ -51,7 +51,7 @@ export function TimerDisplay({ time, isActive, isPaused }: TimerDisplayProps) {
         />
       </motion.svg>
       <div
-        className="text-5xl sm:text-6xl font-bold font-mono text-center tabular-nums text-muted-foreground"
+        className="text-5xl sm:text-6xl font-bold font-mono text-center tabular-nums text-foreground/90"
       >
         {formatTime(time)}
       </div>
