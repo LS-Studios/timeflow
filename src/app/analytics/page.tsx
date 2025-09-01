@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -458,8 +457,8 @@ export default function AnalyticsPage() {
                   data={completionOverTimeData}
                   margin={{
                     top: 5,
-                    right: 20,
-                    left: 20,
+                    right: 30,
+                    left: 30,
                     bottom: 5,
                   }}
                 >
@@ -474,6 +473,7 @@ export default function AnalyticsPage() {
                   <YAxis
                     tickFormatter={(value) => `${value}%`}
                     domain={[0, 100]}
+                    width={30}
                   >
                   </YAxis>
 
@@ -606,3 +606,5 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
+    
