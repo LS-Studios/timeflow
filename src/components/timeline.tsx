@@ -3,6 +3,7 @@
 import type { Session } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Briefcase, Coffee, Flag } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface TimelineProps {
   sessions: Session[];
@@ -37,50 +38,62 @@ export function Timeline({ sessions }: TimelineProps) {
 
   return (
     <div className="space-y-8 relative pl-6">
-      {sessions.map((session, index) => (
-        <div key={index} className="flex items-start">
-          <div className="flex flex-col items-center mr-4">
-            <div
-              className={cn(
-                "w-4 h-4 rounded-full z-10",
-                session.type === 'work' ? 'bg-primary' : 'bg-accent'
-              )}
-            ></div>
-            <div className="w-px h-full bg-border -mt-1"></div>
-          </div>
-          <div className="flex-1 -mt-1.5">
-            <div className="flex items-center gap-2">
-              {session.type === 'work' ? <Briefcase className="w-4 h-4" /> : <Coffee className="w-4 h-4" />}
-              <span className="font-semibold">{formatTime(session.start)}</span>
-              <span className="text-muted-foreground text-sm">
-                ({formatDuration(session.start, session.end)})
-              </span>
+       <div className="absolute top-0 left-[11px] h-full w-px bg-border"></div>
+      <AnimatePresence initial={false}>
+        {sessions.map((session, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="flex items-start"
+          >
+            <div className="absolute left-0 top-0.5">
+              <div
+                className={cn(
+                  "w-4 h-4 rounded-full z-10 bg-background border-2",
+                  session.type === 'work' ? 'border-primary' : 'border-accent'
+                )}
+              ></div>
             </div>
-            {session.type === 'pause' && session.note && (
-              <p className="text-sm text-muted-foreground ml-6 italic">
-                "{session.note}"
-              </p>
-            )}
-          </div>
-        </div>
-      ))}
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                {session.type === 'work' ? <Briefcase className="w-4 h-4" /> : <Coffee className="w-4 h-4" />}
+                <span className="font-semibold">{formatTime(session.start)}</span>
+                <span className="text-muted-foreground text-sm">
+                  ({formatDuration(session.start, session.end)})
+                </span>
+              </div>
+              {session.type === 'pause' && session.note && (
+                <p className="text-sm text-muted-foreground ml-6 italic">
+                  "{session.note}"
+                </p>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
       
       {projectedEndTime && (
-         <div className="flex items-start">
-          <div className="flex flex-col items-center mr-4">
-            <div className="w-4 h-4 rounded-full bg-border z-10 opacity-50"></div>
-          </div>
-          <div className="flex-1 -mt-1.5 opacity-50">
+         <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="flex items-start"
+         >
+           <div className="absolute left-0 top-0.5">
+             <div className="w-4 h-4 rounded-full bg-border z-10 opacity-50"></div>
+           </div>
+          <div className="flex-1 opacity-50">
             <div className="flex items-center gap-2">
               <Flag className="w-4 h-4" />
               <span className="font-semibold">{formatTime(projectedEndTime)}</span>
                <span className="text-muted-foreground text-sm">(Arbeitstagende)</span>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
-
-      <div className="absolute top-2 left-[11px] h-full w-px bg-border -z-10"></div>
     </div>
   );
 }

@@ -49,7 +49,7 @@ export function TimerControls({
           >
             <Button
               size="lg"
-              className="w-36 h-16 rounded-full text-2xl font-bold bg-primary hover:bg-primary/90"
+              className="min-w-[9rem] h-16 rounded-full text-2xl font-bold bg-primary hover:bg-primary/90"
               onClick={onStart}
               aria-label={isPaused ? t('resume') : t('start')}
             >
@@ -68,7 +68,7 @@ export function TimerControls({
           >
             <Button
               size="lg"
-              className="w-36 h-16 rounded-full text-2xl font-bold bg-accent hover:bg-accent/90"
+              className="min-w-[9rem] h-16 rounded-full text-2xl font-bold bg-accent hover:bg-accent/90"
               onClick={onPause}
               aria-label={t('pause')}
             >
