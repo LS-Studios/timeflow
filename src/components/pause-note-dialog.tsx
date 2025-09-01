@@ -13,6 +13,7 @@ import { useTranslation } from "@/lib/i18n.tsx";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Coffee, PersonStanding, Wind, Flame, Pencil } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface PauseNoteDialogProps {
   isOpen: boolean;
@@ -65,31 +66,33 @@ export function PauseNoteDialog({
             {t('addPauseNoteDescription')}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <RadioGroup value={selectedValue} onValueChange={setSelectedValue}>
-            <div className="space-y-4">
-              {pauseOptions.map(option => (
-                <div key={option.id} className="flex items-center space-x-3">
-                  <RadioGroupItem value={option.id} id={option.id} />
-                  <Label htmlFor={option.id} className="flex items-center gap-2 font-normal cursor-pointer">
-                    <option.icon className="w-4 h-4 text-muted-foreground" />
-                    {option.label}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </RadioGroup>
-
-          {selectedValue === 'other' && (
-             <Textarea
-                id="note"
-                placeholder={t('notePlaceholder')}
-                className="col-span-3 mt-4"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-              />
-          )}
-        </div>
+        <RadioGroup value={selectedValue} onValueChange={setSelectedValue} className="grid gap-4 py-4">
+            {pauseOptions.map((option) => (
+              <Label
+                key={option.id}
+                htmlFor={option.id}
+                className={cn(
+                  "flex items-center gap-4 rounded-md border-2 p-4 cursor-pointer transition-colors hover:border-primary",
+                  selectedValue === option.id && "border-primary bg-primary/5"
+                )}
+              >
+                <RadioGroupItem value={option.id} id={option.id} className="sr-only" />
+                <option.icon className="h-5 w-5 text-muted-foreground" />
+                <span className="font-medium">{option.label}</span>
+              </Label>
+            ))}
+            
+            {selectedValue === 'other' && (
+              <Textarea
+                  id="note"
+                  placeholder={t('notePlaceholder')}
+                  className="mt-2"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  autoFocus
+                />
+            )}
+        </RadioGroup>
         <DialogFooter>
           <Button onClick={handleSave}>{t('saveNote')}</Button>
         </DialogFooter>
