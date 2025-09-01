@@ -70,14 +70,19 @@ export default function Home() {
       if (lastSession.type === 'work' && !lastSession.end) {
         lastSession.end = now;
       } else if (lastSession.type === 'pause' && !lastSession.end) {
-        // If ending during a pause, end the pause, but don't start a new work session.
+        // If ending during a pause, end the pause.
         lastSession.end = now;
       }
     }
     
-    setSessions([...sessions]);
+    // In a real app, you'd save the finalized sessions here.
+    // For now, we just log them.
+    console.log("Final sessions:", sessions);
+
+    // Reset everything for the next day
+    setSessions([]);
     reset(TIMER_TYPES.stopwatch);
-    setCurrentSessionStart(null); // Ensure no new session starts
+    setCurrentSessionStart(null);
   }
 
   const handleSaveNote = (note: string) => {
