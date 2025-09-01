@@ -38,7 +38,8 @@ export function LoginDialog() {
       setError(null);
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError(null);
     setIsLoading(true);
 
@@ -93,73 +94,78 @@ export function LoginDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          {mode === 'register' && (
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            {mode === 'register' && (
+              <div className="space-y-2">
+                <Label htmlFor="name">{t('name')}</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder={t('namePlaceholder')}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="pl-9"
+                    autoComplete="name"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
-              <Label htmlFor="name">{t('name')}</Label>
+              <Label htmlFor="email">{t('email')}</Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="name"
-                  type="text"
-                  placeholder={t('namePlaceholder')}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  id="email"
+                  type="email"
+                  placeholder="m@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="pl-9"
-                  autoComplete="name"
+                  autoComplete="email"
                   disabled={isLoading}
                 />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">{t('password')}</Label>
+              <div className="relative">
+                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-9"
+                  autoComplete={mode === 'login' ? "current-password" : "new-password"}
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+            {mode === 'register' && <PasswordStrength password={password} />}
+          </div>
+          
+          {error && (
+              <Alert variant="destructive" className="mb-4">
+                  <AlertDescription className="flex items-center justify-center gap-2">
+                     <AlertTriangle className="h-4 w-4"/>
+                     <span className="text-xs">{t(error)}</span>
+                  </AlertDescription>
+              </Alert>
           )}
-          <div className="space-y-2">
-            <Label htmlFor="email">{t('email')}</Label>
-            <div className="relative">
-              <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="pl-9"
-                autoComplete="email"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">{t('password')}</Label>
-            <div className="relative">
-               <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-9"
-                autoComplete={mode === 'login' ? "current-password" : "new-password"}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-          {mode === 'register' && <PasswordStrength password={password} />}
-        </div>
-        
-        {error && (
-            <Alert variant="destructive">
-                <AlertDescription className="flex items-center justify-center gap-2">
-                   <AlertTriangle className="h-4 w-4"/>
-                   <span className="text-xs">{t(error)}</span>
-                </AlertDescription>
-            </Alert>
-        )}
 
+          <div className="flex flex-col gap-2">
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? <Loader2 className="animate-spin" /> : <LogIn />}
+              {mode === 'login' ? t('login') : t('createAccount')}
+            </Button>
+          </div>
+        </form>
+        
         <div className="flex flex-col gap-2">
-          <Button onClick={handleSubmit} className="w-full" disabled={isLoading}>
-            {isLoading ? <Loader2 className="animate-spin" /> : <LogIn />}
-            {mode === 'login' ? t('login') : t('createAccount')}
-          </Button>
            <Button onClick={handleGuestLogin} className="w-full" variant="outline" disabled={isLoading}>
             <HardDrive className="mr-2 h-4 w-4" />
             {t('useWithoutSync')}
