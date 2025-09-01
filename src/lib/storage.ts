@@ -5,6 +5,7 @@ import type { AppSettings, Session, AppMode } from "./types";
 const SETTINGS_KEY = 'timeflow_settings';
 const WORK_SESSIONS_KEY = 'timeflow_work_sessions';
 const LEARNING_SESSIONS_KEY = 'timeflow_learning_sessions';
+const PENDING_REQUESTS_KEY = 'timeflow_pending_requests';
 
 /**
  * An interface for a service that handles data persistence.
@@ -19,6 +20,10 @@ interface StorageService {
     
     // Derived data getters
     getAllTopics(): string[];
+
+    // Pending organization requests
+    addPendingRequest(date: string): void;
+    getPendingRequests(): string[];
     
     // Utility
     clearAllHistory(): void;
@@ -85,11 +90,28 @@ class LocalStorageService implements StorageService {
         });
         return Array.from(topics);
     }
+    
+    addPendingRequest(date: string): void {
+        if (!this.isLocalStorageAvailable()) return;
+        const requests = this.getPendingRequests();
+        if (!requests.includes(date)) {
+            requests.push(date);
+            localStorage.setItem(PENDING_REQUESTS_KEY, JSON.stringify(requests));
+        }
+    }
+
+    getPendingRequests(): string[] {
+        if (!this.isLocalStorageAvailable()) return [];
+        const requestsJson = localStorage.getItem(PENDING_REQUESTS_KEY);
+        return requestsJson ? JSON.parse(requestsJson) : [];
+    }
+
 
     clearAllHistory(): void {
         if (!this.isLocalStorageAvailable()) return;
         localStorage.removeItem(WORK_SESSIONS_KEY);
         localStorage.removeItem(LEARNING_SESSIONS_KEY);
+        localStorage.removeItem(PENDING_REQUESTS_KEY);
     }
 }
 

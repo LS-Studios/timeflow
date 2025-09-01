@@ -71,6 +71,7 @@ export default function AnalyticsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [sessionToEdit, setSessionToEdit] = useState<Session | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<string[]>([]);
   
   const [dayToEdit, setDayToEdit] = useState<DayHistory | null>(null);
 
@@ -97,6 +98,7 @@ export default function AnalyticsPage() {
     
     setGroupedHistory(finalHistory);
     setAllTopics(storageService.getAllTopics());
+    setPendingRequests(storageService.getPendingRequests());
     setIsLoading(false);
   }, [settings.mode]);
   
@@ -108,7 +110,6 @@ export default function AnalyticsPage() {
 
   const updateAndRefresh = (newSessions: Session[], mode: 'work' | 'learning') => {
       storageService.saveSessions(mode, newSessions);
-      // After saving, refresh the data to show the latest state
       refreshData();
   }
   
@@ -142,6 +143,9 @@ export default function AnalyticsPage() {
 
   const handleRequestChange = (pendingSessions: Session[], reason: string) => {
      if (!dayToEdit) return;
+     storageService.addPendingRequest(dayToEdit.date);
+     setPendingRequests(prev => [...prev, dayToEdit!.date]);
+
      console.log("Requesting change for day:", dayToEdit.date);
      console.log("Reason:", reason);
      console.log("New session data:", pendingSessions);
@@ -409,6 +413,7 @@ export default function AnalyticsPage() {
                     {filteredHistory.map((day) => {
                       const { workMs, breakMs } = getDurations(day.sessions);
                       const overtimeMs = workMs - ((settings.dailyGoal || 8) * 60 * 60 * 1000);
+                      const isPending = pendingRequests.includes(day.date);
                       return (
                         <TableRow key={day.id} onClick={() => setDayToEdit(day)} className="cursor-pointer">
                           <TableCell className="font-medium">{formatDate(day.date)}</TableCell>
@@ -419,7 +424,12 @@ export default function AnalyticsPage() {
                                 <OvertimeBadge overtimeMs={overtimeMs} />
                             </div>
                           </TableCell>
-                          <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
+                          <TableCell>
+                             <div className="flex items-center justify-end">
+                                {isPending && <Clock className="h-4 w-4 text-yellow-500 mr-2" title={t('requestPending')} />}
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                             </div>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -678,6 +688,7 @@ export default function AnalyticsPage() {
         onSave={handleSaveDayChanges}
         onRequestChange={handleRequestChange}
         isInOrganization={isInOrganization}
+        isPending={dayToEdit ? pendingRequests.includes(dayToEdit.date) : false}
       />
     </div>
   );

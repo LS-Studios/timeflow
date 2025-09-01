@@ -140,6 +140,10 @@ const translations: Record<Language, Translations> = {
     reasonForChangePlaceholder: "Please describe why you are requesting this change...",
     requestSent: "Request Sent",
     requestSentDescription: "Your change request has been submitted for review.",
+    requestPending: "Request Pending",
+    requestPendingDescription: "Changes for this day are pending review.",
+    requestPendingDescriptionLong: "A change request for this day has already been sent and is currently under review. Further edits are disabled until the request has been processed.",
+
   },
   de: {
     pomodoro: 'Pomodoro',
@@ -270,6 +274,9 @@ const translations: Record<Language, Translations> = {
     reasonForChangePlaceholder: "Bitte beschreiben Sie, warum Sie diese Änderung beantragen...",
     requestSent: "Anfrage gesendet",
     requestSentDescription: "Ihre Änderungsanfrage wurde zur Überprüfung eingereicht.",
+    requestPending: "Anfrage ausstehend",
+    requestPendingDescription: "Änderungen für diesen Tag warten auf Überprüfung.",
+    requestPendingDescriptionLong: "Ein Änderungsantrag für diesen Tag wurde bereits gesendet und wird derzeit geprüft. Weitere Bearbeitungen sind deaktiviert, bis der Antrag bearbeitet wurde.",
   },
 };
 

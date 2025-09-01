@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +13,7 @@ import { EditWorkDialog } from "@/components/edit-work-dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter } from "@/components/ui/alert-dialog";
 import { useTranslation } from "@/lib/i18n";
 import type { Session, DayHistory } from "@/lib/types";
-import { Save, Send } from "lucide-react";
+import { Save, Send, Clock } from "lucide-react";
 import { format } from "date-fns";
 
 interface WorkDayDetailDialogProps {
@@ -22,9 +23,10 @@ interface WorkDayDetailDialogProps {
   onSave: (pendingSessions: Session[]) => void;
   onRequestChange: (pendingSessions: Session[], reason: string) => void;
   isInOrganization: boolean;
+  isPending: boolean;
 }
 
-export function WorkDayDetailDialog({ isOpen, onOpenChange, day, onSave, onRequestChange, isInOrganization }: WorkDayDetailDialogProps) {
+export function WorkDayDetailDialog({ isOpen, onOpenChange, day, onSave, onRequestChange, isInOrganization, isPending }: WorkDayDetailDialogProps) {
   const { t } = useTranslation();
   
   const [pendingSessions, setPendingSessions] = useState<Session[]>([]);
@@ -121,18 +123,27 @@ export function WorkDayDetailDialog({ isOpen, onOpenChange, day, onSave, onReque
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t('detailsFor')} {formatDate(day.date)}</DialogTitle>
-            <DialogDescription>{t('editWorkDayDescription')}</DialogDescription>
+            <DialogDescription>{isPending ? t('requestPendingDescription') : t('editWorkDayDescription')}</DialogDescription>
           </DialogHeader>
+          
+          {isPending && (
+            <Alert>
+                <Clock className="h-4 w-4" />
+                <AlertTitle>{t('requestPending')}</AlertTitle>
+                <AlertDescription>{t('requestPendingDescriptionLong')}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="py-4 max-h-[60vh] overflow-y-auto">
              <Timeline 
                 sessions={pendingSessions} 
                 isWorkDayEnded={true} 
-                showEditButtons={true} 
+                showEditButtons={!isPending} 
                 onEditSession={(session) => setWorkSessionToEdit(session)}
                 onDeleteSession={(session, index) => setSessionToDelete({session, index})}
             />
           </div>
-           {hasPendingChanges && (
+           {hasPendingChanges && !isPending && (
             <>
               <Separator />
                {isInOrganization && (
@@ -143,12 +154,13 @@ export function WorkDayDetailDialog({ isOpen, onOpenChange, day, onSave, onReque
                     placeholder={t('reasonForChangePlaceholder')}
                     value={changeRequestReason}
                     onChange={(e) => setChangeRequestReason(e.target.value)}
+                    disabled={isPending}
                   />
                 </div>
               )}
               <DialogFooter className="mt-4">
                 <Button variant="outline" onClick={handleCancel}>{t('cancel')}</Button>
-                <Button onClick={handleSubmit} disabled={isInOrganization && !changeRequestReason.trim()}>
+                <Button onClick={handleSubmit} disabled={isPending || (isInOrganization && !changeRequestReason.trim())}>
                   {isInOrganization ? <Send className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
                   {isInOrganization ? t('requestChange') : t('saveChanges')}
                 </Button>
