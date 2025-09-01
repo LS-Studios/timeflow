@@ -16,11 +16,6 @@ const formatTime = (time: number) => {
   )}:${String(seconds).padStart(2, "0")}`;
 };
 
-
-const circularPath = "M 100, 20 a 80,80 0 1,1 0,160 a 80,80 0 1,1 0,-160";
-const wavyPath = "M 100, 20 Q 150, 40 180, 100 T 100, 180 Q 50, 160 20, 100 T 100, 20";
-
-
 export function TimerDisplay({ time, isActive }: TimerDisplayProps) {
   const radius = 95;
 
@@ -35,16 +30,19 @@ export function TimerDisplay({ time, isActive }: TimerDisplayProps) {
           className="stroke-secondary"
           fill="transparent"
         />
-         <motion.path
-            d={circularPath}
+         <motion.circle
+            cx="100"
+            cy="100"
+            r={radius}
             strokeWidth="8"
             className="stroke-primary"
             fill="transparent"
-            animate={isActive ? { d: [circularPath, wavyPath, circularPath] } : { d: circularPath }}
+            initial={false}
+            animate={isActive ? { opacity: [0.5, 1, 0.5] } : { opacity: 1 }}
             transition={
               isActive
                 ? {
-                    duration: 4,
+                    duration: 2,
                     ease: "easeInOut",
                     repeat: Infinity,
                   }
