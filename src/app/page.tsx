@@ -81,17 +81,15 @@ export default function Home() {
   }, [clearTimerState, setTimerResetCallback]);
 
 
-  // Load sessions from storage on mode/user change or initial load
+  // Load sessions from storage and listen for real-time updates
   useEffect(() => {
     if (!settingsLoaded || !user) return;
-    
-    const loadData = async () => {
-        setIsLoading(true);
-        const loadedSessions = await storageService.getSessions(user.uid, settings.mode);
-        setAllSessions(loadedSessions);
-        const topics = await storageService.getAllTopics(user.uid);
-        setAllTopics(topics);
 
+    setIsLoading(true);
+
+    const unsubscribe = storageService.onSessionsChange(user.uid, settings.mode, (loadedSessions) => {
+        setAllSessions(loadedSessions);
+        
         // Auto-reset if the last session was on a previous day and is finished.
         if (settings.mode === 'work' && loadedSessions.length > 0) {
             const lastSession = loadedSessions[loadedSessions.length - 1];
@@ -144,14 +142,20 @@ export default function Home() {
         }
         
         setIsLoading(false);
-    }
+    });
     
-    loadData();
+    // Fetch topics once
+    storageService.getAllTopics(user.uid).then(setAllTopics);
+
+    // Cleanup listener
+    return () => unsubscribe();
   }, [settingsLoaded, settings.mode, user, setTime, start, pause, reset, clearTimerState]);
 
 
   // Persist all sessions whenever they change for the current mode
   useEffect(() => {
+    // Only save if not loading and user is present.
+    // The listener will handle local state, this handles remote state.
     if (isLoading || !user) return; 
     storageService.saveSessions(user.uid, settings.mode, allSessions);
   }, [allSessions, isLoading, settings.mode, user]);

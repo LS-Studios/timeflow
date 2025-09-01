@@ -79,45 +79,46 @@ export default function AnalyticsPage() {
 
   const isInOrganization = !!settings.organizationName;
 
-  const refreshData = useCallback(async () => {
-    if (!user) return;
-    
-    const mode = settings.mode;
-    const relevantSessions = await storageService.getSessions(user.uid, mode);
+  const processSessions = useCallback((sessions: Session[]) => {
+      const groupedByDay: { [key: string]: Session[] } = {};
+      sessions.forEach(session => {
+          const dayKey = format(new Date(session.start), 'yyyy-MM-dd');
+          if (!groupedByDay[dayKey]) {
+              groupedByDay[dayKey] = [];
+          }
+          groupedByDay[dayKey].push(session);
+      });
 
-    const groupedByDay: { [key: string]: Session[] } = {};
-    relevantSessions.forEach(session => {
-        const dayKey = format(new Date(session.start), 'yyyy-MM-dd');
-        if (!groupedByDay[dayKey]) {
-            groupedByDay[dayKey] = [];
-        }
-        groupedByDay[dayKey].push(session);
-    });
-
-    const finalHistory: DayHistory[] = Object.keys(groupedByDay).map(dayKey => ({
-        id: dayKey,
-        date: dayKey,
-        sessions: groupedByDay[dayKey].sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-    })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    
-    setGroupedHistory(finalHistory);
-    const topics = await storageService.getAllTopics(user.uid);
-    setAllTopics(topics);
-    const requests = await storageService.getPendingRequests(user.uid);
-    setPendingRequests(requests);
-    setIsLoading(false);
-  }, [settings.mode, user]);
+      const finalHistory: DayHistory[] = Object.keys(groupedByDay).map(dayKey => ({
+          id: dayKey,
+          date: dayKey,
+          sessions: groupedByDay[dayKey].sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+      })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      setGroupedHistory(finalHistory);
+      setIsLoading(false);
+  }, []);
   
   useEffect(() => {
     if (!settings || !user) return;
+    
     setIsLoading(true);
-    refreshData();
-  }, [settings, user, refreshData]);
+
+    const unsubscribeSessions = storageService.onSessionsChange(user.uid, settings.mode, processSessions);
+    const unsubscribeRequests = storageService.onPendingRequestsChange(user.uid, setPendingRequests);
+
+    storageService.getAllTopics(user.uid).then(setAllTopics);
+
+    return () => {
+      unsubscribeSessions();
+      unsubscribeRequests();
+    };
+  }, [settings, user, processSessions]);
 
   const updateAndRefresh = (newSessions: Session[], mode: 'work' | 'learning') => {
       if (!user) return;
+      // Saving will trigger the onSessionsChange listener, which will refresh the data
       storageService.saveSessions(user.uid, mode, newSessions);
-      refreshData();
   }
   
   const handleUpdateLearningSession = (updatedSession: Session) => {
@@ -155,8 +156,7 @@ export default function AnalyticsPage() {
   const handleRequestChange = async (pendingSessions: Session[], reason: string) => {
      if (!dayToEdit || !user) return;
      await storageService.addPendingRequest(user.uid, dayToEdit.date);
-     setPendingRequests(prev => [...prev, dayToEdit!.date]);
-
+     
      console.log("Requesting change for day:", dayToEdit.date);
      console.log("Reason:", reason);
      console.log("New session data:", pendingSessions);

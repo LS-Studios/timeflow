@@ -47,33 +47,40 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const timerResetCallbackRef = React.useRef<TimerResetCallback | null>(null);
   const endCurrentSessionCallbackRef = React.useRef<EndCurrentSessionCallback | null>(null);
 
-  // Load settings from storage on user change
+  // Load settings from storage on user change and listen for real-time updates
   useEffect(() => {
-    const loadSettings = async () => {
-      if (user) {
-        setIsLoaded(false);
-        const loadedSettings = await storageService.getSettings(user.uid);
-        if (loadedSettings) {
-          setSettings(prev => ({...prev, ...loadedSettings}));
+    if (user) {
+      setIsLoaded(false);
+      // Set up a real-time listener for settings
+      const unsubscribe = storageService.onSettingsChange(user.uid, (newSettings) => {
+        if (newSettings) {
+           setSettings(prev => ({...prev, ...newSettings}));
+           applyTheme(newSettings.theme);
+           applyLanguage(newSettings.language);
         } else {
-          // If no settings in DB, use defaults and save them
-          setSettings(defaultSettings);
-          await storageService.saveSettings(user.uid, defaultSettings);
+           // No settings in DB, use defaults and save them
+           setSettings(defaultSettings);
+           storageService.saveSettings(user.uid, defaultSettings);
         }
         setIsLoaded(true);
-      }
-    };
-    loadSettings();
-  }, [user]);
+      });
 
-  // When settings change, apply them and save to storage
-  useEffect(() => {
-    if (isLoaded && user) {
-      applyTheme(settings.theme);
-      applyLanguage(settings.language);
-      storageService.saveSettings(user.uid, settings);
+      // Clean up the listener when the user changes or component unmounts
+      return () => unsubscribe();
     }
-  }, [settings, isLoaded, user, applyTheme, applyLanguage]);
+  }, [user, applyTheme, applyLanguage]);
+
+
+  // When settings are changed by the user, save them to storage
+  const updateSettings = useCallback((newSettings: Partial<AppSettings>) => {
+      if (user) {
+          setSettings(prev => {
+              const updated = {...prev, ...newSettings};
+              storageService.saveSettings(user.uid, updated);
+              return updated;
+          });
+      }
+  }, [user]);
 
   const setMode = useCallback((mode: AppMode) => {
     if (settings.mode === mode) return;
@@ -84,29 +91,28 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     if (timerResetCallbackRef.current) {
         timerResetCallbackRef.current();
     }
-    setSettings(prev => ({ ...prev, mode }));
-  }, [settings.mode]);
+    updateSettings({ mode });
+  }, [settings.mode, updateSettings]);
 
 
   const setTheme = useCallback((theme: AppTheme) => {
-    setSettings(prev => ({ ...prev, theme }));
-  }, []);
+    updateSettings({ theme });
+  }, [updateSettings]);
 
   const setLanguage = useCallback((language: Language) => {
-    setSettings(prev => ({...prev, language}));
-  }, []);
+    updateSettings({ language });
+  }, [updateSettings]);
   
   const setWorkGoals = useCallback((goals: { dailyGoal?: number, weeklyGoal?: number }) => {
-    setSettings(prev => ({
-        ...prev,
-        dailyGoal: goals.dailyGoal ?? prev.dailyGoal,
-        weeklyGoal: goals.weeklyGoal ?? prev.weeklyGoal
-    }));
-  }, []);
+    updateSettings({
+        dailyGoal: goals.dailyGoal ?? settings.dailyGoal,
+        weeklyGoal: goals.weeklyGoal ?? settings.weeklyGoal
+    });
+  }, [settings.dailyGoal, settings.weeklyGoal, updateSettings]);
 
   const setOrganization = useCallback((name: string | null) => {
-    setSettings(prev => ({ ...prev, organizationName: name || undefined }));
-  }, []);
+    updateSettings({ organizationName: name || undefined });
+  }, [updateSettings]);
 
   const setTimerResetCallback = useCallback((callback: TimerResetCallback) => {
     timerResetCallbackRef.current = callback;

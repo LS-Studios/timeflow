@@ -1,6 +1,6 @@
 
 "use client";
-import { ref, get, set } from "firebase/database";
+import { ref, get, set, onValue, off } from "firebase/database";
 import { db } from "./firebase";
 import type { AppSettings, Session, AppMode } from "./types";
 
@@ -20,12 +20,15 @@ export interface UserAccount {
 interface StorageProvider {
     getUserAccount(userId: string): Promise<UserAccount | null>;
     saveSettings(userId: string, settings: AppSettings): Promise<void>;
-    getSettings(userId: string): Promise<AppSettings | null>;
-    getSessions(userId: string, mode: AppMode): Promise<Session[]>;
+    getSettings(userId: string): Promise<AppSettings | null>; // For initial load
+    onSettingsChange(userId: string, callback: (settings: AppSettings) => void): () => void; // Real-time listener
+    getSessions(userId: string, mode: AppMode): Promise<Session[]>; // For initial load
+    onSessionsChange(userId: string, mode: AppMode, callback: (sessions: Session[]) => void): () => void; // Real-time listener
     saveSessions(userId: string, mode: AppMode, sessions: Session[]): Promise<void>;
     getAllTopics(userId: string): Promise<string[]>;
     addPendingRequest(userId: string, date: string): Promise<void>;
     getPendingRequests(userId: string): Promise<string[]>;
+    onPendingRequestsChange(userId: string, callback: (requests: string[]) => void): () => void; // Real-time listener
     getGuestUser(): { uid: string; name: string; email: string } | null;
     saveGuestUser(user: { uid: string; name: string; email: string }): void;
     clearGuestUser(): void;
@@ -48,6 +51,18 @@ class FirebaseStorageProvider implements StorageProvider {
         const snapshot = await get(ref(db, `users/${userId}/settings`));
         return snapshot.exists() ? snapshot.val() : null;
     }
+
+    onSettingsChange(userId: string, callback: (settings: AppSettings) => void): () => void {
+        const settingsRef = ref(db, `users/${userId}/settings`);
+        const listener = onValue(settingsRef, (snapshot) => {
+            if (snapshot.exists()) {
+                callback(snapshot.val());
+            }
+        });
+
+        // Return the unsubscribe function
+        return () => off(settingsRef, 'value', listener);
+    }
     
     async getSessions(userId: string, mode: AppMode): Promise<Session[]> {
         const snapshot = await get(ref(db, `users/${userId}/${mode}Sessions`));
@@ -60,6 +75,22 @@ class FirebaseStorageProvider implements StorageProvider {
             }));
         }
         return [];
+    }
+    
+    onSessionsChange(userId: string, mode: AppMode, callback: (sessions: Session[]) => void): () => void {
+        const sessionsRef = ref(db, `users/${userId}/${mode}Sessions`);
+        const listener = onValue(sessionsRef, (snapshot) => {
+            let sessions: Session[] = [];
+            if (snapshot.exists()) {
+                sessions = snapshot.val().map((s: any) => ({
+                    ...s,
+                    start: new Date(s.start),
+                    end: s.end ? new Date(s.end) : null,
+                }));
+            }
+            callback(sessions);
+        });
+        return () => off(sessionsRef, 'value', listener);
     }
 
     async saveSessions(userId: string, mode: AppMode, sessions: Session[]): Promise<void> {
@@ -97,6 +128,14 @@ class FirebaseStorageProvider implements StorageProvider {
         const snapshot = await get(ref(db, `users/${userId}/pendingRequests`));
         return snapshot.exists() ? snapshot.val() : [];
     }
+    
+    onPendingRequestsChange(userId: string, callback: (requests: string[]) => void): () => void {
+        const requestsRef = ref(db, `users/${userId}/pendingRequests`);
+        const listener = onValue(requestsRef, (snapshot) => {
+            callback(snapshot.exists() ? snapshot.val() : []);
+        });
+        return () => off(requestsRef, 'value', listener);
+    }
 
     // Guest functions are not applicable for the Firebase provider
     getGuestUser(): null { return null; }
@@ -125,6 +164,16 @@ class LocalStorageProvider implements StorageProvider {
         return Promise.resolve(settingsJson ? JSON.parse(settingsJson) : null);
     }
     
+    onSettingsChange(_: string, callback: (settings: AppSettings) => void): () => void {
+        // Local storage doesn't have a native push-based change listener.
+        // We can simulate it, but for this app's purpose, a one-time get is sufficient.
+        // The settings provider re-reads on user change anyway.
+        this.getSettings().then(settings => {
+            if (settings) callback(settings);
+        });
+        return () => {}; // Return a no-op unsubscribe function
+    }
+    
     async getSessions(_: string, mode: AppMode): Promise<Session[]> {
         if (typeof window === 'undefined') return Promise.resolve([]);
         const key = `${LOCAL_SESSIONS_PREFIX}${mode}`;
@@ -133,6 +182,12 @@ class LocalStorageProvider implements StorageProvider {
         const parsed = JSON.parse(sessionsJson);
         const sessions = parsed.map((s: any) => ({ ...s, start: new Date(s.start), end: s.end ? new Date(s.end) : null }));
         return Promise.resolve(sessions);
+    }
+    
+    onSessionsChange(userId: string, mode: AppMode, callback: (sessions: Session[]) => void): () => void {
+        // Similar to settings, just get the data once. UI updates are handled internally for local storage.
+        this.getSessions(userId, mode).then(callback);
+        return () => {};
     }
 
     async saveSessions(_: string, mode: AppMode, sessions: Session[]): Promise<void> {
@@ -163,6 +218,10 @@ class LocalStorageProvider implements StorageProvider {
     // Request-related functions are not applicable for local storage
     async addPendingRequest(): Promise<void> { return Promise.resolve(); }
     async getPendingRequests(): Promise<string[]> { return Promise.resolve([]); }
+    onPendingRequestsChange(_: string, callback: (requests: string[]) => void): () => void {
+        callback([]);
+        return () => {};
+    }
 
     getGuestUser() {
         if (typeof window === 'undefined') return null;
@@ -214,8 +273,16 @@ class StorageServiceFacade implements StorageProvider {
         return this.getProvider(userId).getSettings(userId);
     }
     
+    onSettingsChange(userId: string, callback: (settings: AppSettings) => void): () => void {
+        return this.getProvider(userId).onSettingsChange(userId, callback);
+    }
+    
     getSessions(userId: string, mode: AppMode): Promise<Session[]> {
         return this.getProvider(userId).getSessions(userId, mode);
+    }
+    
+    onSessionsChange(userId: string, mode: AppMode, callback: (sessions: Session[]) => void): () => void {
+        return this.getProvider(userId).onSessionsChange(userId, mode, callback);
     }
 
     saveSessions(userId: string, mode: AppMode, sessions: Session[]): Promise<void> {
@@ -232,6 +299,10 @@ class StorageServiceFacade implements StorageProvider {
 
     getPendingRequests(userId: string): Promise<string[]> {
         return this.getProvider(userId).getPendingRequests(userId);
+    }
+    
+    onPendingRequestsChange(userId: string, callback: (requests: string[]) => void): () => void {
+        return this.getProvider(userId).onPendingRequestsChange(userId, callback);
     }
 
     // Guest user management is always local
