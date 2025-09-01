@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { isToday } from "date-fns";
+import { isToday, isBefore, startOfDay } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
@@ -42,7 +42,7 @@ export default function Home() {
     reset,
   } = useTimer(TIMER_TYPES.stopwatch);
   
-  const { settings, isLoaded: settingsLoaded } = useSettings();
+  const { settings, isLoaded: settingsLoaded, setTimerResetCallback } = useSettings();
   const [isPauseNoteDialogOpen, setPauseNoteDialogOpen] = useState(false);
   const [isStartLearningDialogOpen, setStartLearningDialogOpen] = useState(false);
   const [isEndLearningDialogOpen, setEndLearningDialogOpen] = useState(false);
@@ -55,6 +55,16 @@ export default function Home() {
   const [isWorkDayEnded, setIsWorkDayEnded] = useState(false);
   
   const { t } = useTranslation();
+  
+  const clearTimerState = useCallback(() => {
+    setTodaySessions([]);
+    setAllSessions(prev => prev.filter(s => !isToday(new Date(s.start))));
+    reset(TIMER_TYPES.stopwatch);
+  }, [reset]);
+
+  useEffect(() => {
+    setTimerResetCallback(clearTimerState);
+  }, [clearTimerState, setTimerResetCallback]);
 
   // Load all sessions from storage on mount and restore timer state
   useEffect(() => {
@@ -62,63 +72,54 @@ export default function Home() {
     setIsLoading(true);
     
     const loadedSessions = storageService.getAllSessions();
-    setAllSessions(loadedSessions);
-
     const lastSession = loadedSessions.length > 0 ? loadedSessions[loadedSessions.length - 1] : null;
 
-    // Case 1: A session is still running from a previous day. Do not reset.
     if (lastSession && !lastSession.end) {
-        // The session continues, so we just restore state regardless of the day.
-    }
-    // Case 2: The last session is finished and was on a previous day. Reset for a new day.
-    else if (lastSession && lastSession.end && !isToday(new Date(lastSession.start))) {
+      // A session is still running, restore state regardless of the day.
+    } else if (lastSession && lastSession.end && isBefore(new Date(lastSession.start), startOfDay(new Date()))) {
+      // The last session is finished and was on a previous day. Reset for a new day.
       setTodaySessions([]);
       reset(TIMER_TYPES.stopwatch);
       setIsLoading(false);
       return;
     }
-
-    // If we are here, we are on the same day or continuing a session.
+    
     const sessionsForToday = loadedSessions.filter(s => isToday(new Date(s.start)));
     setTodaySessions(sessionsForToday);
+    setAllSessions(loadedSessions);
     
     if (sessionsForToday.length > 0) {
       const lastTodaySession = sessionsForToday[sessionsForToday.length - 1];
 
-      // Check if work day was ended (all sessions have an end time)
       const allSessionsEnded = sessionsForToday.every(s => s.end !== null);
-      if (settings.mode === 'work' && allSessionsEnded) {
+      if (settings.mode === 'work' && allSessionsEnded && lastTodaySession) {
          setIsWorkDayEnded(true);
-         // Display total time from that ended day
-         const totalTimeTodayMs = sessionsForToday.reduce((acc, session) => {
-            if (!session.start || !session.end) return acc;
-             const duration = new Date(session.end).getTime() - new Date(session.start).getTime();
-             return acc + (session.type === 'work' ? duration : 0);
-         }, 0);
-         setTime(Math.floor(totalTimeTodayMs / 1000));
-         pause();
+      }
+      
+      let totalTimeTodayMs = 0;
+      let activeWorkSession = false;
+      let pausedSession = false;
 
-      } else if (lastTodaySession && !lastTodaySession.end) {
-        // A session is running, restore timer state
-        let totalTimeTodayMs = 0;
-        sessionsForToday.forEach(session => {
-            if (!session.start) return;
-            const startTime = new Date(session.start).getTime();
-            // Use current time for the running session
-            const endTime = session.end ? new Date(session.end).getTime() : Date.now();
-            const duration = endTime - startTime;
-            
-            if (session.type === 'work' || (settings.mode === 'learning' && session.learningGoal)) {
-              totalTimeTodayMs += duration;
-            }
-        });
-        setTime(Math.floor(totalTimeTodayMs / 1000));
-        
-        if (lastTodaySession.type === 'work') {
+      sessionsForToday.forEach(session => {
+          if (!session.start) return;
+          const startTime = new Date(session.start).getTime();
+          const endTime = session.end ? new Date(session.end).getTime() : Date.now();
+          const duration = endTime - startTime;
+          
+          if (session.type === 'work' || (settings.mode === 'learning' && session.learningGoal)) {
+            totalTimeTodayMs += duration;
+          }
+      });
+      setTime(Math.floor(totalTimeTodayMs / 1000));
+
+      if(lastTodaySession && !lastTodaySession.end) {
+        if (lastTodaySession.type === 'work' || (settings.mode === 'learning' && lastTodaySession.learningGoal)) {
           start();
         } else {
           pause();
         }
+      } else {
+        pause();
       }
     }
     
@@ -144,7 +145,6 @@ export default function Home() {
         const lastSessionIndex = newAllSessions.length - 1;
         newAllSessions[lastSessionIndex] = { ...newAllSessions[lastSessionIndex], ...updates };
         
-        // Also update today's sessions if the last session is from today
         setTodaySessions(prevToday => {
             const todayIndex = prevToday.findIndex(s => s.id === newAllSessions[lastSessionIndex].id);
             if (todayIndex !== -1) {
@@ -160,17 +160,12 @@ export default function Home() {
   };
   
   const handleGenericStart = () => {
-    if (isWorkDayEnded) {
-       setIsWorkDayEnded(false);
-    }
     if (settings.mode === 'learning' && !isPaused && todaySessions.every(s => s.end !== null)) {
       setStartLearningDialogOpen(true);
       return;
     }
     
     const now = new Date();
-    // If the timer is paused, it means we are resuming from a break.
-    // The break session needs to be ended first.
     if (isPaused) { 
       updateLastSession({ end: now });
     }
@@ -200,7 +195,6 @@ export default function Home() {
   };
 
   const confirmReset = () => {
-    // Only remove today's sessions from the master list
     const yesterdayAndBefore = allSessions.filter(s => !isToday(new Date(s.start)));
     setAllSessions(yesterdayAndBefore);
     setTodaySessions([]);
@@ -212,7 +206,10 @@ export default function Home() {
   const handleEnd = () => {
     const now = new Date();
     if (isActive || isPaused) {
-      updateLastSession({ end: now });
+      const lastSession = allSessions[allSessions.length-1];
+      if (lastSession && !lastSession.end) {
+        updateLastSession({ end: now });
+      }
     }
     
     if (settings.mode === 'learning' && todaySessions.some(s => s.learningGoal)) {
@@ -225,11 +222,10 @@ export default function Home() {
   
   const handleContinueWork = () => {
     setIsWorkDayEnded(false);
-    handleGenericStart();
+    // Timer is already paused, user can just press start
   }
 
   const endLearningSession = (completionPercentage: number) => {
-     // Find last *learning* session of the day to update
      setAllSessions(prevAll => {
         const newAll = [...prevAll];
         const lastLearningIndex = newAll.map(s => s.learningGoal ? true : false).lastIndexOf(true);
@@ -239,13 +235,18 @@ export default function Home() {
         return newAll;
      });
     pause();
-    // Don't reset time, just allow starting a new session
+    reset(TIMER_TYPES.stopwatch);
     setEndLearningDialogOpen(false);
   }
 
   const handleSaveNote = (note: string) => {
     updateLastSession({ note });
   };
+  
+  const totalTimeOnEndedScreen = todaySessions.reduce((acc, session) => {
+    if (!session.start || !session.end || session.type !== 'work') return acc;
+    return acc + (new Date(session.end).getTime() - new Date(session.start).getTime());
+  }, 0);
   
   return (
     <>
@@ -261,6 +262,9 @@ export default function Home() {
                 <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
                 <h2 className="text-xl font-bold">{t('workDayEnded')}</h2>
                 <p className="text-muted-foreground text-sm mb-4">{t('workDayEndedDescription')}</p>
+                <div className="text-2xl font-bold mb-4">
+                  {new Date(totalTimeOnEndedScreen).toISOString().slice(11, 19)}
+                </div>
                 <Button onClick={handleContinueWork}>{t('continueWorking')}</Button>
              </div>
           ) : (
@@ -279,7 +283,7 @@ export default function Home() {
                 <Skeleton className="min-w-[9rem] h-16 rounded-full" />
                 <Skeleton className="h-14 w-14 rounded-full" />
              </div>
-          ) : !isWorkDayEnded && (
+          ) : !isWorkDayEnded ? (
              <TimerControls
                 isActive={isActive}
                 isPaused={isPaused}
@@ -289,7 +293,7 @@ export default function Home() {
                 onEnd={handleEnd}
                 endLabel={settings.mode === 'learning' ? t('endLearningSession') : t('endDay')}
              />
-          )}
+          ) : null}
 
         </div>
         

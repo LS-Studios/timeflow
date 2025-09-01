@@ -7,6 +7,8 @@ import type { AppMode, AppSettings, AppTheme } from '@/lib/types';
 import { storageService } from './storage';
 import { Language, useTranslation } from './i18n';
 
+type TimerResetCallback = () => void;
+
 interface SettingsContextType {
   settings: AppSettings;
   isLoaded: boolean;
@@ -14,6 +16,7 @@ interface SettingsContextType {
   setTheme: (theme: AppTheme) => void;
   setLanguage: (language: Language) => void;
   setWorkGoals: (goals: { dailyGoal?: number; weeklyGoal?: number }) => void;
+  setTimerResetCallback: (callback: TimerResetCallback) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -31,6 +34,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const { setTheme: applyTheme } = useTheme();
   const { setLanguage: applyLanguage } = useTranslation();
+  const [timerResetCallback, setTimerResetCallback] = useState<TimerResetCallback | null>(null);
 
   // Load settings from storage on initial mount
   useEffect(() => {
@@ -51,8 +55,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [settings, isLoaded, applyTheme, applyLanguage]);
 
   const setMode = useCallback((mode: AppMode) => {
-    setSettings(prev => ({ ...prev, mode }));
-  }, []);
+    setSettings(prev => {
+        if(prev.mode !== mode && timerResetCallback) {
+            timerResetCallback();
+        }
+        return { ...prev, mode };
+    });
+  }, [timerResetCallback]);
 
   const setTheme = useCallback((theme: AppTheme) => {
     setSettings(prev => ({ ...prev, theme }));
@@ -70,6 +79,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const setResetCallback = useCallback((callback: TimerResetCallback) => {
+    setTimerResetCallback(() => callback);
+  }, []);
+
 
   const value = useMemo(() => ({
     settings,
@@ -77,8 +90,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setMode,
     setTheme,
     setLanguage,
-    setWorkGoals
-  }), [settings, isLoaded, setMode, setTheme, setLanguage, setWorkGoals]);
+    setWorkGoals,
+    setTimerResetCallback: setResetCallback,
+  }), [settings, isLoaded, setMode, setTheme, setLanguage, setWorkGoals, setResetCallback]);
   
 
   return (
@@ -95,5 +109,3 @@ export function useSettings() {
   }
   return context;
 }
-
-    
