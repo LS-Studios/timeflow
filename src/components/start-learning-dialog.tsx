@@ -77,15 +77,11 @@ export function StartLearningDialog({
   const suggestions = canAddNewTopic ? [`add_new_${inputValue}`, ...filteredTopics] : filteredTopics;
 
   useEffect(() => {
-    if (inputValue) {
-      setActiveIndex(0);
-      if (!isPopoverOpen) setPopoverOpen(true);
-    }
-  }, [inputValue, isPopoverOpen]);
+    setActiveIndex(0);
+  }, [inputValue]);
   
   useEffect(() => {
-    // Refocus input after a topic is added/removed
-    if (isOpen) {
+    if (isOpen && selectedTopics.length > 0) {
         inputRef.current?.focus();
     }
   }, [selectedTopics, isOpen]);
@@ -98,9 +94,14 @@ export function StartLearningDialog({
     setInputValue("");
     setActiveIndex(0);
     setPopoverOpen(false);
-    // Timeout to allow state update before refocusing
-    setTimeout(() => inputRef.current?.focus(), 0);
   }, [selectedTopics]);
+  
+  useEffect(() => {
+    if(!isPopoverOpen) {
+      // Timeout to allow state update before refocusing
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+  }, [isPopoverOpen]);
 
   const handleRemoveTopic = (topic: string) => {
     setSelectedTopics(selectedTopics.filter((t) => t !== topic));
@@ -109,7 +110,15 @@ export function StartLearningDialog({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Backspace" && inputValue === "" && selectedTopics.length > 0) {
       handleRemoveTopic(selectedTopics[selectedTopics.length - 1]);
-    } else if (isPopoverOpen && suggestions.length > 0) {
+      return;
+    } 
+    
+    if (!isPopoverOpen) {
+        if(inputValue) setPopoverOpen(true);
+        return;
+    }
+    
+    if (suggestions.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setActiveIndex((prev) => (prev + 1) % suggestions.length);
@@ -118,7 +127,9 @@ export function StartLearningDialog({
         setActiveIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
       } else if (e.key === "Enter") {
         e.preventDefault();
-        handleTopicSelect(suggestions[activeIndex]);
+        if (suggestions[activeIndex]) {
+          handleTopicSelect(suggestions[activeIndex]);
+        }
       } else if (e.key === "Escape") {
         setPopoverOpen(false);
       }
@@ -164,9 +175,12 @@ export function StartLearningDialog({
             <Label>{t('topics')}</Label>
             <Popover open={isPopoverOpen} onOpenChange={setPopoverOpen}>
               <PopoverTrigger asChild>
-                <div
+                 <div
                   ref={containerRef}
-                  onClick={() => inputRef.current?.focus()}
+                  onClick={() => {
+                    setPopoverOpen(true)
+                    inputRef.current?.focus()
+                  }}
                   className="flex flex-wrap items-center gap-2 rounded-md border border-input p-2 bg-transparent cursor-text min-h-11"
                 >
                   {selectedTopics.map((topic) => (
@@ -174,6 +188,7 @@ export function StartLearningDialog({
                       {topic}
                       <button
                         className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={(e) => { e.stopPropagation(); handleRemoveTopic(topic); }}
                       >
                         <XIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
@@ -186,11 +201,12 @@ export function StartLearningDialog({
                     value={inputValue}
                     onChange={(e) => {
                       setInputValue(e.target.value);
-                      if (!isPopoverOpen) setPopoverOpen(true);
+                      if (!isPopoverOpen && e.target.value) setPopoverOpen(true);
+                       if (isPopoverOpen && !e.target.value) setPopoverOpen(false);
                     }}
                     onKeyDown={handleKeyDown}
-                    onFocus={() => setPopoverOpen(true)}
-                    placeholder={selectedTopics.length > 0 ? '' : t('addTopicPlaceholder')}
+                    onFocus={() => {if(inputValue) setPopoverOpen(true)}}
+                    placeholder={t('addTopicPlaceholder')}
                     className="bg-transparent border-0 shadow-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm flex-1 h-auto min-w-[120px]"
                   />
                 </div>
@@ -200,22 +216,25 @@ export function StartLearningDialog({
                   onOpenAutoFocus={(e) => e.preventDefault()}
               >
                   {isPopoverOpen && suggestions.length > 0 && (
-                      <ul className="py-1">
+                      <ul className="p-1">
                           {suggestions.map((topic, index) => {
                               const isNew = topic.startsWith("add_new_");
                               const displayText = isNew ? topic.replace("add_new_", "") : topic;
+                              const isSelected = selectedTopics.includes(displayText);
 
                               return (
                               <li
                                   key={topic}
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={() => handleTopicSelect(topic)}
+                                  onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      handleTopicSelect(topic);
+                                  }}
                                   className={cn(
-                                      "flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer",
+                                      "flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer rounded-sm",
                                       index === activeIndex && "bg-accent"
                                   )}
                               >
-                                  {isNew ? <Plus className="h-4 w-4" /> : <Check className={cn("h-4 w-4", selectedTopics.includes(displayText) ? "opacity-100" : "opacity-0")} />}
+                                  {isNew ? <Plus className="h-4 w-4" /> : <Check className={cn("h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />}
                                   <span>{isNew ? `${t('add')} "${displayText}"` : displayText}</span>
                               </li>
                               );
@@ -223,7 +242,7 @@ export function StartLearningDialog({
                       </ul>
                   )}
                   {isPopoverOpen && suggestions.length === 0 && inputValue && (
-                       <div className="px-2 py-1.5 text-sm text-muted-foreground">{t('noResults')}</div>
+                       <div className="px-3 py-1.5 text-sm text-muted-foreground">{t('noResults')}</div>
                   )}
               </PopoverContent>
             </Popover>
