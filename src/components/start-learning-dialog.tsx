@@ -1,5 +1,5 @@
 
-import { useState, KeyboardEvent } from "react";
+import { useState, KeyboardEvent, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,9 +11,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/lib/i18n.tsx";
-import { Brain, X as XIcon, Plus, Hash } from "lucide-react";
+import { Brain, X as XIcon, Plus, Hash, ListOrdered } from "lucide-react";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
+import { cn } from "@/lib/utils";
 
 interface StartLearningDialogProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export function StartLearningDialog({
   const [topics, setTopics] = useState<string[]>([]);
   const [currentTopic, setCurrentTopic] = useState("");
 
+  const topicInputRef = useRef<HTMLInputElement>(null);
 
   const handleStart = () => {
     if (mainGoal.trim()) {
@@ -100,12 +102,15 @@ export function StartLearningDialog({
               autoFocus
             />
           </div>
-          <div className="space-y-3">
+          
+          <div className="space-y-2">
             <Label htmlFor="topics">{t('topics')}</Label>
-            {topics.length > 0 && (
-              <div className="flex flex-wrap gap-2 rounded-md border p-3 bg-muted/50">
+            <div 
+              className="flex flex-wrap items-center gap-2 rounded-md border border-input p-2 bg-background cursor-text"
+              onClick={() => topicInputRef.current?.focus()}
+            >
                 {topics.map((topic, index) => (
-                  <Badge key={index} variant="secondary" className="pl-3 pr-1 py-1 text-sm">
+                  <Badge key={index} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
                     <Hash className="h-3 w-3 mr-1" />
                     {topic}
                     <button className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2" onClick={() => handleRemoveTopic(index)}>
@@ -114,30 +119,33 @@ export function StartLearningDialog({
                     </button>
                   </Badge>
                 ))}
-              </div>
-            )}
-            <Input
-              id="topics"
-              placeholder={t('addTopicPlaceholder')}
-              value={currentTopic}
-              onChange={(e) => setCurrentTopic(e.target.value)}
-              onKeyDown={handleTopicKeyDown}
-            />
+              <Input
+                ref={topicInputRef}
+                id="topics"
+                placeholder={t('addTopicPlaceholder')}
+                value={currentTopic}
+                onChange={(e) => setCurrentTopic(e.target.value)}
+                onKeyDown={handleTopicKeyDown}
+                className="flex-1 bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0 min-w-[120px]"
+              />
+            </div>
           </div>
-          <div className="space-y-3">
+
+          <div className="space-y-2">
             <Label htmlFor="objectives">{t('learningObjectives')}</Label>
-            {objectives.length > 0 && (
-              <div className="flex flex-wrap gap-2 rounded-md border p-3 bg-muted/50">
-                {objectives.map((obj, index) => (
-                  <Badge key={index} variant="outline" className="pl-3 pr-1 py-1 text-sm">
-                    {obj}
-                    <button className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2" onClick={() => handleRemoveObjective(index)}>
-                      <XIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-                      <span className="sr-only">Remove {obj}</span>
-                    </button>
-                  </Badge>
-                ))}
-              </div>
+             {objectives.length > 0 && (
+                <div className="space-y-2 rounded-md border p-3 bg-muted/50">
+                  {objectives.map((obj, index) => (
+                    <div key={index} className="flex items-center gap-2 group">
+                      <ListOrdered className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="flex-1 text-sm">{obj}</span>
+                      <button className="rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveObjective(index)}>
+                        <XIcon className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                        <span className="sr-only">Remove {obj}</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
             )}
             <Input
               id="objectives"
@@ -158,3 +166,4 @@ export function StartLearningDialog({
     </Dialog>
   );
 }
+
