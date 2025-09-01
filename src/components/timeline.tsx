@@ -42,6 +42,7 @@ function formatOngoingDuration(start: Date, now: number) {
 
 function getIconForNote(note: string | undefined, t: (key: string) => string) {
     if (!note) return Coffee;
+    if (note === 'Day ended') return Flag;
     if (note === t('breakCoffee')) return Coffee;
     if (note === t('breakToilet')) return PersonStanding;
     if (note === t('breakFreshAir')) return Wind;
@@ -124,7 +125,7 @@ export function Timeline({ sessions, isWorkDayEnded = false }: TimelineProps) {
                           </p>
                       )}
 
-                      {session.type === 'pause' && session.note && (
+                      {session.type === 'pause' && session.note && session.note !== 'Day ended' && (
                           <p className="text-sm text-muted-foreground ml-6 italic">
                           "{session.note}"
                           </p>

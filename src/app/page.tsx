@@ -243,8 +243,8 @@ export default function Home() {
 
 
   const handleEnd = () => {
+    const now = new Date();
     if (isActive) {
-        const now = new Date();
         updateLastSession({ end: now });
     }
     pause();
@@ -252,13 +252,14 @@ export default function Home() {
     if (settings.mode === 'learning' && todaySessions.some(s => s.learningGoal)) {
       setEndLearningDialogOpen(true);
     } else {
+      addSession({ type: 'pause', start: now, end: null, note: 'Day ended' });
       setIsWorkDayEnded(true);
     }
   }
   
   const handleContinueWork = () => {
     setIsWorkDayEnded(false);
-    pause();
+    handleGenericStart(); // This will end the "Day ended" pause and start a new work session
   }
 
   const endLearningSession = (completionPercentage: number) => {
