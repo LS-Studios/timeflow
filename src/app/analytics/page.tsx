@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
@@ -9,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { format } from "date-fns";
 
 const workBreakdownChartConfig = {
   work: { label: "Work", color: "hsl(var(--primary))" },
@@ -25,7 +27,21 @@ const breakTypeChartConfig = {
 
 
 export default function AnalyticsPage() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return dateString;
+    }
+    const formatString = language === 'de' ? 'dd.MM.yyyy' : 'MM/dd/yyyy';
+    return format(date, formatString);
+  };
+
+  const filteredWorkDays = MOCK_WORK_DAYS.filter(day =>
+    formatDate(day.date).toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="container max-w-5xl py-8 mx-auto px-4">
@@ -53,8 +69,8 @@ export default function AnalyticsPage() {
                     data={MOCK_BREAKDOWN_DATA}
                     dataKey="total"
                     nameKey="type"
-                    innerRadius={50}
-                    strokeWidth={8}
+                    innerRadius={60}
+                    strokeWidth={12}
                   >
                      {MOCK_BREAKDOWN_DATA.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={workBreakdownChartConfig[entry.type as keyof typeof workBreakdownChartConfig].color} />
@@ -62,7 +78,7 @@ export default function AnalyticsPage() {
                   </Pie>
                    <ChartLegend
                     content={<ChartLegendContent nameKey="type" />}
-                    className="-mt-4 flex-wrap gap-2 [&>*]:basis-1/4 [&>*]:justify-center"
+                    className="mt-4 flex-wrap gap-2 [&>*]:basis-1/4 [&>*]:justify-center"
                   />
                 </PieChart>
               </ChartContainer>
@@ -120,7 +136,12 @@ export default function AnalyticsPage() {
         <CardContent>
           <div className="relative mb-4">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder={t('searchHistory')} className="pl-8" />
+            <Input 
+              placeholder={t('searchHistory')} 
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+             />
           </div>
           <div className="border rounded-md">
             <Table>
@@ -133,9 +154,9 @@ export default function AnalyticsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {MOCK_WORK_DAYS.map((day) => (
+                  {filteredWorkDays.map((day) => (
                     <TableRow key={day.id}>
-                      <TableCell className="font-medium">{day.date}</TableCell>
+                      <TableCell className="font-medium">{formatDate(day.date)}</TableCell>
                       <TableCell>{day.workDuration}</TableCell>
                       <TableCell>{day.breakDuration}</TableCell>
                       <TableCell className="text-right">
