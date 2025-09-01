@@ -1,8 +1,10 @@
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface TimerDisplayProps {
   time: number;
   isActive: boolean;
+  isPaused: boolean;
 }
 
 const formatTime = (time: number) => {
@@ -16,7 +18,7 @@ const formatTime = (time: number) => {
   )}:${String(seconds).padStart(2, "0")}`;
 };
 
-export function TimerDisplay({ time, isActive }: TimerDisplayProps) {
+export function TimerDisplay({ time, isActive, isPaused }: TimerDisplayProps) {
   const radius = 95;
 
   return (
@@ -35,12 +37,16 @@ export function TimerDisplay({ time, isActive }: TimerDisplayProps) {
             cy="100"
             r={radius}
             strokeWidth="8"
-            className="stroke-primary"
+            className={cn({
+              "stroke-primary": isActive && !isPaused,
+              "stroke-accent": isPaused,
+              "stroke-secondary": !isActive && !isPaused,
+            })}
             fill="transparent"
             initial={false}
             animate={isActive ? { opacity: [0.5, 1, 0.5] } : { opacity: 1 }}
             transition={
-              isActive
+              isActive && !isPaused
                 ? {
                     duration: 2,
                     ease: "easeInOut",

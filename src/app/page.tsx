@@ -77,7 +77,7 @@ export default function Home() {
           transition={{ duration: 0.5, ease: "easeOut" }}
           className="w-full max-w-md mx-auto flex flex-col items-center gap-8"
         >
-          <TimerDisplay time={time} isActive={isActive} />
+          <TimerDisplay time={time} isActive={isActive} isPaused={isPaused} />
 
           <TimerControls
             isActive={isActive}
