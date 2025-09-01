@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Session } from "@/lib/types";
@@ -40,16 +41,24 @@ function getIconForNote(note: string | undefined, t: (key: string) => string) {
 
 export function Timeline({ sessions }: TimelineProps) {
   const { t } = useTranslation();
-  const { mode } = useSettings();
+  const { settings } = useSettings();
   
-  // We'll add the calculated end time later
-  const dailyGoalHours = 8;
+  const dailyGoalHours = settings.dailyGoal || 8;
+  const isWorkModeWithGoal = settings.mode === 'work' && dailyGoalHours > 0;
+  
+  const hasOngoingSession = sessions.some(s => !s.end);
+
   const workDurationSoFar = sessions
-    .filter(s => s.type === 'work' && s.end)
-    .reduce((acc, s) => acc + (s.end!.getTime() - s.start.getTime()), 0);
+    .filter(s => s.type === 'work')
+    .reduce((acc, s) => {
+        const startMs = s.start.getTime();
+        // If session is ongoing, calculate duration until now.
+        const endMs = s.end ? s.end.getTime() : Date.now();
+        return acc + (endMs - startMs);
+    }, 0);
 
   const remainingWorkMs = (dailyGoalHours * 60 * 60 * 1000) - workDurationSoFar;
-  const projectedEndTime = (mode === 'work' && sessions.length > 0) ? new Date(Date.now() + remainingWorkMs) : null;
+  const projectedEndTime = isWorkModeWithGoal && hasOngoingSession && remainingWorkMs > 0 ? new Date(Date.now() + remainingWorkMs) : null;
 
 
   return (
@@ -61,7 +70,7 @@ export function Timeline({ sessions }: TimelineProps) {
               const PauseIcon = getIconForNote(session.note, t);
               return (
                 <motion.div
-                    key={index}
+                    key={session.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
@@ -78,7 +87,7 @@ export function Timeline({ sessions }: TimelineProps) {
                     </div>
                     <div className="flex-1 pl-6">
                       <div className="flex items-center gap-2">
-                          {session.type === 'work' ? (mode === 'learning' ? <Brain className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />) : <PauseIcon className="w-4 h-4" />}
+                          {session.type === 'work' ? (settings.mode === 'learning' ? <Brain className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />) : <PauseIcon className="w-4 h-4" />}
                           <span className="font-semibold">{formatTime(session.start)}</span>
                           <span className="text-muted-foreground text-sm">
                           ({formatDuration(session.start, session.end)})
@@ -118,7 +127,7 @@ export function Timeline({ sessions }: TimelineProps) {
             <div className="flex items-center gap-2">
               <Flag className="w-4 h-4" />
               <span className="font-semibold">{formatTime(projectedEndTime)}</span>
-               <span className="text-muted-foreground text-sm">(Arbeitstagende)</span>
+               <span className="text-muted-foreground text-sm">({t('endDay')})</span>
             </div>
           </div>
         </motion.div>
