@@ -1,23 +1,11 @@
 
+
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, RotateCcw, Flag } from "lucide-react";
 import { useTranslation } from "@/lib/i18n.tsx";
-import { useSettings } from "@/lib/settings-provider";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-
 
 interface TimerControlsProps {
   isActive: boolean;
@@ -27,6 +15,7 @@ interface TimerControlsProps {
   onReset: () => void;
   onEnd: () => void;
   endLabel?: string;
+  isTimerIdle: boolean;
 }
 
 const buttonVariants = {
@@ -42,11 +31,10 @@ export function TimerControls({
   onPause,
   onReset,
   onEnd,
-  endLabel
+  endLabel,
+  isTimerIdle,
 }: TimerControlsProps) {
   const { t } = useTranslation();
-  const { settings } = useSettings();
-  const isTimerIdle = !isActive && !isPaused;
 
   return (
     <div className="flex items-center justify-center gap-4 h-16">
@@ -114,3 +102,5 @@ export function TimerControls({
     </div>
   );
 }
+
+    

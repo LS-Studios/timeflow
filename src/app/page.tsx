@@ -52,7 +52,7 @@ export default function Home() {
   
   const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [todaySessions, setTodaySessions] = useState<Session[]>([]);
-  const [allTopics, setAllTopics] = useState<string[]>([]);
+  const [allTopics, setAllTopics] = useState<string[]>(storageService.getAllTopics());
 
   const [isLoading, setIsLoading] = useState(true);
   const [isWorkDayEnded, setIsWorkDayEnded] = useState(false);
@@ -193,7 +193,7 @@ export default function Home() {
     // For learning mode, carry over the goal from the previous session if resuming
     const newSessionData: Omit<Session, 'id'> = { type: 'work', start: now, end: null };
     if (settings.mode === 'learning') {
-       const lastLearningSession = [...todaySessions].reverse().find(s => s.type === 'work');
+       const lastLearningSession = [...todaySessions].reverse().find(s => s.type === 'work' && s.learningGoal);
        if (lastLearningSession) {
           newSessionData.learningGoal = lastLearningSession.learningGoal;
           newSessionData.learningObjectives = lastLearningSession.learningObjectives;
@@ -291,51 +291,35 @@ export default function Home() {
 
   const endLearningSession = (updatedObjectives: LearningObjective[], totalCompletion: number) => {
     const now = new Date();
-    const todaySessionIds = new Set(todaySessions.map(s => s.id));
+    if (!sessionToEnd) return;
   
-    setAllSessions(prevAll => {
-      if (!sessionToEnd) return prevAll;
-  
-      let initialSessionUpdated = false;
-      
-      const newAll = prevAll.map(session => {
-        // Only modify today's sessions
-        if (!todaySessionIds.has(session.id)) {
-          return session;
-        }
-  
-        let updatedSession = { ...session };
-  
-        // Update the initial learning session with the final results
-        if (session.id === sessionToEnd.id && !initialSessionUpdated) {
-          updatedSession = {
-            ...updatedSession,
-            learningObjectives: updatedObjectives,
-            completionPercentage: totalCompletion,
-          };
-          initialSessionUpdated = true;
-        }
-  
-        // Ensure every session for today has an end time
-        if (!updatedSession.end) {
-          updatedSession.end = now;
-        }
-  
-        return updatedSession;
-      });
-
-      // Also end the last session which might have been a pause started by handleEnd
-      if (newAll.length > 0 && !newAll[newAll.length - 1].end) {
-        newAll[newAll.length - 1].end = now;
+    // 1. Create fully updated versions of the session arrays
+    const finalAllSessions = allSessions.map(session => {
+      // Find the initial learning session and update it with the final results
+      if (session.id === sessionToEnd.id) {
+        return {
+          ...session,
+          learningObjectives: updatedObjectives,
+          completionPercentage: totalCompletion,
+        };
       }
-  
-      return newAll;
+      return session;
+    }).map(session => {
+      // Ensure every session for today has a definitive end time
+      if (isToday(new Date(session.start)) && !session.end) {
+        return { ...session, end: now };
+      }
+      return session;
     });
   
-    // Refresh topics so the new ones are available immediately
+    const finalTodaySessions = finalAllSessions.filter(s => isToday(new Date(s.start)));
+  
+    // 2. Update all states in a batch
+    setAllSessions(finalAllSessions);
+    setTodaySessions(finalTodaySessions);
     setAllTopics(storageService.getAllTopics());
   
-    // Reset UI for the next session
+    // 3. Reset UI for the next session
     reset(TIMER_TYPES.stopwatch);
     pause(); 
     setEndLearningDialogOpen(false);
@@ -351,6 +335,8 @@ export default function Home() {
     return acc + (new Date(session.end).getTime() - new Date(session.start).getTime());
   }, 0);
   
+  const isTimerIdle = !isActive && !isPaused;
+
   return (
     <>
       <div className="flex-1 w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
@@ -395,6 +381,7 @@ export default function Home() {
                 onReset={handleReset}
                 onEnd={handleEnd}
                 endLabel={settings.mode === 'learning' ? t('endLearningSession') : t('endDay')}
+                isTimerIdle={isTimerIdle}
              />
           ) : null}
 
@@ -422,7 +409,7 @@ export default function Home() {
       />
       <StartLearningDialog
         isOpen={isStartLearningDialogOpen}
-        onOpenChange={setStartLearningDialogOpen}
+        onOpen-change={setStartLearningDialogOpen}
         onStart={handleStartLearning}
         allTopics={allTopics}
       />
@@ -460,5 +447,7 @@ export default function Home() {
     </>
   );
 }
+
+    
 
     
