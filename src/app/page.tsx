@@ -39,7 +39,7 @@ export default function Home() {
     reset,
   } = useTimer(TIMER_TYPES.stopwatch);
   
-  const { settings } = useSettings();
+  const { settings, isLoaded: settingsLoaded } = useSettings();
   const [isPauseNoteDialogOpen, setPauseNoteDialogOpen] = useState(false);
   const [isStartLearningDialogOpen, setStartLearningDialogOpen] = useState(false);
   const [isEndLearningDialogOpen, setEndLearningDialogOpen] = useState(false);
@@ -53,6 +53,7 @@ export default function Home() {
 
   // Load sessions from storage on mount
   useEffect(() => {
+    if (!settingsLoaded) return;
     setIsTimelineLoading(true);
     const todayKey = format(new Date(), 'yyyy-MM-dd');
     const loadedHistory = storageService.getDayHistory(todayKey);
@@ -70,10 +71,11 @@ export default function Home() {
       setTime(Math.floor(newCurrentTime / 1000));
     }
     setIsTimelineLoading(false);
-  }, [setTime]);
+  }, [setTime, settingsLoaded]);
 
   // Persist sessions whenever they change
   useEffect(() => {
+    if (isTimelineLoading) return; // Don't save during initial load
     if (sessions.length > 0) {
       const todayKey = format(new Date(), 'yyyy-MM-dd');
       storageService.saveDayHistory({
@@ -82,11 +84,11 @@ export default function Home() {
         sessions: sessions,
       });
     }
-  }, [sessions]);
+  }, [sessions, isTimelineLoading]);
 
 
   const handleGenericStart = () => {
-    if (settings.mode === 'learning' && !isPaused && sessions.length === 0) {
+     if (settings.mode === 'learning' && !isPaused && sessions.length === 0) {
       setStartLearningDialogOpen(true);
       return;
     }
@@ -200,11 +202,12 @@ export default function Home() {
   
   // Reset sessions if mode changes
   useEffect(() => {
+    if (isTimelineLoading) return;
     reset(TIMER_TYPES.stopwatch);
     setSessions([]);
     const todayKey = format(new Date(), 'yyyy-MM-dd');
     storageService.clearDayHistory(todayKey);
-  }, [settings.mode, reset]);
+  }, [settings.mode, reset, isTimelineLoading]);
 
   // Helper function to calculate durations from sessions
   const calculateDurations = (sessionList: Session[]) => {
@@ -212,6 +215,7 @@ export default function Home() {
       let newPauseTime = 0;
 
       sessionList.forEach(session => {
+        if (!session.start) return;
         const endTime = session.end || new Date();
         const duration = endTime.getTime() - session.start.getTime();
         if (session.type === 'work') {
@@ -226,66 +230,61 @@ export default function Home() {
       return { newWorkTime, newPauseTime, newCurrentTime };
   };
   
-  const TimerPageSkeleton = () => (
-    <div className="w-full max-w-md mx-auto flex flex-col items-center gap-8 animate-pulse">
-        {/* Timer Display Skeleton */}
-        <div className="relative w-80 h-80 sm:w-96 sm:h-96 flex items-center justify-center">
-            <div className="absolute w-full h-full rounded-full bg-muted"></div>
-            <Skeleton className="h-14 w-52" />
-        </div>
-
-        {/* Timer Controls Skeleton */}
-        <div className="flex items-center justify-center gap-4 h-16 w-full">
-            <Skeleton className="h-14 w-14 rounded-full" />
-            <Skeleton className="min-w-[9rem] h-16 rounded-full" />
-            <Skeleton className="h-14 w-14 rounded-full" />
-        </div>
-        
-        {/* Timeline Skeleton */}
-        <div className="w-full max-w-md mx-auto mt-8 space-y-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-3/4" />
-            <Skeleton className="h-10 w-full" />
-        </div>
-    </div>
-  );
-
-
-  if (isTimelineLoading) {
-      return (
-          <div className="flex-1 w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
-              <TimerPageSkeleton />
-          </div>
-      )
-  }
+  const isLoading = !settingsLoaded || isTimelineLoading;
 
 
   return (
     <>
       <div className="flex-1 w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
+        <div
           className="w-full max-w-md mx-auto flex flex-col items-center gap-8"
         >
-          <TimerDisplay time={time} isActive={isActive} isPaused={isPaused} />
+          {isLoading ? (
+             <div className="relative w-80 h-80 sm:w-96 sm:h-96 flex items-center justify-center">
+                <Skeleton className="absolute w-full h-full rounded-full" />
+                <Skeleton className="h-14 w-52" />
+             </div>
+          ) : (
+             <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+             >
+                <TimerDisplay time={time} isActive={isActive} isPaused={isPaused} />
+             </motion.div>
+          )}
 
-          <TimerControls
-            isActive={isActive}
-            isPaused={isPaused}
-            onStart={handleGenericStart}
-            onPause={handlePause}
-            onReset={handleReset}
-            onEnd={handleGenericEnd}
-          />
-        </motion.div>
+
+          {isLoading ? (
+             <div className="flex items-center justify-center gap-4 h-16 w-full">
+                <Skeleton className="h-14 w-14 rounded-full" />
+                <Skeleton className="min-w-[9rem] h-16 rounded-full" />
+                <Skeleton className="h-14 w-14 rounded-full" />
+             </div>
+          ) : (
+             <TimerControls
+                isActive={isActive}
+                isPaused={isPaused}
+                onStart={handleGenericStart}
+                onPause={handlePause}
+                onReset={handleReset}
+                onEnd={handleGenericEnd}
+             />
+          )}
+
+        </div>
         
-        {sessions.length > 0 ? (
-          <div className="w-full max-w-md mx-auto mt-8">
-            <Timeline sessions={sessions} />
-          </div>
-        ) : null}
+        <div className="w-full max-w-md mx-auto mt-8">
+           {isLoading ? (
+              <div className="space-y-4">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-3/4" />
+                  <Skeleton className="h-10 w-full" />
+              </div>
+           ) : sessions.length > 0 && (
+              <Timeline sessions={sessions} />
+           )}
+        </div>
 
       </div>
       
