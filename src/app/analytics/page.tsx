@@ -46,11 +46,9 @@ export default function AnalyticsPage() {
   
   const OvertimeBadge = ({ overtime }: { overtime: string }) => {
     const isPositive = overtime.startsWith('+');
-    const Icon = isPositive ? PlusCircle : MinusCircle;
     
     return (
-       <Badge variant={isPositive ? 'default' : 'destructive'} className={cn('flex items-center gap-1', isPositive ? 'bg-green-500/20 text-green-700 hover:bg-green-500/30' : 'bg-red-500/20 text-red-700 hover:bg-red-500/30')}>
-          <Icon className="h-3 w-3" />
+       <Badge variant={isPositive ? 'default' : 'destructive'} className={cn('flex items-center', isPositive ? 'bg-green-500/20 text-green-700 hover:bg-green-500/30' : 'bg-red-500/20 text-red-700 hover:bg-red-500/30')}>
           <span>{overtime}</span>
         </Badge>
     );
@@ -164,7 +162,7 @@ export default function AnalyticsPage() {
                   <p className="font-medium">{formatDate(day.date)}</p>
                   <OvertimeBadge overtime={day.overtime} />
                 </div>
-                <div className="flex justify-around text-center text-sm">
+                <div className="flex justify-around text-center text-sm gap-8">
                   <div>
                     <p className="text-muted-foreground">{t('workDuration')}</p>
                     <p className="font-semibold flex items-center gap-1"><Clock className="h-4 w-4" /> {day.workDuration}</p>
