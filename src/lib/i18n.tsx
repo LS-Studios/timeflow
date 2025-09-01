@@ -94,6 +94,10 @@ const translations: Record<Language, Translations> = {
     notEnoughData: "Not enough data yet",
     noHistoryDescriptionWork: "Start tracking your work time to see your analytics here.",
     noHistoryDescriptionLearning: "Start a learning session to see your progress here.",
+    workDayEnded: "Work day ended",
+    workDayEndedDescription: "Your time has been saved. Well done!",
+    startNewDay: "Start new day",
+    continueWorking: "Continue working",
   },
   de: {
     pomodoro: 'Pomodoro',
@@ -179,6 +183,10 @@ const translations: Record<Language, Translations> = {
     notEnoughData: "Noch nicht genügend Daten",
     noHistoryDescriptionWork: "Starte eine Arbeitssitzung, um deine Analysen hier zu sehen.",
     noHistoryDescriptionLearning: "Starte eine Lernsitzung, um deine Fortschritte hier zu sehen.",
+    workDayEnded: "Arbeitstag beendet",
+    workDayEndedDescription: "Deine Zeit wurde gespeichert. Gut gemacht!",
+    startNewDay: "Neuen Tag starten",
+    continueWorking: "Weiterarbeiten",
   },
 };
 

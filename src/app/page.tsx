@@ -25,10 +25,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { format, isToday } from "date-fns";
+import { isToday } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Info } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 
 
 export default function Home() {
@@ -48,9 +48,7 @@ export default function Home() {
   const [isEndLearningDialogOpen, setEndLearningDialogOpen] = useState(false);
   const [isResetDialogOpen, setResetDialogOpen] = useState(false);
   
-  // State for all sessions, loaded once
   const [allSessions, setAllSessions] = useState<Session[]>([]);
-  // Derived state for today's sessions
   const [todaySessions, setTodaySessions] = useState<Session[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -73,20 +71,27 @@ export default function Home() {
       const lastSession = today[today.length - 1];
 
       // Check if work day was ended
-      if (settings.mode === 'work' && today.every(s => s.end !== null)) {
+      if (settings.mode === 'work' && lastSession.end !== null && today.every(s => s.end !== null)) {
          setIsWorkDayEnded(true);
+         // set time to the total of the ended day
+         const totalTimeTodayMs = today.reduce((acc, session) => {
+            if (!session.start || !session.end) return acc;
+             const duration = new Date(session.end).getTime() - new Date(session.start).getTime();
+             return acc + (session.type === 'work' ? duration : 0);
+         }, 0);
+         setTime(Math.floor(totalTimeTodayMs / 1000));
+
       } else if (lastSession && !lastSession.end) {
         // Restore timer state if last session is not ended
         let totalTimeTodayMs = 0;
         today.forEach(session => {
             if (!session.start) return;
             const startTime = new Date(session.start).getTime();
+            // Use current time for the running session
             const endTime = session.end ? new Date(session.end).getTime() : Date.now();
             const duration = endTime - startTime;
             
-            if (session.type === 'work') {
-              totalTimeTodayMs += duration;
-            } else if (settings.mode === 'learning') {
+            if (session.type === 'work' || (settings.mode === 'learning' && session.learningGoal)) {
               totalTimeTodayMs += duration;
             }
         });
@@ -110,41 +115,44 @@ export default function Home() {
   }, [allSessions, isLoading]);
 
   const addSession = (session: Omit<Session, 'id'>) => {
-    const newSession: Session = { ...session, id: new Date().toISOString() };
+    const newSession: Session = { ...session, id: new Date().toISOString() + Math.random() };
     setAllSessions(prev => [...prev, newSession]);
     setTodaySessions(prev => [...prev, newSession]);
   };
 
   const updateLastSession = (updates: Partial<Session>) => {
-    const lastSession = todaySessions[todaySessions.length - 1];
-    if (!lastSession) return;
-
-    const updatedSession = { ...lastSession, ...updates };
-
     setTodaySessions(prev => {
+        if (prev.length === 0) return prev;
         const newSessions = [...prev];
-        newSessions[newSessions.length - 1] = updatedSession;
-        return newSessions;
-    });
+        const lastSession = { ...newSessions[newSessions.length - 1], ...updates };
+        newSessions[newSessions.length - 1] = lastSession;
+        
+        // Also update the `allSessions` array
+        setAllSessions(allPrev => {
+            const index = allPrev.findIndex(s => s.id === lastSession.id);
+            if (index !== -1) {
+                const newAllSessions = [...allPrev];
+                newAllSessions[index] = lastSession;
+                return newAllSessions;
+            }
+            return allPrev;
+        });
 
-    setAllSessions(prev => {
-        const index = prev.findIndex(s => s.id === lastSession.id);
-        if (index !== -1) {
-            const newAllSessions = [...prev];
-            newAllSessions[index] = updatedSession;
-            return newAllSessions;
-        }
-        return prev;
+        return newSessions;
     });
   };
 
   const handleGenericStart = () => {
+    if (isWorkDayEnded) {
+       setIsWorkDayEnded(false);
+    }
     if (settings.mode === 'learning' && !isPaused && todaySessions.every(s => s.end !== null)) {
       setStartLearningDialogOpen(true);
       return;
     }
     
     const now = new Date();
+    // End previous pause if there was one
     if (isPaused) { 
       updateLastSession({ end: now });
     }
@@ -154,6 +162,7 @@ export default function Home() {
   
   const handleStartLearning = (goal: string, topics: string[]) => {
     const now = new Date();
+    // End previous pause if there was one
     if (isPaused) { 
         updateLastSession({ end: now });
     }
@@ -196,9 +205,15 @@ export default function Home() {
       setIsWorkDayEnded(true);
     }
   }
+  
+  const handleContinueWork = () => {
+    setIsWorkDayEnded(false);
+  }
 
   const endLearningSession = (completionPercentage: number) => {
     updateLastSession({ completionPercentage });
+    // Don't reset everything, just prepare for a new session
+    pause();
     reset(TIMER_TYPES.stopwatch);
     setEndLearningDialogOpen(false);
   }
@@ -216,12 +231,15 @@ export default function Home() {
                 <Skeleton className="absolute w-full h-full rounded-full" />
                 <Skeleton className="h-14 w-52" />
              </div>
-          ) : isWorkDayEnded ? (
+          ) : isWorkDayEnded && settings.mode === 'work' ? (
              <div className="relative w-80 h-80 sm:w-96 sm:h-96 flex flex-col items-center justify-center text-center p-8 bg-card rounded-full border">
                 <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
-                <h2 className="text-xl font-bold">Arbeitstag beendet</h2>
-                <p className="text-muted-foreground text-sm mb-6">Deine Zeit wurde gespeichert. Gut gemacht!</p>
-                <Button onClick={confirmReset}>Neuen Tag starten</Button>
+                <h2 className="text-xl font-bold">{t('workDayEnded')}</h2>
+                <p className="text-muted-foreground text-sm mb-4">{t('workDayEndedDescription')}</p>
+                <div className="flex flex-col gap-2">
+                    <Button onClick={confirmReset}>{t('startNewDay')}</Button>
+                    <Button variant="outline" onClick={handleContinueWork}>{t('continueWorking')}</Button>
+                </div>
              </div>
           ) : (
              <motion.div
@@ -247,7 +265,7 @@ export default function Home() {
                 onPause={handlePause}
                 onReset={handleReset}
                 onEnd={handleEnd}
-                endLabel={settings.mode === 'learning' ? 'Sitzung beenden' : 'Arbeitstag beenden'}
+                endLabel={settings.mode === 'learning' ? t('endLearningSession') : t('endDay')}
              />
           )}
 
