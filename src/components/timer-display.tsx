@@ -18,8 +18,27 @@ const formatTime = (time: number) => {
   )}:${String(seconds).padStart(2, "0")}`;
 };
 
+const circlePath = "M 5,100 a 95,95 0 1,0 190,0 a 95,95 0 1,0 -190,0";
+const wavePath1 = "M 5,100 C 50,50 150,50 195,100 C 150,150 50,150 5,100 Z";
+const wavePath2 = "M 5,100 C 50,150 150,150 195,100 C 150,50 50,50 5,100 Z";
+
 export function TimerDisplay({ time, isActive, isPaused }: TimerDisplayProps) {
-  const radius = 95;
+  const isRunning = isActive && !isPaused;
+
+  const pathVariants = {
+    running: {
+      d: [wavePath1, wavePath2, wavePath1],
+      transition: {
+        duration: 4,
+        ease: "easeInOut",
+        repeat: Infinity,
+      },
+    },
+    stopped: {
+      d: circlePath,
+      transition: { duration: 0.5, ease: "easeOut" },
+    },
+  };
 
   return (
     <div className="relative w-80 h-80 sm:w-96 sm:h-96 flex items-center justify-center">
@@ -27,34 +46,23 @@ export function TimerDisplay({ time, isActive, isPaused }: TimerDisplayProps) {
         <circle
           cx="100"
           cy="100"
-          r={radius}
+          r={95}
           strokeWidth="8"
           className="stroke-secondary"
           fill="transparent"
         />
-         <motion.circle
-            cx="100"
-            cy="100"
-            r={radius}
-            strokeWidth="8"
-            className={cn({
-              "stroke-primary": isActive && !isPaused,
-              "stroke-accent": isPaused,
-              "stroke-secondary": !isActive && !isPaused,
-            })}
-            fill="transparent"
-            initial={false}
-            animate={isActive ? { opacity: [0.5, 1, 0.5] } : { opacity: 1 }}
-            transition={
-              isActive && !isPaused
-                ? {
-                    duration: 2,
-                    ease: "easeInOut",
-                    repeat: Infinity,
-                  }
-                : { duration: 0.5, ease: "easeOut" }
-            }
-          />
+        <motion.path
+          d={circlePath}
+          strokeWidth="8"
+          className={cn({
+            "stroke-primary": isRunning,
+            "stroke-accent": isPaused,
+            "stroke-secondary": !isActive && !isPaused,
+          })}
+          fill="transparent"
+          variants={pathVariants}
+          animate={isRunning ? "running" : "stopped"}
+        />
       </svg>
       <div
         className="text-5xl sm:text-6xl font-bold font-mono text-center tabular-nums"
