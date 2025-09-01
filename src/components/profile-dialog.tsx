@@ -46,11 +46,11 @@ export function ProfileDialog({
         </DialogHeader>
 
         <DialogFooter className="flex-col gap-2 pt-4">
-           <Button variant="outline" onClick={onLogout}>
+           <Button variant="outline" onClick={onLogout} className="w-full">
               <RefreshCw className="mr-2 h-4 w-4" />
               Switch Profile
             </Button>
-            <Button variant="destructive" onClick={onLogout}>
+            <Button variant="destructive" onClick={onLogout} className="w-full">
               <LogOut className="mr-2 h-4 w-4" />
               Log Out
             </Button>
