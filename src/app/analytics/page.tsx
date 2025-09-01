@@ -54,7 +54,7 @@ export default function AnalyticsPage() {
                     dataKey="total"
                     nameKey="type"
                     innerRadius={60}
-                    strokeWidth={8}
+                    strokeWidth={12}
                   >
                      {MOCK_BREAKDOWN_DATA.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={workBreakdownChartConfig[entry.type as keyof typeof workBreakdownChartConfig].color} />
