@@ -71,18 +71,21 @@ export function Timeline({ sessions, isWorkDayEnded = false }: TimelineProps) {
   const dailyGoalHours = settings.dailyGoal || 8;
   const isWorkModeWithGoal = settings.mode === 'work' && dailyGoalHours > 0;
   
-
   const workDurationSoFar = sessions
     .filter(s => s.type === 'work')
     .reduce((acc, s) => {
         const startMs = new Date(s.start).getTime();
         // If session is ongoing, calculate duration until now.
-        const endMs = s.end ? new Date(s.end).getTime() : now;
+        const endMs = s.end ? new Date(s.end).getTime() : (s.type === 'work' ? now : startMs);
         return acc + (endMs - startMs);
     }, 0);
 
   const remainingWorkMs = (dailyGoalHours * 60 * 60 * 1000) - workDurationSoFar;
-  const projectedEndTime = isWorkModeWithGoal && (hasOngoingSession || !isWorkDayEnded) && remainingWorkMs > 0 ? new Date(now + remainingWorkMs) : null;
+  
+  // Only show projected end time if a work session is currently active and the day isn't marked as ended.
+  const isWorkSessionActive = sessions.some(s => s.type === 'work' && !s.end);
+  const showProjectedEndTime = isWorkModeWithGoal && isWorkSessionActive && !isWorkDayEnded && remainingWorkMs > 0;
+  const projectedEndTime = showProjectedEndTime ? new Date(now + remainingWorkMs) : null;
 
 
   return (
@@ -156,7 +159,7 @@ export function Timeline({ sessions, isWorkDayEnded = false }: TimelineProps) {
        </motion.div>
       )}
 
-      {projectedEndTime && !isWorkDayEnded && (
+      {projectedEndTime && (
          <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
