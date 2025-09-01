@@ -15,8 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslation } from "@/lib/i18n.tsx";
 import type { Session } from "@/lib/types";
-import { Save, Briefcase, Coffee } from "lucide-react";
+import { Save, Briefcase, Coffee, Send } from "lucide-react";
 import { format, parse } from 'date-fns';
+import { useSettings } from "@/lib/settings-provider";
 
 interface EditWorkDialogProps {
   isOpen: boolean;
@@ -32,12 +33,14 @@ export function EditWorkDialog({
   session,
 }: EditWorkDialogProps) {
   const { t } = useTranslation();
+  const { settings } = useSettings();
   
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [note, setNote] = useState("");
 
   const sessionDate = session ? format(new Date(session.start), 'yyyy-MM-dd') : '';
+  const isInOrganization = !!settings.organizationName;
 
   useEffect(() => {
     if (isOpen && session) {
@@ -64,8 +67,13 @@ export function EditWorkDialog({
         return;
     }
     
-    // Here you would add the logic to check for organization and send request to admin
-    // For now, we save directly.
+    if (isInOrganization) {
+        // Here you would send the request to the admin.
+        // For now, we'll just log it and close the dialog without saving.
+        console.log("Requesting change for session:", session.id, { startDate, endDate, note });
+        onOpenChange(false); // Close dialog
+        return;
+    }
 
     const updatedSession: Session = {
         ...session,
@@ -85,7 +93,7 @@ export function EditWorkDialog({
             <DialogTitle>{t('editSession')}</DialogTitle>
           </div>
           <DialogDescription>
-            {t('editSessionDescription')}
+             {isInOrganization ? t('editSessionDescriptionOrg') : t('editSessionDescription')}
           </DialogDescription>
         </DialogHeader>
         
@@ -128,8 +136,8 @@ export function EditWorkDialog({
 
         <DialogFooter className="mt-2">
           <Button onClick={handleSave} className="w-full">
-            <Save className="mr-2 h-4 w-4" />
-            {t('saveChanges')}
+            {isInOrganization ? <Send className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
+            {isInOrganization ? t('requestChange') : t('saveChanges')}
           </Button>
         </DialogFooter>
       </DialogContent>

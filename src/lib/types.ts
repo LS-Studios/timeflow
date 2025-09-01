@@ -27,6 +27,7 @@ export interface AppSettings {
     mode: AppMode;
     dailyGoal?: number;
     weeklyGoal?: number;
+    organizationName?: string;
 }
 
 // DayHistory is no longer the primary storage unit, but a derived type for analytics.

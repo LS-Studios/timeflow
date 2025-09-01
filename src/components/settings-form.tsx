@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Monitor, Moon, Sun, Trash2, Brain, Briefcase } from "lucide-react";
+import { Monitor, Moon, Sun, Trash2, Brain, Briefcase, Building } from "lucide-react";
 import { useTranslation, type Language } from "@/lib/i18n.tsx";
 import { useSettings } from "@/lib/settings-provider";
 import type { AppMode } from "@/lib/types";
@@ -31,12 +31,14 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
+import { OrganizationDialog } from "./organization-dialog";
 
 export function SettingsForm() {
   const { t } = useTranslation();
-  const { settings, setMode, setTheme, setLanguage, setWorkGoals, timerIsActive } = useSettings();
+  const { settings, setMode, setTheme, setLanguage, setWorkGoals, setOrganization, timerIsActive } = useSettings();
   const [isModeChangeDialogOpen, setModeChangeDialogOpen] = useState(false);
   const [targetMode, setTargetMode] = useState<AppMode | null>(null);
+  const [isOrganizationDialogOpen, setOrganizationDialogOpen] = useState(false);
   
   const appModeOptions = [
     { id: "work", label: t('modeWork'), icon: Briefcase },
@@ -102,34 +104,54 @@ export function SettingsForm() {
         </Card>
         
         {settings.mode === 'work' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('workGoals')}</CardTitle>
-              <CardDescription>{t('workGoalsDescription')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="daily-goal">{t('dailyGoal')}</Label>
-                <Input 
-                  id="daily-goal" 
-                  type="number" 
-                  value={settings.dailyGoal || ''}
-                  onChange={handleDailyGoalChange}
-                  className="w-24" 
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="weekly-goal">{t('weeklyGoal')}</Label>
-                <Input 
-                  id="weekly-goal" 
-                  type="number" 
-                  value={settings.weeklyGoal || ''}
-                  onChange={handleWeeklyGoalChange}
-                  className="w-24" 
-                />
-              </div>
-            </CardContent>
-          </Card>
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('workGoals')}</CardTitle>
+                <CardDescription>{t('workGoalsDescription')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="daily-goal">{t('dailyGoal')}</Label>
+                  <Input 
+                    id="daily-goal" 
+                    type="number" 
+                    value={settings.dailyGoal || ''}
+                    onChange={handleDailyGoalChange}
+                    className="w-24" 
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="weekly-goal">{t('weeklyGoal')}</Label>
+                  <Input 
+                    id="weekly-goal" 
+                    type="number" 
+                    value={settings.weeklyGoal || ''}
+                    onChange={handleWeeklyGoalChange}
+                    className="w-24" 
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('organization')}</CardTitle>
+                <CardDescription>{t('organizationDescription')}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                   <Building className="h-5 w-5 text-muted-foreground" />
+                   <span className="text-sm font-medium">
+                     {settings.organizationName || t('noOrganization')}
+                   </span>
+                </div>
+                <Button variant="outline" onClick={() => setOrganizationDialogOpen(true)}>
+                  {settings.organizationName ? t('manage') : t('join')}
+                </Button>
+              </CardContent>
+            </Card>
+          </>
         )}
 
 
@@ -237,6 +259,21 @@ export function SettingsForm() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <OrganizationDialog
+        isOpen={isOrganizationDialogOpen}
+        onOpenChange={setOrganizationDialogOpen}
+        currentOrganization={settings.organizationName}
+        onJoin={(serialNumber) => {
+          // Mock logic: any serial number joins "Musterfirma GmbH"
+          if (serialNumber) {
+            setOrganization("Musterfirma GmbH");
+            return true;
+          }
+          return false;
+        }}
+        onLeave={() => setOrganization(null)}
+      />
     </>
   );
 }
