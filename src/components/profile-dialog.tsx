@@ -36,7 +36,7 @@ export function ProfileDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xs">
+      <DialogContent>
         <DialogHeader className="items-center text-center">
             <Avatar className="h-20 w-20 mb-4">
                 <AvatarImage src={`https://i.pravatar.cc/150?u=${user.email}`} />
