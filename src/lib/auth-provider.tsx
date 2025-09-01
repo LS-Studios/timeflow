@@ -192,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       {isLoginRequired && <LoginDialog />}
       
-      {user && user.uid !== 'guest' && (
+      {user && (
         <ProfileDialog 
           isOpen={isProfileDialogOpen} 
           onOpenChange={setProfileDialogOpen}
