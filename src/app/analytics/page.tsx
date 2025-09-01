@@ -48,7 +48,7 @@ export default function AnalyticsPage() {
     const isPositive = overtime.startsWith('+');
     
     return (
-       <Badge variant={isPositive ? 'default' : 'destructive'} className={cn('flex items-center justify-center', isPositive ? 'bg-green-500/20 text-green-700 hover:bg-green-500/30' : 'bg-red-500/20 text-red-700 hover:bg-red-500/30')}>
+       <Badge variant={isPositive ? 'default' : 'destructive'} className={cn('items-center justify-center', isPositive ? 'bg-green-500/20 text-green-700 hover:bg-green-500/30' : 'bg-red-500/20 text-red-700 hover:bg-red-500/30')}>
           <span>{overtime}</span>
         </Badge>
     );
@@ -193,8 +193,10 @@ export default function AnalyticsPage() {
                       <TableCell className="font-medium">{formatDate(day.date)}</TableCell>
                       <TableCell>{day.workDuration}</TableCell>
                       <TableCell>{day.breakDuration}</TableCell>
-                      <TableCell className="text-right">
-                         <OvertimeBadge overtime={day.overtime} />
+                      <TableCell>
+                         <div className="flex justify-end">
+                            <OvertimeBadge overtime={day.overtime} />
+                         </div>
                       </TableCell>
                     </TableRow>
                   ))}
