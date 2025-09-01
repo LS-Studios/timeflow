@@ -12,6 +12,7 @@ import { useSettings } from "@/lib/settings-provider";
 
 interface TimelineProps {
   sessions: Session[];
+  isWorkDayEnded?: boolean;
 }
 
 function formatTime(date: Date | null) {
@@ -49,7 +50,7 @@ function getIconForNote(note: string | undefined, t: (key: string) => string) {
 }
 
 
-export function Timeline({ sessions }: TimelineProps) {
+export function Timeline({ sessions, isWorkDayEnded = false }: TimelineProps) {
   const { t } = useTranslation();
   const { settings } = useSettings();
   const [now, setNow] = useState(Date.now());
@@ -73,9 +74,9 @@ export function Timeline({ sessions }: TimelineProps) {
   const workDurationSoFar = sessions
     .filter(s => s.type === 'work')
     .reduce((acc, s) => {
-        const startMs = s.start.getTime();
+        const startMs = new Date(s.start).getTime();
         // If session is ongoing, calculate duration until now.
-        const endMs = s.end ? s.end.getTime() : now;
+        const endMs = s.end ? new Date(s.end).getTime() : now;
         return acc + (endMs - startMs);
     }, 0);
 
@@ -88,7 +89,7 @@ export function Timeline({ sessions }: TimelineProps) {
        <div className="absolute top-0 left-0 h-full w-px bg-border"></div>
       <AnimatePresence initial={false}>
         <div className="space-y-8">
-            {sessions.map((session, index) => {
+            {sessions.map((session) => {
               const PauseIcon = getIconForNote(session.note, t);
               return (
                 <motion.div
@@ -110,9 +111,9 @@ export function Timeline({ sessions }: TimelineProps) {
                     <div className="flex-1 pl-6">
                       <div className="flex items-center gap-2">
                           {session.type === 'work' ? (settings.mode === 'learning' ? <Brain className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />) : <PauseIcon className="w-4 h-4" />}
-                          <span className="font-semibold">{formatTime(session.start)}</span>
+                          <span className="font-semibold">{formatTime(new Date(session.start))}</span>
                           <span className="text-muted-foreground text-sm">
-                           ({session.end ? formatDuration(session.start, session.end) : formatOngoingDuration(session.start, now)})
+                           ({session.end ? formatDuration(new Date(session.start), new Date(session.end)) : formatOngoingDuration(new Date(session.start), now)})
                           </span>
                       </div>
                       
@@ -135,7 +136,26 @@ export function Timeline({ sessions }: TimelineProps) {
         </div>
       </AnimatePresence>
       
-      {projectedEndTime && (
+      {isWorkDayEnded && settings.mode === 'work' && (
+        <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="flex items-start relative mt-8"
+        >
+          <div className="absolute left-0 top-1 -translate-x-1/2">
+            <div className="w-4 h-4 rounded-full bg-primary/20 border-2 border-primary z-10"></div>
+          </div>
+         <div className="flex-1 pl-6">
+           <div className="flex items-center gap-2">
+             <Flag className="w-4 h-4 text-primary" />
+             <span className="font-semibold text-primary">{t('endDay')}</span>
+           </div>
+         </div>
+       </motion.div>
+      )}
+
+      {projectedEndTime && !isWorkDayEnded && (
          <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

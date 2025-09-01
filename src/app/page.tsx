@@ -231,7 +231,12 @@ export default function Home() {
 
 
   const handleEnd = () => {
-    endCurrentSessionAndPause();
+    if (isActive) {
+        const now = new Date();
+        updateLastSession({ end: now });
+    }
+    pause();
+
     if (settings.mode === 'learning' && todaySessions.some(s => s.learningGoal)) {
       setEndLearningDialogOpen(true);
     } else {
@@ -248,7 +253,14 @@ export default function Home() {
      setAllSessions(prevAll => {
         const newAll = [...prevAll];
         // Find the last session that was a learning session and update it
-        const lastLearningIndex = newAll.map(s => !!s.learningGoal).lastIndexOf(true);
+        let lastLearningIndex = -1;
+        for(let i = newAll.length - 1; i >= 0; i--) {
+            if(newAll[i].learningGoal) {
+                lastLearningIndex = i;
+                break;
+            }
+        }
+        
         if (lastLearningIndex !== -1) {
             newAll[lastLearningIndex] = { ...newAll[lastLearningIndex], completionPercentage };
         }
@@ -327,7 +339,7 @@ export default function Home() {
                   <Skeleton className="h-10 w-full" />
               </div>
            ) : todaySessions.length > 0 && (
-              <Timeline sessions={todaySessions} />
+              <Timeline sessions={todaySessions} isWorkDayEnded={isWorkDayEnded} />
            )}
         </div>
 
