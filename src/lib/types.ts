@@ -1,3 +1,4 @@
+
 export interface Session {
   type: 'work' | 'pause';
   start: Date;
@@ -9,9 +10,10 @@ export interface Session {
 }
 
 export type AppMode = 'work' | 'learning';
+export type AppTheme = 'light' | 'dark' | 'system';
 
 export interface AppSettings {
-    theme: 'light' | 'dark' | 'system';
+    theme: AppTheme;
     language: 'en' | 'de';
     mode: AppMode;
     // Potentially add work goals here in the future

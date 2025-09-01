@@ -1,16 +1,17 @@
 
 "use client";
 
-import React, { createContext, useState, useContext, ReactNode, useMemo, useEffect } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useMemo, useEffect, useCallback } from 'react';
 import { useTheme } from 'next-themes';
-import type { AppMode, AppSettings } from '@/lib/types';
+import type { AppMode, AppSettings, AppTheme } from '@/lib/types';
 import { storageService } from './storage';
-import { useTranslation } from './i18n';
+import { Language, useTranslation } from './i18n';
 
 interface SettingsContextType {
   settings: AppSettings;
   setMode: (mode: AppMode) => void;
-  // This context will now manage all settings, including theme and language
+  setTheme: (theme: AppTheme) => void;
+  setLanguage: (language: Language) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -24,8 +25,8 @@ const defaultSettings: AppSettings = {
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoaded, setIsLoaded] = useState(false);
-  const { setTheme } = useTheme();
-  const { setLanguage } = useTranslation();
+  const { setTheme: applyTheme } = useTheme();
+  const { setLanguage: applyLanguage } = useTranslation();
 
   // Load settings from storage on initial mount
   useEffect(() => {
@@ -39,26 +40,34 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   // When settings change, apply them and save to storage
   useEffect(() => {
     if (isLoaded) {
-      setTheme(settings.theme);
-      setLanguage(settings.language);
+      applyTheme(settings.theme);
+      applyLanguage(settings.language);
       storageService.saveSettings(settings);
     }
-  }, [settings, isLoaded, setTheme, setLanguage]);
+  }, [settings, isLoaded, applyTheme, applyLanguage]);
 
-  const setMode = (mode: AppMode) => {
+  const setMode = useCallback((mode: AppMode) => {
     setSettings(prev => ({ ...prev, mode }));
-  };
+  }, []);
+
+  const setTheme = useCallback((theme: AppTheme) => {
+    setSettings(prev => ({ ...prev, theme }));
+  }, []);
+
+  const setLanguage = useCallback((language: Language) => {
+    setSettings(prev => ({...prev, language}));
+  }, []);
+
 
   const value = useMemo(() => ({
-    // We pass the whole settings object, but also individual setters for convenience
     settings,
     setMode,
-  }), [settings]);
+    setTheme,
+    setLanguage
+  }), [settings, setMode, setTheme, setLanguage]);
 
-  // The provider now needs to know about settings before rendering children
-  // to avoid flicker
   if (!isLoaded) {
-      return null; // or a loading spinner
+      return null;
   }
 
   return (

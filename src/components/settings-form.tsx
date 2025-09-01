@@ -1,10 +1,11 @@
+
 "use client";
 
 import { useTheme } from "next-themes";
 import { Monitor, Moon, Sun, Trash2, Brain, Briefcase } from "lucide-react";
 import { useTranslation, type Language } from "@/lib/i18n.tsx";
 import { useSettings } from "@/lib/settings-provider";
-import type { AppMode } from "@/lib/types";
+import type { AppMode, AppTheme } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,9 +33,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
 export function SettingsForm() {
-  const { setTheme } = useTheme();
-  const { t, setLanguage } = useTranslation();
-  const { settings, setMode } = useSettings();
+  const { t } = useTranslation();
+  const { settings, setMode, setLanguage, setTheme } = useSettings();
 
   // In a real app, these values would come from a settings context or API
   const dailyGoal = 8;
