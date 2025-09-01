@@ -1,5 +1,5 @@
 
-import { useState, KeyboardEvent, useRef, useCallback } from "react";
+import { useState, KeyboardEvent, useRef, useCallback, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +42,7 @@ export function StartLearningDialog({
   const [currentTopic, setCurrentTopic] = useState("");
   const [popoverOpen, setPopoverOpen] = useState(false);
   const topicInputRef = useRef<HTMLInputElement>(null);
+  const commandInputRef = useRef<HTMLInputElement>(null);
 
 
   const handleStart = () => {
@@ -78,6 +79,7 @@ export function StartLearningDialog({
 
   const handleRemoveTopic = (topicToRemove: string) => {
     setTopics(topics.filter((topic) => topic !== topicToRemove));
+    topicInputRef.current?.focus();
   };
   
   const handleTopicSelect = useCallback((topic: string) => {
@@ -87,20 +89,22 @@ export function StartLearningDialog({
     }
     setCurrentTopic("");
     setPopoverOpen(false);
-    setTimeout(() => {
-      topicInputRef.current?.focus();
-    }, 0);
+    topicInputRef.current?.focus();
   }, [topics]);
 
   const handleTopicInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Backspace' && event.currentTarget.value === '' && topics.length > 0) {
       event.preventDefault();
       handleRemoveTopic(topics[topics.length - 1]);
-    } else if (event.key === 'Enter' && currentTopic.trim() && filteredTopics.length === 0) {
-        event.preventDefault();
-        handleTopicSelect(currentTopic);
     }
   };
+
+  // When the popover opens, focus the command input
+  useEffect(() => {
+    if (popoverOpen) {
+      commandInputRef.current?.focus();
+    }
+  }, [popoverOpen]);
   
   const filteredTopics = allTopics.filter(topic => 
     !topics.includes(topic) && topic.toLowerCase().includes(currentTopic.toLowerCase())
@@ -134,14 +138,17 @@ export function StartLearningDialog({
               <PopoverTrigger asChild>
                 <div
                   className="flex flex-wrap items-center gap-2 rounded-md border border-input p-1 pl-2 bg-transparent cursor-text min-h-11"
-                  onClick={() => topicInputRef.current?.focus()}
+                  onClick={() => setPopoverOpen(true)}
                 >
                   {topics.map((topic) => (
                     <Badge key={topic} variant="secondary" className="pl-2 pr-1 py-1 text-sm shrink-0">
                       {topic}
                       <button
                         className="ml-1.5 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                        onClick={() => handleRemoveTopic(topic)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveTopic(topic)
+                        }}
                       >
                         <XIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                         <span className="sr-only">Remove {topic}</span>
@@ -151,42 +158,54 @@ export function StartLearningDialog({
                   <Input
                     ref={topicInputRef}
                     id="topics"
-                    placeholder={t('addTopicPlaceholder')}
+                    placeholder={topics.length > 0 ? '' : t('addTopicPlaceholder')}
                     value={currentTopic}
-                    onValueChange={setCurrentTopic}
-                    onChange={(e) => setCurrentTopic(e.target.value)}
+                    onChange={(e) => {
+                        setCurrentTopic(e.target.value)
+                        setPopoverOpen(true)
+                    }}
                     onKeyDown={handleTopicInputKeyDown}
-                    onFocus={() => setPopoverOpen(true)}
                     className="bg-transparent border-0 shadow-none h-8 p-1 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1 min-w-[120px]"
                   />
                 </div>
               </PopoverTrigger>
               <PopoverContent asChild className="w-[--radix-popover-trigger-width] p-0">
-                <Command>
+                <Command onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const selectedValue = e.currentTarget.querySelector('[aria-selected="true"]')?.textContent;
+                    if(selectedValue) {
+                      if(selectedValue.startsWith(t('add'))){
+                        handleTopicSelect(currentTopic)
+                      } else {
+                        handleTopicSelect(selectedValue)
+                      }
+                    } else if (currentTopic.trim()) {
+                       handleTopicSelect(currentTopic)
+                    }
+                  }
+                }}>
+                  <CommandInput
+                    ref={commandInputRef}
+                    placeholder={t('addTopicPlaceholder')}
+                    value={currentTopic}
+                    onValueChange={setCurrentTopic}
+                  />
                   <CommandList>
-                    <CommandEmpty>
-                       <CommandItem
-                          onSelect={() => handleTopicSelect(currentTopic.trim())}
-                          className="cursor-pointer"
-                          disabled={!currentTopic.trim()}
-                        >
-                          {t('add')} "{currentTopic.trim()}"
-                        </CommandItem>
-                    </CommandEmpty>
-                    {(filteredTopics.length > 0) && (
-                      <CommandGroup>
+                    {(filteredTopics.length === 0 && !currentTopic.trim()) && <CommandEmpty>{t('addTopicPlaceholder')}</CommandEmpty>}
+                    
+                    <CommandGroup>
                         {filteredTopics.map((topic) => (
-                          <CommandItem
+                        <CommandItem
                             key={topic}
                             onSelect={() => handleTopicSelect(topic)}
                             className="cursor-pointer"
-                          >
+                        >
                             {topic}
-                          </CommandItem>
+                        </CommandItem>
                         ))}
-                      </CommandGroup>
-                    )}
-                     {currentTopic.trim() && !allTopics.includes(currentTopic.trim()) && !topics.includes(currentTopic.trim()) && (
+                    </CommandGroup>
+
+                    {currentTopic.trim() && !filteredTopics.some(t => t.toLowerCase() === currentTopic.trim().toLowerCase()) && !topics.includes(currentTopic.trim()) && (
                       <CommandGroup>
                           <CommandItem
                             onSelect={() => handleTopicSelect(currentTopic.trim())}
