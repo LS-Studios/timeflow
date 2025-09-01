@@ -67,13 +67,20 @@ export default function Home() {
     const today = loadedSessions.filter(s => isToday(new Date(s.start)));
     setTodaySessions(today);
     
+    // Auto-reset if the last session was from a previous day
+    const lastSession = loadedSessions[loadedSessions.length - 1];
+    if (lastSession && !isToday(new Date(lastSession.start))) {
+      reset(TIMER_TYPES.stopwatch);
+      setIsLoading(false);
+      return;
+    }
+    
     if (today.length > 0) {
-      const lastSession = today[today.length - 1];
+      const lastTodaySession = today[today.length - 1];
 
       // Check if work day was ended
-      if (settings.mode === 'work' && lastSession.end !== null && today.every(s => s.end !== null)) {
+      if (settings.mode === 'work' && lastTodaySession.end !== null && today.every(s => s.end !== null)) {
          setIsWorkDayEnded(true);
-         // set time to the total of the ended day
          const totalTimeTodayMs = today.reduce((acc, session) => {
             if (!session.start || !session.end) return acc;
              const duration = new Date(session.end).getTime() - new Date(session.start).getTime();
@@ -81,7 +88,7 @@ export default function Home() {
          }, 0);
          setTime(Math.floor(totalTimeTodayMs / 1000));
 
-      } else if (lastSession && !lastSession.end) {
+      } else if (lastTodaySession && !lastTodaySession.end) {
         // Restore timer state if last session is not ended
         let totalTimeTodayMs = 0;
         today.forEach(session => {
@@ -97,7 +104,7 @@ export default function Home() {
         });
         setTime(Math.floor(totalTimeTodayMs / 1000));
         
-        if (lastSession.type === 'work') {
+        if (lastTodaySession.type === 'work') {
           start();
         } else {
           pause();
@@ -106,7 +113,7 @@ export default function Home() {
     }
     
     setIsLoading(false);
-  }, [settingsLoaded, settings.mode, setTime, start, pause]);
+  }, [settingsLoaded, settings.mode, setTime, start, pause, reset]);
 
   // Persist all sessions whenever they change
   useEffect(() => {
@@ -127,7 +134,6 @@ export default function Home() {
         const lastSession = { ...newSessions[newSessions.length - 1], ...updates };
         newSessions[newSessions.length - 1] = lastSession;
         
-        // Also update the `allSessions` array
         setAllSessions(allPrev => {
             const index = allPrev.findIndex(s => s.id === lastSession.id);
             if (index !== -1) {
@@ -152,7 +158,6 @@ export default function Home() {
     }
     
     const now = new Date();
-    // End previous pause if there was one
     if (isPaused) { 
       updateLastSession({ end: now });
     }
@@ -162,7 +167,6 @@ export default function Home() {
   
   const handleStartLearning = (goal: string, topics: string[]) => {
     const now = new Date();
-    // End previous pause if there was one
     if (isPaused) { 
         updateLastSession({ end: now });
     }
@@ -183,7 +187,6 @@ export default function Home() {
   };
 
   const confirmReset = () => {
-    // Remove today's sessions from all sessions
     const yesterdayAndBefore = allSessions.filter(s => !isToday(new Date(s.start)));
     setAllSessions(yesterdayAndBefore);
     setTodaySessions([]);
@@ -208,11 +211,11 @@ export default function Home() {
   
   const handleContinueWork = () => {
     setIsWorkDayEnded(false);
+    handleGenericStart();
   }
 
   const endLearningSession = (completionPercentage: number) => {
     updateLastSession({ completionPercentage });
-    // Don't reset everything, just prepare for a new session
     pause();
     reset(TIMER_TYPES.stopwatch);
     setEndLearningDialogOpen(false);
@@ -236,10 +239,7 @@ export default function Home() {
                 <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
                 <h2 className="text-xl font-bold">{t('workDayEnded')}</h2>
                 <p className="text-muted-foreground text-sm mb-4">{t('workDayEndedDescription')}</p>
-                <div className="flex flex-col gap-2">
-                    <Button onClick={confirmReset}>{t('startNewDay')}</Button>
-                    <Button variant="outline" onClick={handleContinueWork}>{t('continueWorking')}</Button>
-                </div>
+                <Button onClick={handleContinueWork}>{t('continueWorking')}</Button>
              </div>
           ) : (
              <motion.div
