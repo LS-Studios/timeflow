@@ -16,11 +16,16 @@ const formatTime = (time: number) => {
   )}:${String(seconds).padStart(2, "0")}`;
 };
 
+
+const circularPath = "M 100, 20 a 80,80 0 1,1 0,160 a 80,80 0 1,1 0,-160";
+const wavyPath = "M 100, 20 Q 150, 40 180, 100 T 100, 180 Q 50, 160 20, 100 T 100, 20";
+
+
 export function TimerDisplay({ time, isActive }: TimerDisplayProps) {
   const radius = 95;
 
   return (
-    <div className="relative w-72 h-72 sm:w-80 sm:h-80 flex items-center justify-center">
+    <div className="relative w-80 h-80 sm:w-96 sm:h-96 flex items-center justify-center">
       <svg className="absolute w-full h-full" viewBox="0 0 200 200">
         <circle
           cx="100"
@@ -30,27 +35,22 @@ export function TimerDisplay({ time, isActive }: TimerDisplayProps) {
           className="stroke-secondary"
           fill="transparent"
         />
-        {isActive && (
-           <motion.circle
-            cx="100"
-            cy="100"
-            r={radius}
+         <motion.path
+            d={circularPath}
             strokeWidth="8"
             className="stroke-primary"
             fill="transparent"
-            initial={{ pathLength: 1, opacity: 0.7 }}
-            animate={{
-                pathLength: [1, 1],
-                opacity: [0.7, 0.3, 0.7],
-            }}
-            transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut"
-            }}
-            style={{ rotate: -90, originX: '100px', originY: '100px' }}
+            animate={isActive ? { d: [circularPath, wavyPath, circularPath] } : { d: circularPath }}
+            transition={
+              isActive
+                ? {
+                    duration: 4,
+                    ease: "easeInOut",
+                    repeat: Infinity,
+                  }
+                : { duration: 0.5, ease: "easeOut" }
+            }
           />
-        )}
       </svg>
       <div
         className="text-5xl sm:text-6xl font-bold font-mono text-center tabular-nums"
