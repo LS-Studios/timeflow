@@ -5,6 +5,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, RotateCcw, Flag } from "lucide-react";
 import { useTranslation } from "@/lib/i18n.tsx";
+import { useSettings } from "@/lib/settings-provider";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 
 interface TimerControlsProps {
   isActive: boolean;
@@ -30,6 +43,7 @@ export function TimerControls({
   onEnd,
 }: TimerControlsProps) {
   const { t } = useTranslation();
+  const { settings } = useSettings();
   return (
     <div className="flex items-center justify-center gap-4 h-16">
       <Button
@@ -82,16 +96,17 @@ export function TimerControls({
           </motion.div>
         )}
       </AnimatePresence>
-
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-14 w-14"
-        aria-label={t('endDay')}
-        onClick={onEnd}
-      >
-        <Flag className="h-7 w-7 text-muted-foreground" />
-      </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-14 w-14"
+          aria-label={t('endDay')}
+          onClick={onEnd}
+        >
+          <Flag className="h-7 w-7 text-muted-foreground" />
+        </Button>
     </div>
   );
 }
+
+    
