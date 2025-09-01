@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, AtSign, KeyRound, User } from "lucide-react";
+import { LogIn, AtSign, KeyRound, User, Users } from "lucide-react";
 import { Logo } from "./logo";
 import { useTranslation } from "@/lib/i18n";
 import { Separator } from "./ui/separator";
@@ -39,6 +39,13 @@ export function LoginDialog({ onLogin }: LoginDialogProps) {
     }
   };
   
+  const handleGuestLogin = () => {
+    onLogin({
+      name: 'Guest User',
+      email: `guest-${Date.now()}@local.com` // Unique email for avatar
+    });
+  }
+
   const toggleMode = () => {
     setMode(prev => prev === 'login' ? 'register' : 'login');
   }
@@ -106,14 +113,18 @@ export function LoginDialog({ onLogin }: LoginDialogProps) {
             </div>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="flex-col gap-2">
           <Button onClick={handleSubmit} className="w-full">
             <LogIn className="mr-2 h-4 w-4" />
             {mode === 'login' ? 'Login' : 'Create Account'}
           </Button>
+           <Button onClick={handleGuestLogin} className="w-full" variant="outline">
+            <Users className="mr-2 h-4 w-4" />
+            Use without synchronization
+          </Button>
         </DialogFooter>
         
-        <Separator />
+        <Separator className="mt-4" />
         
         <div className="text-center text-sm">
             {mode === 'login' ? "Don't have an account?" : "Already have an account?"}
