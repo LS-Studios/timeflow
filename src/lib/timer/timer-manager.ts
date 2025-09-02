@@ -94,15 +94,20 @@ const endLastStep = (steps: Session['steps']): Session['steps'] => {
  */
 export const timerManager = {
     /**
-     * Finds the currently active (unfinished) session for today.
+     * Finds the currently active (unfinished) or last completed session for today.
      */
     findActiveSession(sessions: Session[], mode: AppMode): Session | null {
         const today = new Date().toISOString().split('T')[0];
-        const todaySessions = sessions.filter(s => s.date === today && !s.isCompleted);
+        const todaySessions = sessions.filter(s => s.date === today);
+
         if (mode === 'work') {
+            // For work mode, there's only one session per day. Return it, completed or not.
             return todaySessions[0] || null;
         }
-        return todaySessions[todaySessions.length - 1] || null;
+
+        // For learning mode, find the last session that is not yet completed.
+        const activeLearningSession = todaySessions.filter(s => !s.isCompleted).pop();
+        return activeLearningSession || null;
     },
 
     /**
