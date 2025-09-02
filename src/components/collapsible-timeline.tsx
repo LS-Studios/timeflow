@@ -8,7 +8,6 @@ import { Timeline } from "./timeline";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Briefcase, Coffee, Flag, Brain, Hourglass } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
-import { useTimer } from "@/hooks/use-timer";
 
 function getIconForStep(step: SessionStep, mode: "work" | "learning") {
     if (step.type === "work") {
@@ -54,9 +53,10 @@ export function CollapsibleTimeline({ session }: CollapsibleTimelineProps) {
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (isPauseActive) {
+      const startMs = new Date(lastStep.start).getTime();
+      setCurrentPauseTime(Math.floor((Date.now() - startMs) / 1000));
       interval = setInterval(() => {
         const now = Date.now();
-        const startMs = new Date(lastStep.start).getTime();
         setCurrentPauseTime(Math.floor((now - startMs) / 1000));
       }, 1000);
     }
@@ -78,9 +78,9 @@ export function CollapsibleTimeline({ session }: CollapsibleTimelineProps) {
   const renderSummary = () => {
     if (session.isCompleted) {
         return (
-             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Flag className="w-4 h-4 text-primary" />
-                <span className="font-semibold text-primary">{t('workDayEnded')}</span>
+             <div className="flex items-center gap-2 text-sm text-primary">
+                <Flag className="w-4 h-4" />
+                <span className="font-semibold">{t('workDayEnded')}</span>
              </div>
         )
     }
@@ -92,12 +92,12 @@ export function CollapsibleTimeline({ session }: CollapsibleTimelineProps) {
             </div>
             
             {isPauseActive && (
-              <div className="absolute left-1/2 -translate-x-1/2 font-mono text-base font-semibold">
+              <div className="absolute left-1/2 -translate-x-1/2 font-mono text-base text-muted-foreground">
                 {formatTime(currentPauseTime)}
               </div>
             )}
 
-            <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="flex items-center gap-2 text-muted-foreground mr-2">
                 <Hourglass className="w-4 h-4"/>
                 <span>{formatDuration(totalPauseMs)} Breaks</span>
             </div>
@@ -108,8 +108,10 @@ export function CollapsibleTimeline({ session }: CollapsibleTimelineProps) {
   return (
     <div className="border rounded-lg p-3">
         <div className="flex items-center justify-between cursor-pointer relative" onClick={() => setIsExpanded(!isExpanded)}>
-            {renderSummary()}
-             <ChevronDown className={cn("w-5 h-5 text-muted-foreground transition-transform", isExpanded && "rotate-180")} />
+            <div className="flex-1">
+                 {renderSummary()}
+            </div>
+             <ChevronDown className={cn("w-5 h-5 text-muted-foreground transition-transform shrink-0", isExpanded && "rotate-180")} />
         </div>
         
         <AnimatePresence initial={false}>
@@ -126,7 +128,9 @@ export function CollapsibleTimeline({ session }: CollapsibleTimelineProps) {
                     className="overflow-hidden"
                 >
                     <div className="relative pt-6">
-                        <Timeline sessions={session.steps} isWorkDayEnded={session.isCompleted} />
+                        <div className="relative left-[-12px]">
+                            <Timeline sessions={session.steps} isWorkDayEnded={session.isCompleted} />
+                        </div>
                     </div>
                 </motion.div>
             )}
