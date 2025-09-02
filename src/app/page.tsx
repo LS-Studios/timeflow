@@ -15,7 +15,7 @@ import { TimerControls } from "@/components/timer-controls";
 import { PauseNoteDialog } from "@/components/pause-note-dialog";
 import { StartLearningDialog } from "@/components/start-learning-dialog";
 import { EndLearningDialog } from "@/components/end-learning-dialog";
-import { Timeline } from "@/components/timeline";
+import { CollapsibleTimeline } from "@/components/collapsible-timeline";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
@@ -242,9 +242,7 @@ export default function Home() {
               <Skeleton className="h-10 w-full" />
             </div>
           ) : currentSession && currentSession.steps.length > 0 && (
-            <div className="relative left-3">
-                <Timeline sessions={currentSession.steps} isWorkDayEnded={!!isWorkDayEnded} />
-            </div>
+            <CollapsibleTimeline session={currentSession} />
           )}
         </div>
       </div>
