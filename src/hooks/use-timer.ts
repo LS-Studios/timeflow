@@ -1,91 +1,68 @@
+
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import type { TimerConfig } from "@/lib/constants";
+import { useState, useEffect, useRef } from "react";
+import type { Session } from "@/lib/types";
 
-export const useTimer = (initialConfig: TimerConfig) => {
-  const [config, setConfig] = useState(initialConfig);
-  const [time, setTime] = useState(config.initialTime);
-  const [isActive, setIsActive] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [progress, setProgress] = useState(100);
-
+/**
+ * A robust timer hook that calculates elapsed time based on session steps
+ * rather than a simple interval counter. This makes it resilient to page refreshes.
+ */
+export const useTimer = (session: Session | null) => {
+  const [time, setTime] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const start = useCallback(() => {
-    setIsActive(true);
-    setIsPaused(false);
-  }, []);
+  const isActive = !!session && session.steps.some(step => step.type === 'work' && !step.end);
+  const isPaused = !!session && session.steps.some(step => step.type === 'pause' && !step.end);
 
-  const pause = useCallback(() => {
-    setIsActive(false);
-    setIsPaused(true);
-  }, []);
+  const calculateElapsedTime = () => {
+    if (!session) return 0;
 
-  const reset = useCallback((newConfig: TimerConfig) => {
+    let totalMs = 0;
+    const now = Date.now();
+
+    for (const step of session.steps) {
+      if (step.type === 'work') {
+        const startMs = new Date(step.start).getTime();
+        const endMs = step.end ? new Date(step.end).getTime() : now;
+        totalMs += endMs - startMs;
+      }
+    }
+    return Math.floor(totalMs / 1000);
+  };
+  
+  useEffect(() => {
+    // Stop any existing interval when the session changes
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    setConfig(newConfig);
-    setIsActive(false);
-    setIsPaused(false);
-    setTime(newConfig.initialTime);
-    setProgress(100);
-  }, []);
-  
-  // Expose setTime for manual adjustments (e.g. loading from storage)
-  const manualSetTime = useCallback((newTime: number) => {
-      setTime(newTime);
-  }, []);
 
-  useEffect(() => {
-    if (isActive && !isPaused) {
-      intervalRef.current = setInterval(() => {
-        setTime((prevTime) => {
-            if (config.mode === "countdown") {
-              if (prevTime <= 1) {
-                clearInterval(intervalRef.current!);
-                setIsActive(false);
-                // Optional: Play a sound or show a notification
-                return 0;
-              }
-              return prevTime - 1;
-            } else {
-              return prevTime + 1;
-            }
-          });
-      }, 1000);
-    } else if (!isActive && intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    // Set initial time and start interval if a session is active
+    if (session) {
+      setTime(calculateElapsedTime());
+
+      if (isActive) {
+        intervalRef.current = setInterval(() => {
+          setTime(calculateElapsedTime());
+        }, 1000);
+      }
+    } else {
+        // No session, reset time
+        setTime(0);
     }
-
+    
+    // Cleanup interval on unmount or when session/isActive changes
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isActive, isPaused, config.mode]);
-  
-  useEffect(() => {
-    if (config.mode === 'countdown' && config.duration > 0) {
-      setProgress((time / config.duration) * 100);
-    } else {
-      setProgress(100);
-    }
-  }, [time, config]);
+  // The dependency array is crucial. We only want to restart the interval logic
+  // when the session object itself changes or its active status changes.
+  // We don't include `time` here to avoid an infinite loop.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, isActive]);
 
-
-  return {
-    time,
-    setTime: manualSetTime,
-    isActive,
-    isPaused,
-    start,
-    pause,
-    reset,
-    mode: config.mode,
-    progress,
-  };
+  return { time, isActive, isPaused };
 };
