@@ -1,20 +1,20 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Session, SessionStep } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Timeline } from "./timeline";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Briefcase, Coffee, Flag, Brain, Hourglass } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
+import { useTimer } from "@/hooks/use-timer";
 
 function getIconForStep(step: SessionStep, mode: "work" | "learning") {
     if (step.type === "work") {
         return mode === "learning" ? Brain : Briefcase;
     }
-    // For pauses, delegate to the detailed icon function in Timeline
-    return Coffee; // Fallback, timeline will use a more specific one
+    return Coffee; 
 }
 
 function formatDuration(ms: number) {
@@ -27,6 +27,17 @@ function formatDuration(ms: number) {
     return `${minutes}m`;
 }
 
+const formatTime = (timeInSeconds: number) => {
+  const hours = Math.floor(timeInSeconds / 3600);
+  const minutes = Math.floor((timeInSeconds % 3600) / 60);
+  const seconds = timeInSeconds % 60;
+  
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+    2,
+    "0"
+  )}:${String(seconds).padStart(2, "0")}`;
+};
+
 interface CollapsibleTimelineProps {
   session: Session;
 }
@@ -35,11 +46,29 @@ export function CollapsibleTimeline({ session }: CollapsibleTimelineProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { t } = useTranslation();
   
-  if (!session.steps || session.steps.length === 0) {
+  const [currentPauseTime, setCurrentPauseTime] = useState(0);
+
+  const lastStep = session.steps?.[session.steps.length - 1];
+  const isPauseActive = lastStep?.type === 'pause' && !lastStep.end;
+  
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isPauseActive) {
+      interval = setInterval(() => {
+        const now = Date.now();
+        const startMs = new Date(lastStep.start).getTime();
+        setCurrentPauseTime(Math.floor((now - startMs) / 1000));
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isPauseActive, lastStep]);
+
+  if (!session.steps || session.steps.length === 0 || !lastStep) {
     return null;
   }
 
-  const lastStep = session.steps[session.steps.length - 1];
   const Icon = getIconForStep(lastStep, session.mode);
   
   const totalPauseMs = session.steps
@@ -61,9 +90,16 @@ export function CollapsibleTimeline({ session }: CollapsibleTimelineProps) {
                 <Icon className="w-4 h-4"/>
                 <span className="font-medium capitalize">{lastStep.type}</span>
             </div>
+            
+            {isPauseActive && (
+              <div className="absolute left-1/2 -translate-x-1/2 font-mono text-base font-semibold">
+                {formatTime(currentPauseTime)}
+              </div>
+            )}
+
             <div className="flex items-center gap-2 text-muted-foreground">
                 <Hourglass className="w-4 h-4"/>
-                <span>Breaks ({formatDuration(totalPauseMs)})</span>
+                <span>{formatDuration(totalPauseMs)} Breaks</span>
             </div>
         </div>
     )
@@ -71,7 +107,7 @@ export function CollapsibleTimeline({ session }: CollapsibleTimelineProps) {
 
   return (
     <div className="border rounded-lg p-3">
-        <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+        <div className="flex items-center justify-between cursor-pointer relative" onClick={() => setIsExpanded(!isExpanded)}>
             {renderSummary()}
              <ChevronDown className={cn("w-5 h-5 text-muted-foreground transition-transform", isExpanded && "rotate-180")} />
         </div>
@@ -89,7 +125,7 @@ export function CollapsibleTimeline({ session }: CollapsibleTimelineProps) {
                     transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
                     className="overflow-hidden"
                 >
-                    <div className="relative left-3 pt-6">
+                    <div className="relative pt-6">
                         <Timeline sessions={session.steps} isWorkDayEnded={session.isCompleted} />
                     </div>
                 </motion.div>
