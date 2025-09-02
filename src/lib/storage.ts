@@ -2,7 +2,7 @@
 "use client";
 import { ref, get, set, onValue, off } from "firebase/database";
 import { db } from "./firebase";
-import type { AppSettings, Session, AppMode } from "./types";
+import type { AppSettings, Session, SessionStep, AppMode } from "./types";
 
 const LOCAL_SETTINGS_KEY = 'timeflow_guest_settings';
 const LOCAL_SESSIONS_PREFIX = 'timeflow_guest_sessions_';
@@ -63,6 +63,11 @@ class FirebaseStorageProvider implements StorageProvider {
                     ...s,
                     start: s.start ? new Date(s.start) : new Date(),
                     end: s.end ? new Date(s.end) : null,
+                    steps: (s.steps || []).map((step: any) => ({
+                        ...step,
+                        start: step.start ? new Date(step.start) : new Date(),
+                        end: step.end ? new Date(step.end) : null,
+                    })),
                 }));
             }
             callback(sessions);
@@ -74,7 +79,13 @@ class FirebaseStorageProvider implements StorageProvider {
         const sessionsToStore = sessions.map(s => ({
           ...s,
           start: s.start ? s.start.toISOString() : new Date().toISOString(),
-          end: s.end ? s.end.toISOString() : null
+          end: s.end ? s.end.toISOString() : null,
+          steps: s.steps.map(step => ({
+            ...step,
+            start: step.start ? step.start.toISOString() : new Date().toISOString(),
+            end: step.end ? step.end.toISOString() : null,
+            note: step.note || null, // Convert undefined to null for Firebase
+          })),
         }));
         await set(ref(db, `users/${userId}/${mode}Sessions`), sessionsToStore);
     }
@@ -102,6 +113,11 @@ class FirebaseStorageProvider implements StorageProvider {
                 ...s,
                 start: s.start ? new Date(s.start) : new Date(),
                 end: s.end ? new Date(s.end) : null,
+                steps: (s.steps || []).map((step: any) => ({
+                    ...step,
+                    start: step.start ? new Date(step.start) : new Date(),
+                    end: step.end ? new Date(step.end) : null,
+                })),
             }));
         }
         return [];
@@ -182,7 +198,16 @@ class LocalStorageProvider implements StorageProvider {
             const sessionsJson = localStorage.getItem(key);
             if (!sessionsJson) return [];
             const parsed = JSON.parse(sessionsJson);
-            return parsed.map((s: any) => ({ ...s, start: new Date(s.start), end: s.end ? new Date(s.end) : null }));
+            return parsed.map((s: any) => ({ 
+                ...s, 
+                start: new Date(s.start), 
+                end: s.end ? new Date(s.end) : null,
+                steps: (s.steps || []).map((step: any) => ({
+                    ...step,
+                    start: new Date(step.start),
+                    end: step.end ? new Date(step.end) : null,
+                })),
+            }));
         };
 
         callback(getSessions());
@@ -204,7 +229,13 @@ class LocalStorageProvider implements StorageProvider {
         const sessionsToStore = sessions.map(s => ({
           ...s,
           start: s.start.toISOString(),
-          end: s.end ? s.end.toISOString() : null
+          end: s.end ? s.end.toISOString() : null,
+          steps: s.steps.map(step => ({
+            ...step,
+            start: step.start.toISOString(),
+            end: step.end ? step.end.toISOString() : null,
+            note: step.note || null, // Convert undefined to null for consistency
+          })),
         }));
         localStorage.setItem(key, JSON.stringify(sessionsToStore));
         return Promise.resolve();
@@ -232,7 +263,16 @@ class LocalStorageProvider implements StorageProvider {
         const sessionsJson = localStorage.getItem(key);
         if (!sessionsJson) return Promise.resolve([]);
         const parsed = JSON.parse(sessionsJson);
-        const sessions = parsed.map((s: any) => ({ ...s, start: new Date(s.start), end: s.end ? new Date(s.end) : null }));
+        const sessions = parsed.map((s: any) => ({ 
+            ...s, 
+            start: new Date(s.start), 
+            end: s.end ? new Date(s.end) : null,
+            steps: (s.steps || []).map((step: any) => ({
+                ...step,
+                start: new Date(step.start),
+                end: step.end ? new Date(step.end) : null,
+            })),
+        }));
         return Promise.resolve(sessions);
     }
 

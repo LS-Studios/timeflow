@@ -43,18 +43,18 @@ export const useTimer = (initialConfig: TimerConfig) => {
     if (isActive && !isPaused) {
       intervalRef.current = setInterval(() => {
         setTime((prevTime) => {
-          if (config.mode === "countdown") {
-            if (prevTime <= 1) {
-              clearInterval(intervalRef.current!);
-              setIsActive(false);
-              // Optional: Play a sound or show a notification
-              return 0;
+            if (config.mode === "countdown") {
+              if (prevTime <= 1) {
+                clearInterval(intervalRef.current!);
+                setIsActive(false);
+                // Optional: Play a sound or show a notification
+                return 0;
+              }
+              return prevTime - 1;
+            } else {
+              return prevTime + 1;
             }
-            return prevTime - 1;
-          } else {
-            return prevTime + 1;
-          }
-        });
+          });
       }, 1000);
     } else if (!isActive && intervalRef.current) {
       clearInterval(intervalRef.current);

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Session } from "@/lib/types";
+import type { Session, SessionStep } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Briefcase, Coffee, Flag, Flame, PersonStanding, Wind, Pencil, Brain, Target, Edit, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,11 +12,11 @@ import { Button } from "./ui/button";
 
 
 interface TimelineProps {
-  sessions: Session[];
+  sessions: SessionStep[];
   isWorkDayEnded?: boolean;
   showEditButtons?: boolean;
-  onEditSession?: (session: Session) => void;
-  onDeleteSession?: (session: Session, index: number) => void;
+  onEditSession?: (session: SessionStep) => void;
+  onDeleteSession?: (session: SessionStep, index: number) => void;
 }
 
 function formatTime(date: Date | null) {

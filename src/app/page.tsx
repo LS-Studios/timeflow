@@ -15,7 +15,7 @@ import { EndLearningDialog } from "@/components/end-learning-dialog";
 import { TIMER_TYPES } from "@/lib/constants";
 import { useTranslation } from "@/lib/i18n.tsx";
 import { Timeline } from "@/components/timeline";
-import type { Session, LearningObjective } from "@/lib/types";
+import type { Session, SessionStep, LearningObjective } from "@/lib/types";
 import { storageService } from "@/lib/storage";
 import {
   AlertDialog,
@@ -52,7 +52,7 @@ export default function Home() {
   const [sessionToEnd, setSessionToEnd] = useState<Session | null>(null);
   
   const [allSessions, setAllSessions] = useState<Session[]>([]);
-  const [todaySessions, setTodaySessions] = useState<Session[]>([]);
+  const [currentSession, setCurrentSession] = useState<Session | null>(null);
   const [allTopics, setAllTopics] = useState<string[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -62,7 +62,7 @@ export default function Home() {
   
   const isTimerIdle = !isActive && !isPaused;
 
-  const isSessionRunning = todaySessions.length > 0 && todaySessions.some(s => s.end === null);
+  const isSessionRunning = currentSession !== null && !currentSession.isCompleted;
 
   useEffect(() => {
     setTimerIsActiveCallback(isSessionRunning);
@@ -70,7 +70,7 @@ export default function Home() {
 
 
   const clearTimerState = useCallback(() => {
-    setTodaySessions([]);
+    setCurrentSession(null);
     reset(TIMER_TYPES.stopwatch);
     setIsWorkDayEnded(false);
   }, [reset]);
@@ -89,52 +89,53 @@ export default function Home() {
     const unsubscribe = storageService.onSessionsChange(user.uid, settings.mode, (loadedSessions) => {
         setAllSessions(loadedSessions);
         
-        // Auto-reset if the last session was on a previous day and is finished.
-        if (settings.mode === 'work' && loadedSessions.length > 0) {
-            const lastSession = loadedSessions[loadedSessions.length - 1];
-            if (lastSession.end && isBefore(new Date(lastSession.start), startOfDay(new Date()))) {
-                setTodaySessions([]);
-                reset(TIMER_TYPES.stopwatch);
-                setIsWorkDayEnded(false);
-                setIsLoading(false);
-                return;
-            }
+        // Find today's current session
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        let todaySession: Session | null = null;
+        
+        if (settings.mode === 'work') {
+            // Work mode: only one session per day
+            todaySession = loadedSessions.find(s => s.date === today && !s.isCompleted) || null;
+        } else {
+            // Learning mode: find the last unfinished session today
+            const todaySessions = loadedSessions.filter(s => s.date === today && !s.isCompleted);
+            todaySession = todaySessions[todaySessions.length - 1] || null;
         }
         
-        const sessionsForToday = loadedSessions.filter(s => isToday(new Date(s.start)));
-        setTodaySessions(sessionsForToday);
+        console.log("Today's session:", todaySession);
+        setCurrentSession(todaySession);
         
-        const allTodaySessionsAreFinished = sessionsForToday.length > 0 && sessionsForToday.every(s => s.end !== null);
-
-        if (allTodaySessionsAreFinished) {
-            reset(TIMER_TYPES.stopwatch);
-            const lastSession = sessionsForToday[sessionsForToday.length - 1];
-            if (settings.mode === 'work' && lastSession.note === 'Day ended') {
-                setIsWorkDayEnded(true);
-            } else {
-                setTodaySessions([]);
-                setIsWorkDayEnded(false);
+        if (todaySession) {
+            // Calculate accumulated time from all work steps
+            let accumulatedTime = 0;
+            const now = new Date();
+            
+            for (const step of todaySession.steps) {
+                if (step.type === 'work') {
+                    const startTime = new Date(step.start).getTime();
+                    const endTime = step.end ? new Date(step.end).getTime() : now.getTime();
+                    accumulatedTime += endTime - startTime;
+                }
             }
-        } else if (sessionsForToday.length > 0) {
-            setIsWorkDayEnded(false);
-            const lastTodaySession = sessionsForToday[sessionsForToday.length - 1];
-
-            let totalTimeTodayMs = 0;
-            sessionsForToday.forEach(session => {
-                if (!session.start || session.type !== 'work') return;
-                const endTime = session.end ? new Date(session.end).getTime() : Date.now();
-                totalTimeTodayMs += (endTime - new Date(session.start).getTime());
-            });
-            setTime(Math.floor(totalTimeTodayMs / 1000));
-
-            if (lastTodaySession && !lastTodaySession.end) {
-                if (lastTodaySession.type === 'work') {
+            
+            // Set the timer to the accumulated time
+            setTime(Math.floor(accumulatedTime / 1000));
+            
+            // Check if we're currently in a work or pause step
+            const lastStep = todaySession.steps[todaySession.steps.length - 1];
+            if (lastStep && !lastStep.end) {
+                if (lastStep.type === 'work') {
                     start();
                 } else {
                     pause();
                 }
             } else {
                 pause();
+            }
+            
+            // Check for work day ended state
+            if (settings.mode === 'work' && todaySession.isCompleted) {
+                setIsWorkDayEnded(true);
             }
         } else {
             clearTimerState();
@@ -150,7 +151,6 @@ export default function Home() {
     return () => unsubscribe();
   }, [settingsLoaded, settings.mode, user, setTime, start, pause, reset, clearTimerState]);
 
-
   // Persist all sessions whenever they change for the current mode
   useEffect(() => {
     // Only save if not loading and user is present.
@@ -159,112 +159,155 @@ export default function Home() {
     storageService.saveSessions(user.uid, settings.mode, allSessions);
   }, [allSessions, isLoading, settings.mode, user]);
 
-  const addSession = (session: Omit<Session, 'id'>) => {
-    const newSession: Session = { ...session, id: new Date().toISOString() + Math.random() };
+  // Create a new session (work: one per day, learning: multiple per day)
+  const createNewSession = useCallback((sessionData: Omit<Session, 'id' | 'date' | 'steps' | 'isCompleted'>) => {
+    const today = new Date().toISOString().split('T')[0];
+    const newSession: Session = {
+      id: new Date().toISOString() + Math.random(),
+      date: today,
+      start: new Date(),
+      end: null,
+      steps: [],
+      isCompleted: false,
+      ...sessionData,
+    };
+    
     setAllSessions(prev => [...prev, newSession]);
-    setTodaySessions(prev => [...prev, newSession]);
-  };
-
-  const updateLastSession = useCallback((updates: Partial<Session>) => {
-    setAllSessions(prevAll => {
-        if (prevAll.length === 0) return prevAll;
-        const newAllSessions = [...prevAll];
-        const lastSessionIndex = newAllSessions.length - 1;
-        newAllSessions[lastSessionIndex] = { ...newAllSessions[lastSessionIndex], ...updates };
-        
-        setTodaySessions(prevToday => {
-            if (prevToday.length === 0) return prevToday;
-            const newTodaySessions = [...prevToday];
-            const lastSessionTodayIndex = newTodaySessions.map(s => s.id).lastIndexOf(newAllSessions[lastSessionIndex].id);
-
-            if(lastSessionTodayIndex !== -1) {
-               newTodaySessions[lastSessionTodayIndex] = newAllSessions[lastSessionIndex];
-               return newTodaySessions;
-            }
-            return prevToday;
-        });
-
-        return newAllSessions;
-    });
+    setCurrentSession(newSession);
+    return newSession;
   }, []);
+
+  // Add a new step to current session
+  const addStepToCurrentSession = useCallback((stepType: 'work' | 'pause', note?: string) => {
+    if (!currentSession) return;
+    
+    const newStep: SessionStep = {
+      id: new Date().toISOString() + Math.random(),
+      type: stepType,
+      start: new Date(),
+      end: null,
+      note,
+    };
+    
+    const updatedSession = {
+      ...currentSession,
+      steps: [...currentSession.steps, newStep],
+    };
+
+    console.log("Updated Session with new step:", updatedSession);
+    
+    setCurrentSession(updatedSession);
+    setAllSessions(prev => prev.map(s => s.id === currentSession.id ? updatedSession : s));
+  }, [currentSession]);
+
+  // End the last step in current session
+  const endLastStepInCurrentSession = useCallback(() => {
+    if (!currentSession || currentSession.steps.length === 0) return;
+    
+    const updatedSteps = [...currentSession.steps];
+    const lastStepIndex = updatedSteps.length - 1;
+    updatedSteps[lastStepIndex] = { ...updatedSteps[lastStepIndex], end: new Date() };
+    
+    const updatedSession = {
+      ...currentSession,
+      steps: updatedSteps,
+    };
+    
+    setCurrentSession(updatedSession);
+    setAllSessions(prev => prev.map(s => s.id === currentSession.id ? updatedSession : s));
+  }, [currentSession]);
+
+  // Update current session with new data
+  const updateCurrentSession = useCallback((updates: Partial<Session>) => {
+    if (!currentSession) return;
+    
+    const updatedSession = { ...currentSession, ...updates };
+    setCurrentSession(updatedSession);
+    setAllSessions(prev => prev.map(s => s.id === currentSession.id ? updatedSession : s));
+  }, [currentSession]);
   
   const handleGenericStart = () => {
-    if (settings.mode === 'learning' && isTimerIdle && todaySessions.every(s => s.end !== null)) {
+    // Learning mode: always open dialog for new sessions when no current session
+    if (settings.mode === 'learning' && !currentSession) {
       setStartLearningDialogOpen(true);
       return;
     }
     
-    const now = new Date();
-    // If resuming from a pause, end the pause session
-    if (isPaused) { 
-      const lastSession = allSessions[allSessions.length-1];
-      if (lastSession && lastSession.type === 'pause') {
-         updateLastSession({ end: now });
-      }
+    // If no current session exists, create one
+    if (!currentSession) {
+      createNewSession({ mode: settings.mode });
     }
-
-    // For learning mode, carry over the goal from the previous session if resuming
-    const newSessionData: Omit<Session, 'id'> = { type: 'work', start: now, end: null };
-    if (settings.mode === 'learning') {
-       const lastLearningSession = [...allSessions].reverse().find(s => s.type === 'work' && s.learningGoal);
-       if (lastLearningSession) {
-          newSessionData.learningGoal = lastLearningSession.learningGoal;
-          newSessionData.learningObjectives = lastLearningSession.learningObjectives;
-          newSessionData.topics = lastLearningSession.topics;
-       }
+    
+    // If resuming from pause, end the current pause step
+    if (isPaused) {
+      endLastStepInCurrentSession();
     }
-
-    addSession(newSessionData);
+    
+    // Add new work step
+    addStepToCurrentSession('work');
     start();
   };
   
   const handleStartLearning = (goal: string, objectives: string[], topics: string[]) => {
-    const now = new Date();
-    if (isPaused) { 
-        updateLastSession({ end: now });
+    if (isPaused) {
+      endLastStepInCurrentSession();
     }
+    
     const learningObjectives: LearningObjective[] = objectives.map(obj => ({ text: obj, completed: 0 }));
-    addSession({ type: 'work', start: now, end: null, learningGoal: goal, learningObjectives, topics });
+    
+    // Create new learning session
+    createNewSession({
+      mode: 'learning',
+      learningGoal: goal,
+      learningObjectives,
+      topics,
+    });
+    
+    // Add first work step
+    addStepToCurrentSession('work');
     start();
   }
 
   const handlePause = () => {
-    const now = new Date();
-    updateLastSession({ end: now });
-    addSession({ type: 'pause', start: now, end: null, note: '' });
+    // End current work step
+    endLastStepInCurrentSession();
+    
+    // Add new pause step
+    addStepToCurrentSession('pause');
     pause();
     setPauseNoteDialogOpen(true);
   };
   
   const handleReset = () => {
-    if (isTimerIdle) return;
+    if (isTimerIdle || !currentSession) return;
 
-    // Find the last session that is still running (end is null) and remove it.
-    const lastRunningSessionIndex = allSessions.findIndex(s => !s.end);
-    
-    if (lastRunningSessionIndex !== -1) {
-      const newAllSessions = [...allSessions];
-      // If the running session was a pause, remove it. If it was work, remove it.
-      // If it was a work session preceded by a pause, we might need more complex logic,
-      // but for a simple reset, just removing the last entry is sufficient.
-      newAllSessions.pop();
-      setAllSessions(newAllSessions);
+    // Remove the last step if it's still running
+    if (currentSession.steps.length > 0) {
+      const lastStep = currentSession.steps[currentSession.steps.length - 1];
+      if (!lastStep.end) {
+        const updatedSteps = currentSession.steps.slice(0, -1);
+        
+        if (updatedSteps.length === 0) {
+          // If no steps left, remove the entire session
+          setAllSessions(prev => prev.filter(s => s.id !== currentSession.id));
+          setCurrentSession(null);
+        } else {
+          // Update session with remaining steps
+          updateCurrentSession({ steps: updatedSteps });
+        }
+      }
     }
     
-    // In any case, reset the timer UI.
+    // Reset the timer UI
     clearTimerState();
   };
 
   const endCurrentSessionAndPause = useCallback(() => {
-    const now = new Date();
-    if (isActive || isPaused) {
-      const lastSession = allSessions[allSessions.length-1];
-      if (lastSession && !lastSession.end) {
-        updateLastSession({ end: now });
-      }
+    if ((isActive || isPaused) && currentSession) {
+      endLastStepInCurrentSession();
     }
     pause();
-  }, [allSessions, isActive, isPaused, pause, updateLastSession]);
+  }, [currentSession, isActive, isPaused, pause, endLastStepInCurrentSession]);
 
   useEffect(() => {
     setEndCurrentSessionCallback(endCurrentSessionAndPause);
@@ -272,81 +315,110 @@ export default function Home() {
 
 
   const handleEnd = () => {
-    const now = new Date();
+    if (!currentSession) return;
     
-    const initialLearningSession = todaySessions.find(s => s.type === 'work' && s.learningGoal);
-    
-    if (settings.mode === 'learning' && initialLearningSession) {
-      setSessionToEnd(initialLearningSession);
+    if (settings.mode === 'learning' && currentSession.learningGoal) {
+      // Learning mode: open dialog to complete objectives
+      setSessionToEnd(currentSession);
       setEndLearningDialogOpen(true);
-      const currentLastSession = allSessions[allSessions.length-1];
-      if (currentLastSession && !currentLastSession.end) {
-          updateLastSession({ end: now });
-      }
-      addSession({ type: 'pause', start: now, end: null, note: 'Ending session...' });
-      pause(); 
-    } else { // Work mode
+      
+      // End current step and add a temporary "ending" pause
       if (isActive || isPaused) {
-        const currentLastSession = allSessions[allSessions.length-1];
-        if (currentLastSession && !currentLastSession.end) {
-            updateLastSession({ end: now, note: 'Day ended' });
-        }
+        endLastStepInCurrentSession();
       }
+      addStepToCurrentSession('pause', 'Ending session...');
+      pause();
+    } else {
+      // Work mode: end the entire work day
+      if (isActive || isPaused) {
+        endLastStepInCurrentSession();
+      }
+      
+      // Mark work session as completed with "Day ended" note
+      updateCurrentSession({ 
+        end: new Date(), 
+        isCompleted: true,
+        totalWorkTime: currentSession.steps
+          .filter(step => step.type === 'work')
+          .reduce((total, step) => {
+            const endTime = step.end ? step.end.getTime() : Date.now();
+            return total + (endTime - step.start.getTime());
+          }, 0)
+      });
+      
       pause();
       setIsWorkDayEnded(true);
     }
   }
   
   const handleContinueWork = () => {
-    const now = new Date();
-    // Start a new work session immediately
-    addSession({ type: 'work', start: now, end: null });
+    if (!currentSession) return;
+    
+    // Mark session as not completed and remove the end time
+    updateCurrentSession({ 
+      end: null, 
+      isCompleted: false 
+    });
+    
+    // Add new work step
+    addStepToCurrentSession('work');
     start();
     setIsWorkDayEnded(false);
   }
 
   const endLearningSession = async (updatedObjectives: LearningObjective[], totalCompletion: number) => {
-    const now = new Date();
     if (!sessionToEnd || !user) return;
 
-    // Create a new, fully updated array for all sessions
-    const finalAllSessions = allSessions.map(session => {
-        let updatedSession = { ...session };
-        
-        // Find all work sessions related to this goal for today
-        if (isToday(new Date(session.start)) && session.learningGoal === sessionToEnd.learningGoal) {
-            updatedSession.learningObjectives = updatedObjectives;
-            updatedSession.completionPercentage = totalCompletion;
-        }
-        
-        // Ensure every session for today has a definitive end time
-        if (isToday(new Date(session.start)) && !session.end) {
-            updatedSession.end = now;
-        }
-        
-        return updatedSession;
-    });
+    // Calculate total work time for this session
+    const totalWorkTime = sessionToEnd.steps
+      .filter(step => step.type === 'work')
+      .reduce((total, step) => {
+        const endTime = step.end ? step.end.getTime() : Date.now();
+        return total + (endTime - step.start.getTime());
+      }, 0);
 
-    setAllSessions(finalAllSessions);
-    setTodaySessions([]); // Clear timeline for the next start
+    // Update the session with completion data
+    const completedSession = {
+      ...sessionToEnd,
+      end: new Date(),
+      isCompleted: true,
+      learningObjectives: updatedObjectives,
+      completionPercentage: totalCompletion,
+      totalWorkTime,
+      // Remove the temporary "ending" step
+      steps: sessionToEnd.steps.filter(step => step.note !== 'Ending session...')
+    };
+
+    // Update sessions list
+    setAllSessions(prev => prev.map(s => s.id === sessionToEnd.id ? completedSession : s));
+    
+    // Clear current session to allow starting a new one
+    setCurrentSession(null);
+    
+    // Refresh topics
     const topics = await storageService.getAllTopics(user.uid);
     setAllTopics(topics);
 
     // Reset UI for the next session
     reset(TIMER_TYPES.stopwatch);
-    pause(); 
+    pause();
     setEndLearningDialogOpen(false);
     setSessionToEnd(null);
   };
 
   const handleSaveNote = (note: string) => {
-    updateLastSession({ note });
+    if (!currentSession || currentSession.steps.length === 0) return;
+    
+    const updatedSteps = [...currentSession.steps];
+    const lastStepIndex = updatedSteps.length - 1;
+    updatedSteps[lastStepIndex] = { ...updatedSteps[lastStepIndex], note };
+    
+    updateCurrentSession({ steps: updatedSteps });
   };
   
-  const totalTimeOnEndedScreen = todaySessions.reduce((acc, session) => {
-    if (!session.start || !session.end || session.type !== 'work') return acc;
-    return acc + (new Date(session.end).getTime() - new Date(session.start).getTime());
-  }, 0);
+  const totalTimeOnEndedScreen = currentSession && currentSession.isCompleted && currentSession.mode === 'work' 
+    ? currentSession.totalWorkTime || 0
+    : 0;
   
   return (
     <>
@@ -405,8 +477,8 @@ export default function Home() {
                   <Skeleton className="h-10 w-3/4" />
                   <Skeleton className="h-10 w-full" />
               </div>
-           ) : todaySessions.length > 0 && (
-              <Timeline sessions={todaySessions} isWorkDayEnded={isWorkDayEnded} />
+           ) : currentSession && currentSession.steps.length > 0 && (
+              <Timeline sessions={currentSession.steps} isWorkDayEnded={isWorkDayEnded} />
            )}
         </div>
 
@@ -429,15 +501,20 @@ export default function Home() {
         onOpenChange={(isOpen) => {
           if (!isOpen) {
              setSessionToEnd(null);
-             // If dialog is closed without saving, and there's an active timer, it should continue.
-             // We check for the temporary 'Ending session...' note.
-             const lastSession = allSessions[allSessions.length - 1];
-             if (lastSession?.note === 'Ending session...') {
-                // Remove the temporary pause and resume the previous work session
-                const previousWorkSession = allSessions[allSessions.length - 2];
-                setAllSessions(prev => prev.slice(0, -1)); // remove pause
-                updateLastSession({ end: null }); // reopen work session
-                start();
+             // If dialog is closed without saving, remove the temporary "ending" step
+             if (currentSession) {
+               const lastStep = currentSession.steps[currentSession.steps.length - 1];
+               if (lastStep && lastStep.note === 'Ending session...') {
+                  // Remove the temporary pause step
+                  const updatedSteps = currentSession.steps.slice(0, -1);
+                  updateCurrentSession({ steps: updatedSteps });
+                  
+                  // Resume if there was a work step before the pause
+                  const previousStep = updatedSteps[updatedSteps.length - 1];
+                  if (previousStep && previousStep.type === 'work' && !previousStep.end) {
+                     start();
+                  }
+               }
              }
           }
           setEndLearningDialogOpen(isOpen);
