@@ -40,7 +40,7 @@ export default function Home() {
   const { time, isActive, isPaused } = useTimer(currentSession);
 
   const isTimerIdle = !isActive && !isPaused;
-  const isWorkDayEnded = settings.mode === 'work' && currentSession?.isCompleted;
+  const isWorkDayEnded = settings.mode === 'work' && !!currentSession?.isCompleted;
 
   const updateState = (newAllSessions: Session[], newCurrentSession: Session | null) => {
     setAllSessions(newAllSessions);

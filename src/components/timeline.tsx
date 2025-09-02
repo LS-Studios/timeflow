@@ -97,10 +97,7 @@ export function Timeline({ sessions, isWorkDayEnded = false, showEditButtons = f
   const showProjectedEndTime = isWorkModeWithGoal && isWorkSessionActive && !isWorkDayEnded && remainingWorkMs > 0;
   const projectedEndTime = showProjectedEndTime ? new Date(now + remainingWorkMs) : null;
   
-  // Don't show the "Day ended" pause session while the day is considered ended.
-  // It only becomes relevant history if the user continues working.
-  const sessionsToDisplay = isWorkDayEnded && !showEditButtons ? sessions.filter(s => s.note !== 'Day ended') : sessions;
-
+  const sessionsToDisplay = sessions;
 
   return (
     <div className="relative pl-6">
@@ -136,9 +133,9 @@ export function Timeline({ sessions, isWorkDayEnded = false, showEditButtons = f
                       <div className="flex items-center gap-2">
                           {session.type === 'work' ? (settings.mode === 'learning' ? <Brain className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />) : <PauseIcon className="w-4 h-4" />}
                           <span className="font-semibold">{formatTime(session.start)} - {session.end ? formatTime(session.end) : 'Ongoing'}</span>
-                          {session.type === 'pause' ? <span className="text-muted-foreground text-sm tabular-nums">
-                            ({session.end ? formatDuration(session.start, session.end) : formatOngoingDuration(session.start, now)})
-                          </span> : <></>}
+                          <span className="text-muted-foreground text-sm tabular-nums">
+                            {session.end ? formatDuration(session.start, session.end) : formatOngoingDuration(session.start, now)}
+                          </span>
                            {showEditButtons && onEditSession && (
                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEditSession(session)}>
                                 <Edit className="h-3 w-3" />
