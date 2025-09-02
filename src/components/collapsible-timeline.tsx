@@ -63,7 +63,7 @@ export function CollapsibleTimeline({ session }: CollapsibleTimelineProps) {
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
                 <Hourglass className="w-4 h-4"/>
-                <span>{formatDuration(totalPauseMs)} Breaks</span>
+                <span>Breaks ({formatDuration(totalPauseMs)})</span>
             </div>
         </div>
     )
