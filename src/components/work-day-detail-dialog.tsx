@@ -135,13 +135,15 @@ export function WorkDayDetailDialog({ isOpen, onOpenChange, day, onSave, onReque
           )}
 
           <div className="py-4 max-h-[60vh] overflow-y-auto">
-             <Timeline 
-                sessions={pendingSessions} 
-                isWorkDayEnded={true} 
-                showEditButtons={!isPending} 
-                onEditSession={(session) => setWorkSessionToEdit(session)}
-                onDeleteSession={(session, index) => setSessionToDelete({session, index})}
-            />
+            <div className="relative left-3">
+                 <Timeline 
+                    sessions={pendingSessions} 
+                    isWorkDayEnded={true} 
+                    showEditButtons={!isPending} 
+                    onEditSession={(session) => setWorkSessionToEdit(session)}
+                    onDeleteSession={(session, index) => setSessionToDelete({session, index})}
+                />
+            </div>
           </div>
            {hasPendingChanges && !isPending && (
             <>

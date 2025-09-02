@@ -96,7 +96,7 @@ export default function Home() {
   // --- TIMER CONTROL HANDLERS ---
   
   const handleStart = async () => {
-    const result = await timerManager.handleStart({
+    await timerManager.handleStart({
       mode: settings.mode,
       allSessions,
       currentSession,
@@ -124,7 +124,7 @@ export default function Home() {
   };
 
   const handleEnd = () => {
-    const result = timerManager.handleEnd({
+    timerManager.handleEnd({
       mode: settings.mode,
       allSessions,
       currentSession,
@@ -141,7 +141,7 @@ export default function Home() {
   // --- DIALOG HANDLERS ---
 
   const handleStartLearning = (goal: string, objectives: string[], topics: string[]) => {
-    const result = timerManager.startLearningSession({
+    timerManager.startLearningSession({
       allSessions,
       currentSession,
       isPaused,
@@ -242,7 +242,9 @@ export default function Home() {
               <Skeleton className="h-10 w-full" />
             </div>
           ) : currentSession && currentSession.steps.length > 0 && (
-            <Timeline sessions={currentSession.steps} isWorkDayEnded={!!isWorkDayEnded} />
+            <div className="relative left-3">
+                <Timeline sessions={currentSession.steps} isWorkDayEnded={!!isWorkDayEnded} />
+            </div>
           )}
         </div>
       </div>

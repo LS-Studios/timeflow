@@ -136,11 +136,9 @@ export function Timeline({ sessions, isWorkDayEnded = false, showEditButtons = f
                       <div className="flex items-center gap-2">
                           {session.type === 'work' ? (settings.mode === 'learning' ? <Brain className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />) : <PauseIcon className="w-4 h-4" />}
                           <span className="font-semibold">{formatTime(session.start)} - {session.end ? formatTime(session.end) : 'Ongoing'}</span>
-                          <span className="text-muted-foreground text-sm tabular-nums">
-                           {session.type === 'pause' ? '(' : ''}
-                           {session.end ? formatDuration(session.start, session.end) : formatOngoingDuration(session.start, now)}
-                           {session.type === 'pause' ? ')' : ''}
-                          </span>
+                          {session.type === 'pause' ? <span className="text-muted-foreground text-sm tabular-nums">
+                            ({session.end ? formatDuration(session.start, session.end) : formatOngoingDuration(session.start, now)})
+                          </span> : <></>}
                            {showEditButtons && onEditSession && (
                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEditSession(session)}>
                                 <Edit className="h-3 w-3" />
