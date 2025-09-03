@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { LanguageProvider } from "@/lib/i18n.tsx";
 import { SettingsProvider } from "@/lib/settings-provider";
 import { AuthProvider } from "@/lib/auth-provider";
+import { GoogleAnalytics } from "@/components/google-analytics";
 
 export const metadata: Metadata = {
   title: "Timeflow",
@@ -45,6 +46,9 @@ export default function RootLayout({
           <LanguageProvider>
             <AuthProvider>
               <SettingsProvider>
+                {process.env.NEXT_PUBLIC_GA_ID && (
+                  <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
+                )}
                 <div className="min-h-screen flex flex-col">
                   <Header />
                   <main className="flex-1 flex flex-col pb-16 md:pb-0">
