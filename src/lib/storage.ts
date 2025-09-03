@@ -36,14 +36,13 @@ interface StorageProvider {
     // Organization management
     createOrganization(adminUserId: string, serialNumber: string, name: string): Promise<void>;
     getOrganization(serialNumber: string): Promise<OrganizationData | null>;
-    findOrganizationByAdmin(adminUserId: string): Promise<OrganizationData | null>;
     deleteOrganizationAndCleanup(serialNumber: string): Promise<void>;
     updateOrganizationName(serialNumber: string, name: string): Promise<void>;
     onOrganizationChange(serialNumber: string, callback: (data: OrganizationData | null) => void): () => void; // Real-time listener for org data
     onOrganizationEmployeesChange(serialNumber: string, callback: (employees: EmployeeData[]) => void): () => void; // Real-time listener for employees and their data
     joinOrganization(userId: string, serialNumber: string): Promise<boolean>;
     getOrganizationEmployees(serialNumber: string): Promise<string[]>;
-    getOrganizationEmployeeData(serialNumber: string): Promise<EmployeeData[]>;
+    getOrganizationEmployeeData(serialNumber: string, employeeIds?: string[]): Promise<EmployeeData[]>;
 }
 
 /**
@@ -160,12 +159,15 @@ class FirebaseStorageProvider implements StorageProvider {
 
     // Organization management for Firebase
     async createOrganization(adminUserId: string, serialNumber: string, name: string): Promise<void> {
+        const employees: Record<string, boolean> = {};
+        employees[adminUserId] = true;
+
         const orgData: OrganizationData = {
             serialNumber,
             name,
             adminUserId,
             createdAt: new Date().toISOString(),
-            employees: [adminUserId]
+            employees
         };
         await set(ref(db, `organizations/${serialNumber}`), orgData);
     }
@@ -175,27 +177,13 @@ class FirebaseStorageProvider implements StorageProvider {
         return snapshot.exists() ? snapshot.val() : null;
     }
     
-    async findOrganizationByAdmin(adminUserId: string): Promise<OrganizationData | null> {
-        const orgsRef = ref(db, 'organizations');
-        const q = query(orgsRef, orderByChild('adminUserId'), equalTo(adminUserId), limitToLast(1));
-        const snapshot = await get(q);
-        
-        if (snapshot.exists()) {
-            const orgs = snapshot.val();
-            // The result is an object with the serial number as the key
-            const serialNumber = Object.keys(orgs)[0];
-            return orgs[serialNumber];
-        }
-        return null;
-    }
-    
     async deleteOrganizationAndCleanup(serialNumber: string): Promise<void> {
         const orgRef = ref(db, `organizations/${serialNumber}`);
         const orgSnapshot = await get(orgRef);
         if (!orgSnapshot.exists()) return;
 
         const orgData: OrganizationData = orgSnapshot.val();
-        const employeeIds = orgData.employees || [];
+        const employeeIds = Object.keys(orgData.employees || {});
 
         // Clean up settings for each employee by setting org properties to null
         const cleanupPromises = employeeIds.map(async (userId) => {
@@ -233,35 +221,30 @@ class FirebaseStorageProvider implements StorageProvider {
 
         const listener = onValue(employeesRef, async (snapshot) => {
             if (snapshot.exists()) {
-                const employeeIds: string[] = snapshot.val();
-                // When the employee list changes, fetch all data for all employees.
+                const employeeIdMap: Record<string, boolean> = snapshot.val();
+                const employeeIds = Object.keys(employeeIdMap);
                 const allEmployeeData = await this.getOrganizationEmployeeData(serialNumber, employeeIds);
                 callback(allEmployeeData);
             } else {
-                // No employees, return empty array.
                 callback([]);
             }
         });
     
-        // Return the unsubscriber function
         return () => off(employeesRef, 'value', listener);
     }
 
     async joinOrganization(userId: string, serialNumber: string): Promise<boolean> {
-        const orgSnapshot = await get(ref(db, `organizations/${serialNumber}`));
+        const orgRef = ref(db, `organizations/${serialNumber}`);
+        const orgSnapshot = await get(orgRef);
         if (!orgSnapshot.exists()) return false;
         
-        const org: OrganizationData = orgSnapshot.val();
-        if (!org.employees.includes(userId)) {
-            const updatedEmployees = [...org.employees, userId];
-            await set(ref(db, `organizations/${serialNumber}/employees`), updatedEmployees);
-        }
+        await set(ref(db, `organizations/${serialNumber}/employees/${userId}`), true);
         return true;
     }
 
     async getOrganizationEmployees(serialNumber: string): Promise<string[]> {
         const snapshot = await get(ref(db, `organizations/${serialNumber}/employees`));
-        return snapshot.exists() ? snapshot.val() : [];
+        return snapshot.exists() ? Object.keys(snapshot.val()) : [];
     }
 
     async getOrganizationEmployeeData(serialNumber: string, employeeIds?: string[]): Promise<EmployeeData[]> {
@@ -427,11 +410,6 @@ class LocalStorageProvider implements StorageProvider {
         return Promise.resolve(null);
     }
     
-    async findOrganizationByAdmin(adminUserId: string): Promise<OrganizationData | null> {
-         console.warn("Organization features are not fully supported in guest mode.");
-        return Promise.resolve(null);
-    }
-    
     async deleteOrganizationAndCleanup(serialNumber: string): Promise<void> {
         console.warn("Organization features are not fully supported in guest mode.");
         return Promise.resolve();
@@ -560,10 +538,6 @@ class StorageServiceFacade implements StorageProvider {
 
     getOrganization(serialNumber: string): Promise<OrganizationData | null> {
         return this.firebaseProvider.getOrganization(serialNumber);
-    }
-
-    findOrganizationByAdmin(adminUserId: string): Promise<OrganizationData | null> {
-        return this.firebaseProvider.findOrganizationByAdmin(adminUserId);
     }
     
     deleteOrganizationAndCleanup(serialNumber: string): Promise<void> {

@@ -46,8 +46,8 @@ export interface AppSettings {
     mode: AppMode;
     dailyGoal?: number;
     weeklyGoal?: number;
-    organizationName?: string;
-    organizationSerialNumber?: string;
+    organizationName?: string | null;
+    organizationSerialNumber?: string | null;
     isAdmin?: boolean;
 }
 
@@ -56,7 +56,7 @@ export interface OrganizationData {
     name: string;
     adminUserId: string;
     createdAt: string;
-    employees: string[]; // Array of user IDs
+    employees: Record<string, boolean>; // Object of user IDs for faster lookups/writes
 }
 
 // DayHistory is no longer the primary storage unit, but a derived type for analytics.

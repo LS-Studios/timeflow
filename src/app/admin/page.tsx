@@ -119,33 +119,28 @@ export default function AdminPanel() {
     if (!user) return;
 
     const initializeOrRestoreOrganization = async () => {
-      setIsLoading(true);
-      // Try to find an existing organization for this admin
-      const existingOrg = await storageService.findOrganizationByAdmin(user.uid);
-      
-      if (existingOrg) {
-        // Restore existing organization
-        setSerialNumber(existingOrg.serialNumber);
-        setOrganizationName(existingOrg.name);
-        await updateSettings({ organizationName: existingOrg.name, organizationSerialNumber: existingOrg.serialNumber });
-      } else {
-        // No existing org found, create a new one using a client-side-only effect
-        setOrganizationName(""); 
-      }
-      setIsLoading(false);
+        setIsLoading(true);
+        // If an organization is already defined in settings, use it.
+        if (settings.organizationSerialNumber && settings.organizationName) {
+            setSerialNumber(settings.organizationSerialNumber);
+            setOrganizationName(settings.organizationName);
+        } else {
+            // Otherwise, create a new one. This will only run once.
+            const newSerial = Math.random().toString(36).substring(2, 11).toUpperCase();
+            const newName = `${user.name}'s Organization`;
+            setSerialNumber(newSerial);
+            setOrganizationName(newName);
+            
+            // Create in DB and save to current user's settings.
+            await storageService.createOrganization(user.uid, newSerial, newName);
+            updateSettings({ organizationSerialNumber: newSerial, organizationName: newName });
+        }
+        setIsLoading(false);
     };
 
     initializeOrRestoreOrganization();
 
   }, [settings.isAdmin, user, router, updateSettings]);
-
-  useEffect(() => {
-    // This effect runs only on the client to avoid hydration mismatch
-    if (settings.isAdmin && user && !settings.organizationSerialNumber && !isLoading) {
-        const newSerial = Math.random().toString(36).substring(2, 11).toUpperCase();
-        setSerialNumber(newSerial);
-    }
-  }, [settings.isAdmin, user, settings.organizationSerialNumber, isLoading]);
 
 
   useEffect(() => {
@@ -198,18 +193,9 @@ export default function AdminPanel() {
     }
     setIsLoading(true);
     try {
-      const existingOrg = await storageService.getOrganization(serialNumber);
-      if (existingOrg) {
-        // Org already exists, just update its name
         await storageService.updateOrganizationName(serialNumber, organizationName);
-        await updateSettings({ organizationName: organizationName });
+        // The onOrganizationChange listener in settings-provider will update the local state.
         toast({ title: "Organization Name Updated", description: `Organization name changed to "${organizationName}"` });
-      } else {
-        // This is a new organization, create it
-        await storageService.createOrganization(user.uid, serialNumber, organizationName);
-        await updateSettings({ organizationSerialNumber: serialNumber, organizationName: organizationName });
-        toast({ title: "Organization Created", description: `Organization "${organizationName}" with serial ${serialNumber}` });
-      }
     } catch (error) {
       console.error('Error saving organization:', error);
       toast({ title: "Error", description: "Failed to save organization", variant: "destructive" });
@@ -225,8 +211,8 @@ export default function AdminPanel() {
         await storageService.deleteOrganizationAndCleanup(settings.organizationSerialNumber);
         toast({ title: "Organization Deleted", description: "The organization and all associated employee links have been removed." });
         
-        // This will trigger the main useEffect to create a new org shell
-        await updateSettings({ organizationName: null, organizationSerialNumber: null });
+        // This will clear the current user's org settings and trigger the useEffect to create a new org.
+        updateSettings({ organizationName: null, organizationSerialNumber: null });
 
     } catch (error) {
         console.error("Error deleting organization:", error);

@@ -1,0 +1,17 @@
+
+{
+  "rules": {
+    "organizations": {
+      "$serialNumber": {
+        ".read": "auth != null",
+        ".write": "auth != null && (newData.child('adminUserId').val() === auth.uid || data.child('adminUserId').val() === auth.uid)"
+      }
+    },
+    "users": {
+      "$userId": {
+        ".read": "auth != null && (auth.uid === $userId || root.child('organizations').child(data.child('settings/organizationSerialNumber').val()).child('employees').child(auth.uid).exists())",
+        ".write": "auth != null && auth.uid === $userId"
+      }
+    }
+  }
+}
