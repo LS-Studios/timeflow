@@ -2,12 +2,35 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Settings, BarChartHorizontal, User, Shield } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-provider";
 import { useSettings } from "@/lib/settings-provider";
 import { useTranslation } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
+
+interface NavItemProps {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+}
+
+const DesktopNavItem = ({ href, icon: Icon, label }: NavItemProps) => {
+  const pathname = usePathname();
+  const isActive = pathname === href;
+  
+  return (
+    <Link href={href}>
+      <Button variant="ghost" className={cn("gap-2", isActive && "text-primary")} aria-label={label}>
+        <Icon className="h-5 w-5" />
+        <span className="hidden lg:inline">{label}</span>
+      </Button>
+    </Link>
+  );
+};
 
 export function Header() {
   const { openProfileDialog, user } = useAuth();
@@ -40,26 +63,11 @@ export function Header() {
         <div className="hidden md:flex flex-1 items-center justify-end">
           {/* Desktop Navigation */}
           <nav className="flex items-center space-x-1">
-            <Link href="/analytics">
-              <Button variant="ghost" className="gap-2" aria-label={t('analytics')}>
-                <BarChartHorizontal className="h-5 w-5" />
-                <span className="hidden lg:inline">{t('analytics')}</span>
-              </Button>
-            </Link>
+            <DesktopNavItem href="/analytics" icon={BarChartHorizontal} label={t('analytics')} />
             {settings.isAdmin && (
-              <Link href="/admin">
-                <Button variant="ghost" className="gap-2" aria-label="Admin Panel">
-                  <Shield className="h-5 w-5" />
-                  <span className="hidden lg:inline">Admin</span>
-                </Button>
-              </Link>
+              <DesktopNavItem href="/admin" icon={Shield} label="Admin" />
             )}
-            <Link href="/settings">
-              <Button variant="ghost" className="gap-2" aria-label={t('settings')}>
-                <Settings className="h-5 w-5" />
-                <span className="hidden lg:inline">{t('settings')}</span>
-              </Button>
-            </Link>
+            <DesktopNavItem href="/settings" icon={Settings} label={t('settings')} />
             <Button variant="ghost" className="gap-2" aria-label={t('profile')} onClick={openProfileDialog}>
               <User className="h-5 w-5" />
               <span className="hidden lg:inline">{t('profile')}</span>
