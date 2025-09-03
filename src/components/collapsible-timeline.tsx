@@ -54,11 +54,14 @@ export function CollapsibleTimeline({ session }: CollapsibleTimelineProps) {
     let interval: NodeJS.Timeout | null = null;
     if (isPauseActive) {
       const startMs = new Date(lastStep.start).getTime();
-      setCurrentPauseTime(Math.floor((Date.now() - startMs) / 1000));
-      interval = setInterval(() => {
+      
+      const updatePauseTime = () => {
         const now = Date.now();
         setCurrentPauseTime(Math.floor((now - startMs) / 1000));
-      }, 1000);
+      };
+
+      updatePauseTime(); // Initial call
+      interval = setInterval(updatePauseTime, 1000);
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -93,7 +96,7 @@ export function CollapsibleTimeline({ session }: CollapsibleTimelineProps) {
             
             {isPauseActive && (
               <div className="absolute left-1/2 -translate-x-1/2 font-mono text-base text-muted-foreground">
-                {formatTime(currentPauseTime)}
+                {currentPauseTime > 0 ? formatTime(currentPauseTime) : "00:00:00"}
               </div>
             )}
 
