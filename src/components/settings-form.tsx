@@ -106,10 +106,9 @@ export function SettingsForm() {
       const result = await deleteAccount(deletePassword);
       if (!result.success) {
           setDeleteError(t(result.message));
+          setIsDeleting(false);
       }
-      setIsDeleting(false);
-      // On success, auth provider will handle logout and redirect.
-      // If it fails, dialog stays open to show error.
+      // On success, auth provider will handle logout and page reload, no need to setIsDeleting(false).
   }
   
   const onOpenDeleteDialog = (open: boolean) => {
@@ -339,8 +338,10 @@ export function SettingsForm() {
                    </div>
                    {deleteError && (
                       <Alert variant="destructive">
-                          <AlertTriangle className="h-4 w-4" />
+                        <div className="flex items-center">
+                          <AlertTriangle className="h-4 w-4 mr-2" />
                           <AlertDescription>{deleteError}</AlertDescription>
+                        </div>
                       </Alert>
                     )}
                 </div>

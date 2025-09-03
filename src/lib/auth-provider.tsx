@@ -165,20 +165,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       try {
-          // 1. Re-authenticate for security
+          // 1. Re-authenticate for security. This is the gatekeeper.
           const credential = EmailAuthProvider.credential(currentUser.email, password);
           await reauthenticateWithCredential(currentUser, credential);
           
-          // 2. Clean up database entries (including organization membership)
+          // 2. ONLY if re-authentication succeeds, proceed with data deletion.
           const userSettings = await storageService.getSettings(currentUser.uid);
           await storageService.deleteUserAndCleanup(currentUser.uid, userSettings?.organizationSerialNumber || null);
           
-          // 3. Delete the Firebase auth user
+          // 3. Finally, delete the Firebase auth user.
           await deleteUser(currentUser);
           // onAuthStateChanged will handle setting user to null.
 
           return { success: true, message: 'Account deleted successfully' };
       } catch(error: any) {
+          // This will catch re-authentication errors (like wrong password) and any other issues.
           console.error("AuthProvider: Error deleting account: ", error);
           return { success: false, message: mapFirebaseError(error.code) };
       }
