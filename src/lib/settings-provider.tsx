@@ -164,7 +164,7 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
   }, [settings.dailyGoal, settings.weeklyGoal, updateSettings]);
 
   const setOrganization = useCallback((name: string | null, serial: string | null) => {
-    updateSettings({ organizationName: name || undefined, organizationSerialNumber: serial || undefined });
+    updateSettings({ organizationName: name, organizationSerialNumber: serial });
   }, [updateSettings]);
 
   const setIsAdmin = useCallback((isAdmin: boolean) => {
