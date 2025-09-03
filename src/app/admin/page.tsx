@@ -112,11 +112,6 @@ export default function AdminPanel() {
     if (!settings.isLoaded) return;
     
     if (!settings.isAdmin) {
-      if (settings.organizationSerialNumber) {
-        updateSettings({ organizationName: null, organizationSerialNumber: null });
-      }
-      setOrganizationName("");
-      setSerialNumber("");
       router.push('/');
       return;
     }
@@ -131,7 +126,7 @@ export default function AdminPanel() {
         setOrganizationName("");
     }
 
-  }, [settings.isLoaded, settings.isAdmin, settings.organizationSerialNumber, settings.organizationName, router, updateSettings]);
+  }, [settings.isLoaded, settings.isAdmin, settings.organizationSerialNumber, settings.organizationName, router]);
 
 
   useEffect(() => {
