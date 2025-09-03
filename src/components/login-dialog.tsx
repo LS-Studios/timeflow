@@ -20,10 +20,12 @@ import { Separator } from "./ui/separator";
 import { useAuth } from "@/lib/auth-provider";
 import { Alert, AlertDescription } from "./ui/alert";
 import { PasswordStrength } from "./password-strength";
+import { useToast } from "@/hooks/use-toast";
 
 export function LoginDialog() {
   const { t } = useTranslation();
   const { login, register, loginAsGuest } = useAuth();
+  const { toast } = useToast();
   
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
@@ -44,27 +46,36 @@ export function LoginDialog() {
     setError(null);
     setIsLoading(true);
 
-    let result;
     if (mode === 'login') {
       if (!email || !password) {
         setError(t('errorFillAllFields'));
         setIsLoading(false);
         return;
       }
-      result = await login(email, password);
+      const result = await login(email, password);
+      if (result && !result.success) {
+        setError(result.message);
+      }
+      // On success, the onAuthStateChanged listener will handle closing the dialog.
     } else { // register
       if (!name || !email || !password) {
         setError(t('errorFillAllFields'));
         setIsLoading(false);
         return;
       }
-      result = await register(name, email, password);
+      const result = await register(name, email, password);
+      if (result.success) {
+          toast({
+              title: t('accountCreatedSuccessTitle'),
+              description: t('accountCreatedSuccessDescription'),
+          });
+          setMode('login');
+          resetForm();
+      } else {
+          setError(result.message);
+      }
     }
 
-    if (result && !result.success) {
-      setError(result.message);
-    }
-    // On success, the onAuthStateChanged listener will handle closing the dialog.
     setIsLoading(false);
   };
   

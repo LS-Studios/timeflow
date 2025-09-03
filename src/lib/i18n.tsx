@@ -46,6 +46,8 @@ const translations: Record<Language, Translations> = {
     signUp: "Sign up",
     logout: "Logout",
     profile: "Profile",
+    accountCreatedSuccessTitle: "Account Created",
+    accountCreatedSuccessDescription: "Your account has been successfully created. Please log in.",
     
     // Password Strength
     passwordRequirementLength: "At least 8 characters",
@@ -304,6 +306,8 @@ const translations: Record<Language, Translations> = {
     signUp: "Registrieren",
     logout: "Abmelden",
     profile: "Profil",
+    accountCreatedSuccessTitle: "Konto erstellt",
+    accountCreatedSuccessDescription: "Ihr Konto wurde erfolgreich erstellt. Bitte melden Sie sich an.",
 
     // Passwortstärke
     passwordRequirementLength: "Mindestens 8 Zeichen",
@@ -422,7 +426,7 @@ const translations: Record<Language, Translations> = {
     breakdown: "Pausen-Aufschlüsselung",
     overtime: "Überstunden",
     overtimeDescription: "Summe der angesammelten Überstunden.",
-    history: "Verlauf",
+history: "Verlauf",
     historyDescriptionWork: "Ein Protokoll all Ihrer vergangenen Arbeitstage. Klicken Sie auf eine Zeile für Details.",
     searchHistory: "Nach Datum suchen...",
     date: "Datum",
