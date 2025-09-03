@@ -140,7 +140,7 @@ export default function AdminPanel() {
 
     initializeOrRestoreOrganization();
 
-  }, [settings.isAdmin, user, router, updateSettings]);
+  }, [settings.isAdmin, user, router, updateSettings, settings.organizationSerialNumber, settings.organizationName]);
 
 
   useEffect(() => {
