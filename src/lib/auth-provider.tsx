@@ -81,6 +81,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     name: userData.name,
                 });
             } else {
+                 // This can happen if the DB entry is missing but auth user exists.
+                 // Treat as logged out.
+                 console.warn(`User ${firebaseUser.uid} found in auth but not in DB. Logging out.`);
                  await signOut(auth);
                  setUser(null);
             }
@@ -105,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string): Promise<AuthResult> => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged will handle setting the user state
       return { success: true, message: 'Login successful' };
     } catch (error: any) {
       console.error("AuthProvider: Login failed.", error);
@@ -119,6 +123,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const newUserAccount: UserAccount = { name: name, email: email };
         await set(ref(db, `users/${firebaseUser.uid}/account`), newUserAccount);
+
+        // Explicitly set the user state to log the user in immediately
+        setUser({
+          uid: firebaseUser.uid,
+          name: name,
+          email: email
+        });
 
         return { success: true, message: 'Registration successful' };
     } catch (error: any) {
@@ -139,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       } else {
         await signOut(auth);
+        // onAuthStateChanged will set user to null
       }
       setProfileDialogOpen(false);
     } catch (error) {
@@ -163,6 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           // 3. Delete the Firebase auth user
           await deleteUser(currentUser);
+          // onAuthStateChanged will handle setting user to null.
 
           return { success: true, message: 'Account deleted successfully' };
       } catch(error: any) {
@@ -193,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         {children}
       </div>
       
-      {isLoginRequesting ? <LoginDialog /> : null}
+      {isLoginRequesting && <LoginDialog />}
       
       {user && (
         <ProfileDialog 
