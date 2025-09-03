@@ -46,26 +46,44 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
   const [timerIsActive, setTimerIsActive] = useState(false);
   const timerResetCallbackRef = React.useRef<TimerResetCallback | null>(null);
   const endCurrentSessionCallbackRef = React.useRef<EndCurrentSessionCallback | null>(null);
+  const isDeletingRef = React.useRef(isDeleting);
   
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Keep the ref updated
+  React.useEffect(() => {
+    isDeletingRef.current = isDeleting;
+  }, [isDeleting]);
+
   const updateSettings = useCallback((newSettings: Partial<AppSettings>) => {
+      console.log("[DEBUG] updateSettings called:", { user: user?.uid, isDeleting, newSettings });
       if (user && !isDeleting) {
           setSettings(prev => {
               const updated = {...prev, ...newSettings};
               if (JSON.stringify(prev) !== JSON.stringify(updated)) {
+                console.log("[DEBUG] Save settings on update for user:", user.uid, updated);
                  storageService.saveSettings(user.uid, updated);
               }
               return updated;
           });
+      } else {
+          console.log("[DEBUG] updateSettings blocked - user:", user?.uid, "isDeleting:", isDeleting);
       }
   }, [user, isDeleting]);
 
   useEffect(() => {
     if (user && !isDeleting) {
       setIsLoaded(false);
+      console.log("[DEBUG] Setting up settings listener for user:", user.uid, "isDeleting:", isDeleting);
       const unsubscribe = storageService.onSettingsChange(user.uid, async (newSettings) => {
+        console.log("[DEBUG] onSettingsChange triggered for user:", user?.uid, "isDeleting:", isDeleting, "newSettings:", newSettings);
+        
+        // Early return if user is being deleted - ignore all settings changes
+        if (isDeletingRef.current) {
+          console.log("[DEBUG] Ignoring settings change because user is being deleted");
+          return;
+        }
         
         let finalSettings = newSettings;
         if (newSettings && newSettings.organizationSerialNumber) {
@@ -78,7 +96,12 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
                     organizationName: null,
                     organizationSerialNumber: null,
                 };
-                storageService.saveSettings(user.uid, finalSettings);
+                if (!isDeleting) {
+                    console.log("[DEBUG] Save setting in cleanup for user:", user.uid, finalSettings);
+                    storageService.saveSettings(user.uid, finalSettings);
+                } else {
+                    console.log("[DEBUG] Organization cleanup blocked - user:", user.uid, "isDeleting:", isDeleting);
+                }
                 if (oldOrgName) {
                     toast({
                         title: "Organization Update",
@@ -92,15 +115,23 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
            setSettings(prev => ({...prev, ...finalSettings}));
            applyTheme(finalSettings.theme);
            applyLanguage(finalSettings.language);
-        } else {
+        } else if (!isDeleting) {
            const initialDefaults = getInitialDefaultSettings();
+           console.log("[DEBUG] Save initial default settings for user:", user.uid, initialDefaults);
            setSettings(initialDefaults);
            storageService.saveSettings(user.uid, initialDefaults);
+        } else {
+           console.log("[DEBUG] Initial defaults blocked - user:", user.uid, "isDeleting:", isDeleting);
         }
         setIsLoaded(true);
       });
 
-      return () => unsubscribe();
+      return () => {
+        console.log("[DEBUG] Cleaning up settings listener for user:", user?.uid, "isDeleting:", isDeleting);
+        unsubscribe();
+      };
+    } else {
+      console.log("[DEBUG] Not setting up settings listener - user:", user?.uid, "isDeleting:", isDeleting);
     }
   }, [user, applyTheme, applyLanguage, toast, settings.organizationName, isDeleting]);
   

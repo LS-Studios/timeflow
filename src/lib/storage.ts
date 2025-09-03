@@ -57,14 +57,24 @@ class FirebaseStorageProvider implements StorageProvider {
     }
 
     async saveSettings(userId: string, settings: AppSettings): Promise<void> {
+        console.log("[DEBUG] FirebaseStorageProvider.saveSettings called for user:", userId, settings);
+        console.trace("[DEBUG] Stack trace for saveSettings call");
         await set(ref(db, `users/${userId}/settings`), settings);
     }
 
     async deleteUserAndCleanup(userId: string, organizationSerialNumber: string | null): Promise<void> {
+        console.log("[DEBUG] deleteUserAndCleanup called for user:", userId);
         if (organizationSerialNumber) {
             await this.leaveOrganization(userId, organizationSerialNumber);
         }
+        // Stop all listeners for this user before deleting
+        console.log("[DEBUG] Stopping all listeners before deleting user:", userId);
+        const settingsRef = ref(db, `users/${userId}/settings`);
+        off(settingsRef); // Remove all listeners on settings
+        
+        console.log("[DEBUG] Deleting user data from Firebase:", userId);
         await set(ref(db, `users/${userId}`), null);
+        console.log("[DEBUG] User data deleted from Firebase:", userId);
     }
     
     onSettingsChange(userId: string, callback: (settings: AppSettings | null) => void): () => void {
@@ -277,7 +287,9 @@ class LocalStorageProvider implements StorageProvider {
         return Promise.resolve(settingsJson ? JSON.parse(settingsJson) : null);
     }
 
-    async saveSettings(_: string, settings: AppSettings): Promise<void> {
+    async saveSettings(userId: string, settings: AppSettings): Promise<void> {
+        console.log("[DEBUG] LocalStorageProvider.saveSettings called for user:", userId, settings);
+        console.trace("[DEBUG] Stack trace for saveSettings call");
         if (typeof window === 'undefined') return Promise.resolve();
         localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(settings));
         return Promise.resolve();
@@ -505,6 +517,8 @@ class StorageServiceFacade implements StorageProvider {
     }
     
     saveSettings(userId: string, settings: AppSettings): Promise<void> {
+        console.log("[DEBUG] StorageServiceFacade.saveSettings called for user:", userId, settings);
+        console.trace("[DEBUG] Stack trace for saveSettings facade call");
         return this.getProvider(userId).saveSettings(userId, settings);
     }
 

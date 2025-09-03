@@ -107,8 +107,6 @@ export function SettingsForm() {
           toast({ title: t('error'), description: t(result.message), variant: "destructive" });
       }
       setIsDeleteDialogSubmitting(false);
-      // On success, auth provider will handle logout and page reload.
-      // On failure, we stay in the dialog.
   }
   
   const onOpenDeleteDialog = (open: boolean) => {

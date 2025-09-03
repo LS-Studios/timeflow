@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, AtSign, KeyRound, User, HardDrive, AlertTriangle, Loader2 } from "lucide-react";
+import { LogIn, AtSign, KeyRound, User, HardDrive, AlertTriangle, Loader2, Eye, EyeOff } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useTranslation } from "@/lib/i18n";
 import { Separator } from "@/components/ui/separator";
@@ -31,14 +31,20 @@ export function LoginDialog() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const resetForm = () => {
       setName("");
       setEmail("");
       setPassword("");
+      setConfirmPassword("");
       setError(null);
+      setShowPassword(false);
+      setShowConfirmPassword(false);
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,11 +64,18 @@ export function LoginDialog() {
       }
       // On success, the onAuthStateChanged listener will handle closing the dialog.
     } else { // register
-      if (!name || !email || !password) {
+      if (!name || !email || !password || !confirmPassword) {
         setError(t('errorFillAllFields'));
         setIsLoading(false);
         return;
       }
+      
+      if (password !== confirmPassword) {
+        setError(t('errorPasswordsDoNotMatch'));
+        setIsLoading(false);
+        return;
+      }
+      
       const result = await register(name, email, password);
       if (result.success) {
           toast({
@@ -148,15 +161,66 @@ export function LoginDialog() {
                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-9"
+                    className="pl-9 pr-9"
                     autoComplete={mode === 'login' ? "current-password" : "new-password"}
                     disabled={isLoading}
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={isLoading}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
                 </div>
               </div>
+              {mode === 'register' && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">{t('confirmPassword')}</Label>
+                  <div className="relative">
+                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="pl-9 pr-9"
+                      autoComplete="new-password"
+                      disabled={isLoading}
+                      onPaste={(e) => e.preventDefault()}
+                      onDrop={(e) => e.preventDefault()}
+                      onDragOver={(e) => e.preventDefault()}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      disabled={isLoading}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
+                  {confirmPassword && password && password !== confirmPassword && (
+                    <p className="text-xs text-destructive">{t('passwordsDoNotMatch')}</p>
+                  )}
+                </div>
+              )}
               {mode === 'register' && <PasswordStrength password={password} />}
             </div>
             
