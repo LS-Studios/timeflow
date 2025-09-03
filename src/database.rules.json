@@ -2,10 +2,9 @@
 {
   "rules": {
     "organizations": {
-      ".indexOn": "adminUserId",
       "$serialNumber": {
         ".read": "auth != null",
-        ".write": "auth != null && (newData.exists() && data.child('adminUserId').val() === auth.uid || !data.exists() && newData.child('adminUserId').val() === auth.uid)",
+        ".write": "auth != null && (!data.exists() && newData.child('adminUserId').val() === auth.uid || data.child('adminUserId').val() === auth.uid)",
         "employees": {
           "$uid": {
             ".write": "auth != null && auth.uid === $uid && ((newData.val() === null && data.exists()) || (newData.val() === true && !data.exists()))"
