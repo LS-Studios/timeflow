@@ -88,7 +88,7 @@ export function CollapsibleTimeline({ session }: CollapsibleTimelineProps) {
         <div className="flex items-center justify-between w-full text-sm">
             <div className="flex items-center gap-2">
                 <Icon className="w-4 h-4"/>
-                <span className="font-medium capitalize">{lastStep.type}</span>
+                <span className="font-medium">{lastStep.type === 'work' && session.mode === 'learning' ? t('learning') : t(lastStep.type)}</span>
             </div>
             
             {isPauseActive && (
@@ -99,7 +99,7 @@ export function CollapsibleTimeline({ session }: CollapsibleTimelineProps) {
 
             <div className="flex items-center gap-2 text-muted-foreground mr-2">
                 <Hourglass className="w-4 h-4"/>
-                <span>{formatDuration(totalPauseMs)} Breaks</span>
+                <span>{formatDuration(totalPauseMs)} {t('break')}</span>
             </div>
         </div>
     )

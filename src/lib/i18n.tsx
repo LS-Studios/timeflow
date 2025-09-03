@@ -25,6 +25,10 @@ const translations: Record<Language, Translations> = {
     saveChanges: "Save Changes",
     add: "Add",
     noResults: "No results found.",
+    work: "Work",
+    learning: "Learning",
+    break: "Break",
+    ongoing: "Ongoing",
     
     // Login & Profile
     welcomeBack: 'Welcome back',
@@ -40,6 +44,8 @@ const translations: Record<Language, Translations> = {
     noAccount: "Don't have an account?",
     hasAccount: "Already have an account?",
     signUp: "Sign up",
+    logout: "Logout",
+    profile: "Profile",
     
     // Password Strength
     passwordRequirementLength: "At least 8 characters",
@@ -205,6 +211,10 @@ const translations: Record<Language, Translations> = {
     saveChanges: "Änderungen speichern",
     add: "Hinzufügen",
     noResults: "Keine Ergebnisse gefunden.",
+    work: "Arbeit",
+    learning: "Lernen",
+    break: "Pause",
+    ongoing: "Laufend",
     
     // Login & Profil
     welcomeBack: 'Willkommen zurück',
@@ -220,6 +230,8 @@ const translations: Record<Language, Translations> = {
     noAccount: "Haben Sie noch kein Konto?",
     hasAccount: "Haben Sie bereits ein Konto?",
     signUp: "Registrieren",
+    logout: "Abmelden",
+    profile: "Profil",
 
     // Passwortstärke
     passwordRequirementLength: "Mindestens 8 Zeichen",

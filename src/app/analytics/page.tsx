@@ -48,9 +48,10 @@ const workBreakdownChartConfig = {
 const breakTypeChartConfig = {
   count: { label: "Count" },
   coffee: { label: "Coffee", color: "hsl(var(--chart-1))" },
-  lunch: { label: "Lunch", color: "hsl(var(--chart-2))" },
-  walk: { label: "Walk", color: "hsl(var(--chart-3))" },
-  other: { label: "Other", color: "hsl(var(--chart-4))" },
+  toilet: { label: "Toilet", color: "hsl(var(--chart-2))" },
+  freshair: { label: "Fresh Air", color: "hsl(var(--chart-3))" },
+  smoking: { label: "Smoking", color: "hsl(var(--chart-4))" },
+  other: { label: "Other", color: "hsl(var(--chart-5))" },
 } satisfies ChartConfig;
 
 const learningFocusChartConfig = {
@@ -299,8 +300,9 @@ export default function AnalyticsPage() {
         .reduce((acc, s) => {
             const note = s.note!;
             if (note === t('breakCoffee')) acc.coffee = (acc.coffee || 0) + 1;
-            else if (note === t('breakLunch')) acc.lunch = (acc.lunch || 0) + 1;
-            else if (note === t('breakFreshAir')) acc.walk = (acc.walk || 0) + 1;
+            else if (note === t('breakToilet')) acc.toilet = (acc.toilet || 0) + 1;
+            else if (note === t('breakFreshAir')) acc.freshair = (acc.freshair || 0) + 1;
+            else if (note === t('breakSmoking')) acc.smoking = (acc.smoking || 0) + 1;
             else acc.other = (acc.other || 0) + 1;
             return acc;
         }, {} as Record<string, number>);
@@ -350,33 +352,87 @@ export default function AnalyticsPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>{t('breakdown')}</CardTitle>
+              <CardTitle>Produktivitätstrend</CardTitle>
+              <CardDescription>Arbeitszeit pro Tag der letzten Wochen</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={breakTypeChartConfig} className="h-[200px] w-full">
-                <BarChart accessibilityLayer data={breakTypeData} layout="vertical" margin={{ left: 10, right: 10 }}>
+              <ChartContainer config={completionChartConfig} className="h-[200px] w-full">
+                <LineChart
+                  accessibilityLayer
+                  data={groupedHistory.slice(0, 14).reverse().map(day => {
+                    const { workMs } = getDurations(day.sessions);
+                    const workHours = workMs / (1000 * 60 * 60);
+                    return {
+                      date: day.date,
+                      hours: Math.round(workHours * 10) / 10,
+                      goal: settings.dailyGoal || 8
+                    };
+                  })}
+                  margin={{
+                    top: 5,
+                    right: 30,
+                    left: 30,
+                    bottom: 5,
+                  }}
+                >
                   <CartesianGrid vertical={false} />
-                  <XAxis type="number" dataKey="count" hide />
-                  <YAxis
-                    dataKey="type"
-                    type="category"
+                  <XAxis
+                    dataKey="date"
                     tickLine={false}
-                    tickMargin={10}
                     axisLine={false}
-                    tickFormatter={(value) =>
-                      breakTypeChartConfig[value as keyof typeof breakTypeChartConfig]?.label
-                    }
+                    tickMargin={8}
+                    tickFormatter={(value) => format(new Date(value), 'dd.MM')}
+                  />
+                  <YAxis
+                    tickFormatter={(value) => `${value}h`}
+                    width={40}
                   />
                   <ChartTooltip
                     cursor={false}
-                    content={<ChartTooltipContent indicator="dot" />}
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="rounded-lg border bg-background p-2 shadow-sm">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="flex flex-col">
+                                <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                  Datum
+                                </span>
+                                <span className="font-bold text-muted-foreground">
+                                  {format(new Date(label), 'dd.MM.yyyy')}
+                                </span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                  Arbeitszeit
+                                </span>
+                                <span className="font-bold">
+                                  {payload[0].value}h
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
                   />
-                  <Bar dataKey="count" layout="vertical" radius={5}>
-                    {breakTypeData.map((entry) => (
-                        <Cell key={`cell-${entry.type}`} fill={breakTypeChartConfig[entry.type as keyof typeof breakTypeChartConfig]?.color || '#ccc'} />
-                      ))}
-                  </Bar>
-                </BarChart>
+                  <Line
+                    dataKey="hours"
+                    type="natural"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                  />
+                  <Line
+                    dataKey="goal"
+                    type="linear"
+                    stroke="hsl(var(--muted-foreground))"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                  />
+                </LineChart>
               </ChartContainer>
             </CardContent>
           </Card>

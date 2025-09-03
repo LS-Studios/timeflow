@@ -7,6 +7,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogScrollableContent,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,7 +95,8 @@ export function EndLearningDialog({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+        <DialogScrollableContent>
+          <div className="space-y-3">
             {internalObjectives.map((obj, index) => (
               <div 
                 key={index} 
@@ -132,16 +134,17 @@ export function EndLearningDialog({
                 </Select>
               </div>
             ))}
-        </div>
-        
-        <Separator />
+          </div>
+          
+          <Separator className="my-4" />
 
-        <div className="flex justify-between items-center p-3 rounded-lg bg-muted mt-2">
-            <span className="font-semibold">{t('totalCompletion')}</span>
-            <span className="text-2xl font-bold text-primary">{totalCompletion}%</span>
-        </div>
+          <div className="flex justify-between items-center p-3 rounded-lg bg-muted">
+              <span className="font-semibold">{t('totalCompletion')}</span>
+              <span className="text-2xl font-bold text-primary">{totalCompletion}%</span>
+          </div>
+        </DialogScrollableContent>
 
-        <DialogFooter className="mt-2">
+        <DialogFooter>
           <Button onClick={handleEnd} className="w-full" disabled={!hasMadeProgress}>
             <CheckCircle2 className="mr-2 h-4 w-4" />
             {t('saveAndEnd')}

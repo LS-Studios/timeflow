@@ -212,6 +212,33 @@ export function SettingsForm() {
           </CardContent>
         </Card>
 
+        <Card className="md:hidden">
+          <CardHeader>
+            <CardTitle>Legal</CardTitle>
+            <CardDescription>Legal information and policies</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col space-y-2">
+              <a 
+                href="https://leshift.de/impressum" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-sm text-primary hover:underline"
+              >
+                Impressum
+              </a>
+              <a 
+                href="https://leshift.de/datenschutz" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-sm text-primary hover:underline"
+              >
+                Datenschutz
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="border-destructive">
           <CardHeader>
             <CardTitle className="text-destructive">{t('dangerZone')}</CardTitle>

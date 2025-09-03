@@ -40,7 +40,7 @@ export function ProfileDialog({
             </div>
         </DialogHeader>
 
-        <div className="flex flex-col gap-2 pt-4">
+        <div className="flex flex-col gap-2 pt-6 px-4 pb-4">
             <Button variant="destructive" onClick={onLogout} className="w-full">
               <LogOut className="mr-2 h-4 w-4" />
               {t('logout')}

@@ -66,13 +66,13 @@ export function PauseNoteDialog({
             {t('addPauseNoteDescription')}
           </DialogDescription>
         </DialogHeader>
-        <RadioGroup value={selectedValue} onValueChange={setSelectedValue} className="grid gap-4 py-4">
+        <RadioGroup value={selectedValue} onValueChange={setSelectedValue} className="grid gap-2 p-4">
             {pauseOptions.map((option) => (
               <Label
                 key={option.id}
                 htmlFor={option.id}
                 className={cn(
-                  "flex items-center gap-4 rounded-md border-2 p-4 cursor-pointer transition-colors hover:border-primary",
+                  "flex items-center gap-4 rounded-md border-2 px-6 py-3 cursor-pointer transition-colors hover:border-primary",
                   selectedValue === option.id && "border-primary bg-primary/5"
                 )}
               >

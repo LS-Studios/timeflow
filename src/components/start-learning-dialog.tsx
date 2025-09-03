@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogScrollableContent,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,7 +163,8 @@ export function StartLearningDialog({
           </div>
           <DialogDescription>{t('whatDidYouLearn')}</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-6 py-4">
+        <DialogScrollableContent>
+          <div className="grid gap-6 py-4">
           <div className="space-y-2">
             <Label htmlFor="goal">{t('learningGoal')}</Label>
             <Input
@@ -277,7 +279,8 @@ export function StartLearningDialog({
               onKeyDown={handleObjectiveKeyDown}
             />
           </div>
-        </div>
+          </div>
+        </DialogScrollableContent>
         <DialogFooter>
           <Button onClick={handleStart} disabled={!mainGoal.trim()}>
              <Plus className="mr-2 h-4 w-4" />

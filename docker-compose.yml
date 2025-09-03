@@ -1,0 +1,12 @@
+services:
+  timeflow-web-client:
+    build: .
+    ports:
+      - "30005:3000"
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
+    container_name: timeflow-web-client

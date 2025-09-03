@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers";
 import { Header } from "@/components/header";
+import { MobileFooter } from "@/components/mobile-footer";
+import { BottomBar } from "@/components/bottom-bar";
 import { Toaster } from "@/components/ui/toaster";
 import { LanguageProvider } from "@/lib/i18n.tsx";
 import { SettingsProvider } from "@/lib/settings-provider";
@@ -40,9 +42,11 @@ export default function RootLayout({
               <SettingsProvider>
                 <div className="min-h-screen flex flex-col">
                   <Header />
-                  <main className="flex-1 flex flex-col">
+                  <main className="flex-1 flex flex-col pb-16 md:pb-0">
                     {children}
                   </main>
+                  <MobileFooter />
+                  <BottomBar />
                   <Toaster />
                 </div>
               </SettingsProvider>
