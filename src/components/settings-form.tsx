@@ -48,7 +48,6 @@ export function SettingsForm() {
   const [isOrganizationDialogOpen, setOrganizationDialogOpen] = useState(false);
   
   const [deletePassword, setDeletePassword] = useState("");
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
 
@@ -98,14 +97,13 @@ export function SettingsForm() {
   
   const handleDeleteAccount = async () => {
       if (!deletePassword) {
-        setDeleteError("Please enter your password.");
+        toast({ title: t('error'), description: t('errorFillAllFields'), variant: "destructive" });
         return;
       }
       setIsDeleting(true);
-      setDeleteError(null);
       const result = await deleteAccount(deletePassword);
       if (!result.success) {
-          setDeleteError(t(result.message));
+          toast({ title: t('error'), description: t(result.message), variant: "destructive" });
           setIsDeleting(false);
       }
       // On success, auth provider will handle logout and page reload, no need to setIsDeleting(false).
@@ -114,7 +112,6 @@ export function SettingsForm() {
   const onOpenDeleteDialog = (open: boolean) => {
     if(!open) {
       setDeletePassword("");
-      setDeleteError(null);
       setIsDeleting(false);
     }
   }
@@ -336,14 +333,6 @@ export function SettingsForm() {
                         />
                      </div>
                    </div>
-                   {deleteError && (
-                      <Alert variant="destructive">
-                        <div className="flex items-center">
-                          <AlertTriangle className="h-4 w-4 mr-2" />
-                          <AlertDescription>{deleteError}</AlertDescription>
-                        </div>
-                      </Alert>
-                    )}
                 </div>
                 <AlertDialogFooter>
                   <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
@@ -403,5 +392,3 @@ export function SettingsForm() {
     </>
   );
 }
-
-    
