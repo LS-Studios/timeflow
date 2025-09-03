@@ -78,8 +78,9 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
   
   useEffect(() => {
     const orgSerial = searchParams.get('organisation');
+    // Only proceed if the parameter exists and we have a logged-in, non-guest user whose settings are loaded.
     if (orgSerial && user && user.uid !== 'guest' && isLoaded) {
-      // If user is already in an org, or in this one, do nothing.
+      // If user is already in this org, just clean the URL and stop.
       if (settings.organizationSerialNumber === orgSerial) {
           router.replace('/settings', { scroll: false });
           return;
@@ -96,13 +97,13 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
             });
           }
         }
-        // Clean up URL
+        // Clean up URL only after attempting to join.
         router.replace('/settings', { scroll: false });
       };
 
       joinOrg();
     }
-  }, [searchParams, user, isLoaded, settings.organizationSerialNumber, router]);
+  }, [searchParams, user, isLoaded, settings.organizationSerialNumber, updateSettings, router]);
 
 
   // When settings are changed by the user, save them to storage
