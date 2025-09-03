@@ -9,7 +9,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSettings } from "@/lib/settings-provider";
 import { useTranslation } from "@/lib/i18n";
-import { Copy, Building, Users, TrendingUp, AlertTriangle, Award, Brain, Clock, BookOpen, BarChart2 } from "lucide-react";
+import { Copy, Building, Users, TrendingUp, AlertTriangle, Award, Brain, Clock, BookOpen, BarChart2, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-provider";
 import { storageService, type UserAccount } from "@/lib/storage";
@@ -39,6 +50,7 @@ export default function AdminPanel() {
   const [organizationName, setOrganizationName] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [employeeData, setEmployeeData] = useState<EmployeeDisplayData[]>([]);
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
 
@@ -93,38 +105,46 @@ export default function AdminPanel() {
       }
   }, [settings.mode]);
 
+  // Handle initialization and admin mode changes
   useEffect(() => {
     if (!settings.isAdmin) {
+      if (settings.organizationSerialNumber) {
+        updateSettings({ organizationName: null, organizationSerialNumber: null });
+      }
+      setOrganizationName("");
+      setSerialNumber("");
       router.push('/');
       return;
     }
+    if (!user) return;
 
-    const initializeOrganization = async () => {
-      if (settings.organizationSerialNumber) {
-        setSerialNumber(settings.organizationSerialNumber);
-        const org = await storageService.getOrganization(settings.organizationSerialNumber);
-        if (org) {
-          setOrganizationName(org.name);
-        }
-      }
-    };
-
-    initializeOrganization();
-  }, [settings.isAdmin, settings.organizationSerialNumber, router]);
-  
-  useEffect(() => {
-    if (!settings.isAdmin) return;
-    
-    // This effect runs only on the client-side after hydration
-    if (!settings.organizationSerialNumber) {
+    const initializeOrRestoreOrganization = async () => {
+      setIsLoading(true);
+      // Try to find an existing organization for this admin
+      const existingOrg = await storageService.findOrganizationByAdmin(user.uid);
+      
+      if (existingOrg) {
+        // Restore existing organization
+        setSerialNumber(existingOrg.serialNumber);
+        setOrganizationName(existingOrg.name);
+        await updateSettings({ organizationName: existingOrg.name, organizationSerialNumber: existingOrg.serialNumber });
+      } else {
+        // No existing org found, create a new one
         const newSerial = Math.random().toString(36).substring(2, 11).toUpperCase();
         setSerialNumber(newSerial);
-    }
-  }, [settings.isAdmin, settings.organizationSerialNumber]);
+        // The organization name will be set by the user and saved via saveOrganizationName
+        setOrganizationName(""); 
+      }
+      setIsLoading(false);
+    };
+
+    initializeOrRestoreOrganization();
+
+  }, [settings.isAdmin, user, router, updateSettings]);
 
 
   useEffect(() => {
-    if (!settings.organizationSerialNumber) {
+    if (!settings.organizationSerialNumber || !settings.isAdmin) {
       setEmployeeData([]);
       setIsLoadingEmployees(false);
       return;
@@ -146,7 +166,7 @@ export default function AdminPanel() {
             unsubscribe();
         }
     };
-  }, [settings.organizationSerialNumber, settings.mode, processEmployeeData]);
+  }, [settings.organizationSerialNumber, settings.mode, processEmployeeData, settings.isAdmin]);
   
 
   const copySerialNumber = () => {
@@ -164,28 +184,44 @@ export default function AdminPanel() {
     }
     setIsLoading(true);
     try {
-      let currentSerialNumber = serialNumber;
-      if (settings.organizationSerialNumber) {
-        currentSerialNumber = settings.organizationSerialNumber;
-        const existingOrg = await storageService.getOrganization(currentSerialNumber);
-        if (existingOrg) {
-          await storageService.updateOrganizationName(currentSerialNumber, organizationName);
-        } else {
-          await storageService.createOrganization(user.uid, currentSerialNumber, organizationName);
-        }
+      const existingOrg = await storageService.getOrganization(serialNumber);
+      if (existingOrg) {
+        // Org already exists, just update its name
+        await storageService.updateOrganizationName(serialNumber, organizationName);
         await updateSettings({ organizationName: organizationName });
+        toast({ title: "Organization Name Updated", description: `Organization name changed to "${organizationName}"` });
       } else {
-        await storageService.createOrganization(user.uid, currentSerialNumber, organizationName);
-        await updateSettings({ organizationSerialNumber: currentSerialNumber, organizationName: organizationName });
+        // This is a new organization, create it
+        await storageService.createOrganization(user.uid, serialNumber, organizationName);
+        await updateSettings({ organizationSerialNumber: serialNumber, organizationName: organizationName });
+        toast({ title: "Organization Created", description: `Organization "${organizationName}" with serial ${serialNumber}` });
       }
-      toast({ title: "Organization Saved", description: `Organization "${organizationName}" with serial ${currentSerialNumber}` });
     } catch (error) {
       console.error('Error saving organization:', error);
-      toast({ title: "Error", description: "Failed to save organization name", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to save organization", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
+  
+  const handleDeleteOrganization = async () => {
+    if (!settings.organizationSerialNumber) return;
+    setIsDeleting(true);
+    try {
+        await storageService.deleteOrganizationAndCleanup(settings.organizationSerialNumber);
+        toast({ title: "Organization Deleted", description: "The organization and all associated employee links have been removed." });
+        
+        // This will trigger the main useEffect to create a new org shell
+        await updateSettings({ organizationName: null, organizationSerialNumber: null });
+
+    } catch (error) {
+        console.error("Error deleting organization:", error);
+        toast({ title: "Deletion Failed", description: "Could not delete the organization.", variant: "destructive" });
+    } finally {
+        setIsDeleting(false);
+    }
+  }
+
 
   if (!settings.isAdmin) return null;
 
@@ -297,6 +333,34 @@ export default function AdminPanel() {
                 <p className="text-xs text-muted-foreground">Share this serial number with employees to join your organization</p>
               </div>
             </div>
+            {settings.organizationSerialNumber && (
+              <div className="border-t pt-4 mt-4">
+                 <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" disabled={isDeleting}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {isDeleting ? "Deleting..." : "Delete Organization"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the organization 
+                        and remove all employees from it. Employee time data will remain, but the
+                        organization link will be gone forever.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteOrganization} className="bg-destructive hover:bg-destructive/90">
+                        Yes, delete organization
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
           </CardContent>
         </Card>
         
@@ -305,5 +369,3 @@ export default function AdminPanel() {
     </div>
   );
 }
-
-    

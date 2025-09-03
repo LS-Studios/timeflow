@@ -1,7 +1,7 @@
 
 
 "use client";
-import { ref, get, set, onValue, off } from "firebase/database";
+import { ref, get, set, onValue, off, query, orderByChild, equalTo, limitToLast } from "firebase/database";
 import { db } from "./firebase";
 import type { AppSettings, Session, SessionStep, AppMode, OrganizationData } from "./types";
 
@@ -36,6 +36,8 @@ interface StorageProvider {
     // Organization management
     createOrganization(adminUserId: string, serialNumber: string, name: string): Promise<void>;
     getOrganization(serialNumber: string): Promise<OrganizationData | null>;
+    findOrganizationByAdmin(adminUserId: string): Promise<OrganizationData | null>;
+    deleteOrganizationAndCleanup(serialNumber: string): Promise<void>;
     updateOrganizationName(serialNumber: string, name: string): Promise<void>;
     onOrganizationChange(serialNumber: string, callback: (data: OrganizationData | null) => void): () => void; // Real-time listener for org data
     onOrganizationEmployeesChange(serialNumber: string, callback: (employees: EmployeeData[]) => void): () => void; // Real-time listener for employees and their data
@@ -121,7 +123,7 @@ class FirebaseStorageProvider implements StorageProvider {
         return Array.from(topics);
     }
 
-    private async getSessions(userId: string, mode: AppMode): Promise<Session[]> {
+    async getSessions(userId: string, mode: AppMode): Promise<Session[]> {
         const snapshot = await get(ref(db, `users/${userId}/${mode}Sessions`));
         if (snapshot.exists()) {
             return this.parseSessions(snapshot.val() || []);
@@ -164,23 +166,53 @@ class FirebaseStorageProvider implements StorageProvider {
             createdAt: new Date().toISOString(),
             employees: [adminUserId]
         };
-        console.log('Creating organization in Firebase:', orgData);
         await set(ref(db, `organizations/${serialNumber}`), orgData);
-        console.log('Organization created successfully');
     }
 
     async getOrganization(serialNumber: string): Promise<OrganizationData | null> {
-        console.log('Getting organization from Firebase:', serialNumber);
         const snapshot = await get(ref(db, `organizations/${serialNumber}`));
-        const result = snapshot.exists() ? snapshot.val() : null;
-        console.log('Organization data retrieved:', result);
-        return result;
+        return snapshot.exists() ? snapshot.val() : null;
+    }
+    
+    async findOrganizationByAdmin(adminUserId: string): Promise<OrganizationData | null> {
+        const orgsRef = ref(db, 'organizations');
+        const q = query(orgsRef, orderByChild('adminUserId'), equalTo(adminUserId), limitToLast(1));
+        const snapshot = await get(q);
+        
+        if (snapshot.exists()) {
+            const orgs = snapshot.val();
+            // The result is an object with the serial number as the key
+            const serialNumber = Object.keys(orgs)[0];
+            return orgs[serialNumber];
+        }
+        return null;
+    }
+    
+    async deleteOrganizationAndCleanup(serialNumber: string): Promise<void> {
+        const orgRef = ref(db, `organizations/${serialNumber}`);
+        const orgSnapshot = await get(orgRef);
+        if (!orgSnapshot.exists()) return;
+
+        const orgData: OrganizationData = orgSnapshot.val();
+        const employeeIds = orgData.employees || [];
+
+        // Clean up settings for each employee
+        const cleanupPromises = employeeIds.map(userId => {
+            const settingsRef = ref(db, `users/${userId}/settings`);
+            return set(settingsRef, {
+                organizationName: null,
+                organizationSerialNumber: null,
+            });
+        });
+
+        await Promise.all(cleanupPromises);
+        
+        // Finally, delete the organization itself
+        await set(orgRef, null);
     }
 
     async updateOrganizationName(serialNumber: string, name: string): Promise<void> {
-        console.log('Updating organization name in Firebase:', serialNumber, name);
         await set(ref(db, `organizations/${serialNumber}/name`), name);
-        console.log('Organization name updated successfully');
     }
 
     onOrganizationChange(serialNumber: string, callback: (data: OrganizationData | null) => void): () => void {
@@ -407,36 +439,27 @@ class LocalStorageProvider implements StorageProvider {
     }
 
     async createOrganization(adminUserId: string, serialNumber: string, name: string): Promise<void> {
-        if (typeof window === 'undefined') return Promise.resolve();
-        
-        const orgData: OrganizationData = {
-            serialNumber,
-            name,
-            adminUserId,
-            createdAt: new Date().toISOString(),
-            employees: [adminUserId]
-        };
-        
-        localStorage.setItem(`timeflow_organization_${serialNumber}`, JSON.stringify(orgData));
+        console.warn("Organization features are not fully supported in guest mode.");
         return Promise.resolve();
     }
 
     async getOrganization(serialNumber: string): Promise<OrganizationData | null> {
-        if (typeof window === 'undefined') return Promise.resolve(null);
-        
-        const orgJson = localStorage.getItem(`timeflow_organization_${serialNumber}`);
-        return Promise.resolve(orgJson ? JSON.parse(orgJson) : null);
+         console.warn("Organization features are not fully supported in guest mode.");
+        return Promise.resolve(null);
+    }
+    
+    async findOrganizationByAdmin(adminUserId: string): Promise<OrganizationData | null> {
+         console.warn("Organization features are not fully supported in guest mode.");
+        return Promise.resolve(null);
+    }
+    
+    async deleteOrganizationAndCleanup(serialNumber: string): Promise<void> {
+        console.warn("Organization features are not fully supported in guest mode.");
+        return Promise.resolve();
     }
 
     async updateOrganizationName(serialNumber: string, name: string): Promise<void> {
-        if (typeof window === 'undefined') return Promise.resolve();
-        
-        const orgJson = localStorage.getItem(`timeflow_organization_${serialNumber}`);
-        if (orgJson) {
-            const orgData = JSON.parse(orgJson);
-            orgData.name = name;
-            localStorage.setItem(`timeflow_organization_${serialNumber}`, JSON.stringify(orgData));
-        }
+        console.warn("Organization features are not fully supported in guest mode.");
         return Promise.resolve();
     }
     
@@ -451,44 +474,18 @@ class LocalStorageProvider implements StorageProvider {
     }
 
     async joinOrganization(userId: string, serialNumber: string): Promise<boolean> {
-        if (typeof window === 'undefined') return Promise.resolve(false);
-        
-        const orgJson = localStorage.getItem(`timeflow_organization_${serialNumber}`);
-        if (!orgJson) return Promise.resolve(false);
-        
-        const orgData: OrganizationData = JSON.parse(orgJson);
-        if (!orgData.employees.includes(userId)) {
-            orgData.employees.push(userId);
-            localStorage.setItem(`timeflow_organization_${serialNumber}`, JSON.stringify(orgData));
-        }
-        return Promise.resolve(true);
+        console.warn("Organization features are not fully supported in guest mode.");
+        return Promise.resolve(false);
     }
 
     async getOrganizationEmployees(serialNumber: string): Promise<string[]> {
-        if (typeof window === 'undefined') return Promise.resolve([]);
-        
-        const orgJson = localStorage.getItem(`timeflow_organization_${serialNumber}`);
-        if (!orgJson) return Promise.resolve([]);
-        
-        const orgData: OrganizationData = JSON.parse(orgJson);
-        return Promise.resolve(orgData.employees);
+        console.warn("Organization features are not fully supported in guest mode.");
+        return Promise.resolve([]);
     }
 
     async getOrganizationEmployeeData(serialNumber: string): Promise<EmployeeData[]> {
-        if (typeof window === 'undefined') return Promise.resolve([]);
-        
-        const employeeIds = await this.getOrganizationEmployees(serialNumber);
-        const employeeData = await Promise.all(
-            employeeIds.map(async (userId) => {
-                const [account, workSessions, learningSessions] = await Promise.all([
-                    this.getUserAccount(userId),
-                    this.getSessions(userId, 'work'),
-                    this.getSessions(userId, 'learning')
-                ]);
-                return { userId, account, workSessions, learningSessions };
-            })
-        );
-        return employeeData;
+       console.warn("Organization features are not fully supported in guest mode.");
+        return Promise.resolve([]);
     }
 
     getGuestUser() {
@@ -586,6 +583,14 @@ class StorageServiceFacade implements StorageProvider {
         return this.firebaseProvider.getOrganization(serialNumber);
     }
 
+    findOrganizationByAdmin(adminUserId: string): Promise<OrganizationData | null> {
+        return this.firebaseProvider.findOrganizationByAdmin(adminUserId);
+    }
+    
+    deleteOrganizationAndCleanup(serialNumber: string): Promise<void> {
+        return this.firebaseProvider.deleteOrganizationAndCleanup(serialNumber);
+    }
+
     updateOrganizationName(serialNumber: string, name: string): Promise<void> {
         return this.firebaseProvider.updateOrganizationName(serialNumber, name);
     }
@@ -607,11 +612,8 @@ class StorageServiceFacade implements StorageProvider {
     }
 
     getOrganizationEmployeeData(serialNumber: string): Promise<EmployeeData[]> {
-        // Always use Firebase for organization data since organizations are shared
         return this.firebaseProvider.getOrganizationEmployeeData(serialNumber);
     }
 }
 
 export const storageService = new StorageServiceFacade();
-
-    
