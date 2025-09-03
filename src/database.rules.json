@@ -5,11 +5,10 @@
       ".indexOn": "adminUserId",
       "$serialNumber": {
         ".read": "auth != null",
-        ".write": "auth != null && (newData.child('adminUserId').val() === auth.uid || data.child('adminUserId').val() === auth.uid)",
+        ".write": "auth != null && (newData.exists() && data.child('adminUserId').val() === auth.uid || !data.exists() && newData.child('adminUserId').val() === auth.uid)",
         "employees": {
           "$uid": {
-             // Allow a user to remove themselves (write null), but not add themselves or others.
-            ".write": "auth != null && auth.uid === $uid && newData.val() === null"
+            ".write": "auth != null && auth.uid === $uid && ((newData.val() === null && data.exists()) || (newData.val() === true && !data.exists()))"
           }
         }
       }
@@ -22,3 +21,4 @@
     }
   }
 }
+
