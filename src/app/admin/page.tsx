@@ -41,7 +41,7 @@ interface EmployeeDisplayData {
 }
 
 export default function AdminPanel() {
-  const { settings, updateSettings } = useSettings();
+  const { settings, isLoaded, updateSettings } = useSettings();
   const { t } = useTranslation();
   const router = useRouter();
   const { toast } = useToast();
@@ -109,24 +109,45 @@ export default function AdminPanel() {
 
   // Handle initialization and admin mode changes
   useEffect(() => {
-    if (!settings.isLoaded) return;
+    if (!isLoaded) return;
     
     if (!settings.isAdmin) {
       router.push('/');
       return;
     }
     
-    // If an organization is already defined in settings, use it.
-    if (settings.organizationSerialNumber && settings.organizationName) {
+    const loadOrganizationData = async () => {
+      // If an organization is already defined in settings, load from database
+      if (settings.organizationSerialNumber) {
         setSerialNumber(settings.organizationSerialNumber);
-        setOrganizationName(settings.organizationName);
-    } else {
+        
+        // Load actual organization data from database
+        try {
+          const orgData = await storageService.getOrganization(settings.organizationSerialNumber);
+          if (orgData) {
+            setOrganizationName(orgData.name);
+            // Update settings if they're out of sync
+            if (settings.organizationName !== orgData.name) {
+              updateSettings({ organizationName: orgData.name });
+            }
+          } else {
+            // Organization doesn't exist anymore, clear settings
+            setOrganizationName("");
+            updateSettings({ organizationName: null, organizationSerialNumber: null });
+          }
+        } catch (error) {
+          console.error('Error loading organization:', error);
+          setOrganizationName(settings.organizationName || "");
+        }
+      } else {
         // Clear any old state if settings don't have an org
         setSerialNumber("");
         setOrganizationName("");
-    }
+      }
+    };
 
-  }, [settings.isLoaded, settings.isAdmin, settings.organizationSerialNumber, settings.organizationName, router]);
+    loadOrganizationData();
+  }, [isLoaded, settings.isAdmin, settings.organizationSerialNumber, settings.organizationName, router, updateSettings]);
 
 
   useEffect(() => {
@@ -187,7 +208,7 @@ export default function AdminPanel() {
   };
 
   const copyShareLink = () => {
-    const shareUrl = `https://timeflo.leshift.de?organisation=${serialNumber}`;
+    const shareUrl = `https://timeflow.leshift.de?organisation=${serialNumber}`;
     navigator.clipboard.writeText(shareUrl);
     toast({
       title: "Share Link Copied",

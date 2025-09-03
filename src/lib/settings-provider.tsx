@@ -5,7 +5,7 @@
 import React, { createContext, useState, useContext, ReactNode, useMemo, useEffect, useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import { useSearchParams, useRouter } from 'next/navigation';
-import type { AppMode, AppSettings, AppTheme } from '@/lib/types';
+import type { AppMode, AppSettings, AppTheme, SettingsContextType } from '@/lib/types';
 import { storageService } from './storage';
 import { Language, useTranslation } from './i18n';
 import { useAuth } from './auth-provider';
@@ -13,22 +13,6 @@ import { useToast } from '@/hooks/use-toast';
 
 type TimerResetCallback = () => void;
 type EndCurrentSessionCallback = () => void;
-
-interface SettingsContextType {
-  settings: AppSettings;
-  isLoaded: boolean;
-  timerIsActive: boolean;
-  setMode: (mode: AppMode) => void;
-  setTheme: (theme: AppTheme) => void;
-  setLanguage: (language: Language) => void;
-  setWorkGoals: (goals: { dailyGoal?: number; weeklyGoal?: number }) => void;
-  setOrganization: (name: string | null, serial: string | null) => void;
-  setIsAdmin: (isAdmin: boolean) => void;
-  updateSettings: (newSettings: Partial<AppSettings>) => void;
-  setTimerResetCallback: (callback: TimerResetCallback) => void;
-  setTimerIsActiveCallback: (isActive: boolean) => void;
-  setEndCurrentSessionCallback: (callback: EndCurrentSessionCallback) => void;
-}
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 

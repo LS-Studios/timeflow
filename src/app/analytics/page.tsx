@@ -66,7 +66,7 @@ const completionChartConfig = {
 
 export default function AnalyticsPage() {
   const { t, language } = useTranslation();
-  const { settings } = useSettings();
+  const { settings, isLoaded } = useSettings();
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
@@ -102,7 +102,7 @@ export default function AnalyticsPage() {
   }, []);
   
   useEffect(() => {
-    if (!settings || !user) return;
+    if (!isLoaded || !settings || !user) return;
     
     setIsLoading(true);
 
@@ -115,7 +115,7 @@ export default function AnalyticsPage() {
       unsubscribeSessions();
       unsubscribeRequests();
     };
-  }, [settings, user, processSessions]);
+  }, [isLoaded, settings, user, processSessions]);
 
   const updateAndRefresh = (newSessions: Session[], mode: 'work' | 'learning') => {
       if (!user) return;

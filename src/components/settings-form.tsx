@@ -34,6 +34,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import { OrganizationDialog } from "./organization-dialog";
 import { storageService } from '@/lib/storage';
+import { set } from 'date-fns';
 
 export function SettingsForm() {
   const { t } = useTranslation();
@@ -120,8 +121,7 @@ export function SettingsForm() {
         </Card>
         
         {settings.mode === 'work' && (
-          <>
-            <Card>
+          <Card>
               <CardHeader>
                 <CardTitle>{t('workGoals')}</CardTitle>
                 <CardDescription>{t('workGoalsDescription')}</CardDescription>
@@ -151,8 +151,10 @@ export function SettingsForm() {
                 </div>
               </CardContent>
             </Card>
+        )}
 
-            <Card>
+        {!settings.isAdmin && (
+          <Card>
               <CardHeader>
                 <CardTitle>{t('organization')}</CardTitle>
                 <CardDescription>{t('organizationDescription')}</CardDescription>
@@ -169,9 +171,7 @@ export function SettingsForm() {
                 </Button>
               </CardContent>
             </Card>
-          </>
         )}
-
 
         <Card>
           <CardHeader>

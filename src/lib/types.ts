@@ -51,6 +51,22 @@ export interface AppSettings {
     isAdmin?: boolean;
 }
 
+export interface SettingsContextType {
+    settings: AppSettings;
+    isLoaded: boolean;
+    timerIsActive: boolean;
+    setMode: (mode: AppMode) => void;
+    setTheme: (theme: AppTheme) => void;
+    setLanguage: (language: 'en' | 'de') => void;
+    setWorkGoals: (goals: { dailyGoal?: number; weeklyGoal?: number }) => void;
+    setOrganization: (name: string | null, serial: string | null) => void;
+    setIsAdmin: (isAdmin: boolean) => void;
+    updateSettings: (newSettings: Partial<AppSettings>) => void;
+    setTimerResetCallback: (callback: () => void) => void;
+    setTimerIsActiveCallback: (isActive: boolean) => void;
+    setEndCurrentSessionCallback: (callback: () => void) => void;
+}
+
 export interface OrganizationData {
     serialNumber: string;
     name: string;
