@@ -7,6 +7,7 @@ import { useTranslation, type Language } from "@/lib/i18n.tsx";
 import { useSettings } from "@/lib/settings-provider";
 import { useAuth } from "@/lib/auth-provider";
 import type { AppMode } from "@/lib/types";
+import { useToast } from '@/hooks/use-toast';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +40,8 @@ import { set } from 'date-fns';
 export function SettingsForm() {
   const { t } = useTranslation();
   const { settings, setMode, setTheme, setLanguage, setWorkGoals, setOrganization, setIsAdmin, timerIsActive, updateSettings } = useSettings();
-  const { user } = useAuth();
+  const { user, deleteAccount } = useAuth();
+  const { toast } = useToast();
   const [isModeChangeDialogOpen, setModeChangeDialogOpen] = useState(false);
   const [targetMode, setTargetMode] = useState<AppMode | null>(null);
   const [isOrganizationDialogOpen, setOrganizationDialogOpen] = useState(false);
@@ -90,6 +92,18 @@ export function SettingsForm() {
     // This will update the local state and save to DB
     setOrganization(null, null);
   };
+  
+  const handleDeleteAccount = async () => {
+      const result = await deleteAccount();
+      if (!result.success) {
+          toast({
+              title: t('error'),
+              description: t(result.message),
+              variant: "destructive",
+          })
+      }
+      // On success, auth provider will handle logout and redirect.
+  }
 
 
   return (
@@ -296,7 +310,7 @@ export function SettingsForm() {
                 <AlertDialogFooter>
                   <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
                   <AlertDialogAction
-                    onClick={() => console.log("Account deleted!")}
+                    onClick={handleDeleteAccount}
                     className="bg-destructive hover:bg-destructive/90"
                   >
                     {t('confirmDelete')}

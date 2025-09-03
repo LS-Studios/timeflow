@@ -2,13 +2,13 @@
 "use client";
 
 import React, { createContext, useState, useContext, ReactNode, useMemo, useEffect, useCallback } from 'react';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, type User as FirebaseUser, deleteUser } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { LoginDialog } from '@/components/login-dialog';
 import { ProfileDialog } from '@/components/profile-dialog';
 import { storageService, type UserAccount } from './storage';
 import { ref, set } from "firebase/database";
-import { useTranslation } from './i18n';
+import { useSettings } from './settings-provider';
 
 type User = {
   uid: string;
@@ -26,6 +26,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<AuthResult>;
   register: (name: string, email: string, password: string) => Promise<AuthResult>;
   logout: () => void;
+  deleteAccount: () => Promise<AuthResult>;
   loginAsGuest: () => void;
   openProfileDialog: () => void;
 }
@@ -44,6 +45,8 @@ const mapFirebaseError = (errorCode: string): string => {
       return 'errorEmailInUse';
     case 'auth/weak-password':
       return 'errorWeakPassword';
+    case 'auth/requires-recent-login':
+        return 'errorRequiresRecentLogin';
     default:
       return 'errorGeneric';
   }
@@ -143,6 +146,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
+  const deleteAccount = useCallback(async (): Promise<AuthResult> => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return { success: false, message: 'errorGeneric' };
+      
+      const userSettings = await storageService.getSettings(currentUser.uid);
+
+      try {
+          // 1. Clean up database entries (including organization membership)
+          await storageService.deleteUserAndCleanup(currentUser.uid, userSettings?.organizationSerialNumber || null);
+          
+          // 2. Delete the Firebase auth user
+          await deleteUser(currentUser);
+
+          return { success: true, message: 'Account deleted successfully' };
+      } catch(error: any) {
+          console.error("AuthProvider: Error deleting account: ", error);
+          return { success: false, message: mapFirebaseError(error.code) };
+      }
+  }, []);
+
   const openProfileDialog = useCallback(() => {
     setProfileDialogOpen(true);
   }, []);
@@ -152,19 +175,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     register,
     logout,
+    deleteAccount,
     loginAsGuest,
     openProfileDialog,
-  }), [user, login, register, logout, loginAsGuest, openProfileDialog]);
+  }), [user, login, register, logout, deleteAccount, loginAsGuest, openProfileDialog]);
   
-  const isLoginRequired = !user && !isLoading;
+  const isLoginRequesting = !user && !isLoading;
 
   return (
     <AuthContext.Provider value={value}>
-      <div className={isLoginRequired ? "blur-sm pointer-events-none" : ""}>
+      <div className={isLoginRequesting ? "blur-sm pointer-events-none" : ""}>
         {children}
       </div>
       
-      {isLoginRequired && <LoginDialog />}
+      {isLoginRequesting ? <LoginDialog /> : null}
       
       {user && (
         <ProfileDialog 

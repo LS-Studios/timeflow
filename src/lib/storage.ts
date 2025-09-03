@@ -22,7 +22,9 @@ type EmployeeData = { userId: string; account: UserAccount | null; workSessions:
  */
 interface StorageProvider {
     getUserAccount(userId: string): Promise<UserAccount | null>;
+    getSettings(userId: string): Promise<AppSettings | null>;
     saveSettings(userId: string, settings: AppSettings): Promise<void>;
+    deleteUserAndCleanup(userId: string, organizationSerialNumber: string | null): Promise<void>;
     onSettingsChange(userId: string, callback: (settings: AppSettings | null) => void): () => void; // Real-time listener
     onSessionsChange(userId: string, mode: AppMode, callback: (sessions: Session[]) => void): () => void; // Real-time listener
     saveSessions(userId: string, mode: AppMode, sessions: Session[]): Promise<void>;
@@ -55,8 +57,20 @@ class FirebaseStorageProvider implements StorageProvider {
       return snapshot.exists() ? snapshot.val() : null;
     }
 
+    async getSettings(userId: string): Promise<AppSettings | null> {
+        const snapshot = await get(ref(db, `users/${userId}/settings`));
+        return snapshot.exists() ? snapshot.val() : null;
+    }
+
     async saveSettings(userId: string, settings: AppSettings): Promise<void> {
         await set(ref(db, `users/${userId}/settings`), settings);
+    }
+
+    async deleteUserAndCleanup(userId: string, organizationSerialNumber: string | null): Promise<void> {
+        if (organizationSerialNumber) {
+            await this.leaveOrganization(userId, organizationSerialNumber);
+        }
+        await set(ref(db, `users/${userId}`), null);
     }
     
     onSettingsChange(userId: string, callback: (settings: AppSettings | null) => void): () => void {
@@ -262,10 +276,23 @@ class LocalStorageProvider implements StorageProvider {
     async getUserAccount(): Promise<UserAccount | null> {
         return Promise.resolve(this.getGuestUser());
     }
+    
+    async getSettings(userId: string): Promise<AppSettings | null> {
+        if (typeof window === 'undefined') return Promise.resolve(null);
+        const settingsJson = localStorage.getItem(LOCAL_SETTINGS_KEY);
+        return Promise.resolve(settingsJson ? JSON.parse(settingsJson) : null);
+    }
 
     async saveSettings(_: string, settings: AppSettings): Promise<void> {
         if (typeof window === 'undefined') return Promise.resolve();
         localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(settings));
+        return Promise.resolve();
+    }
+
+    async deleteUserAndCleanup(userId: string, organizationSerialNumber: string | null): Promise<void> {
+        if (typeof window !== 'undefined') {
+            this.clearGuestUser();
+        }
         return Promise.resolve();
     }
 
@@ -479,8 +506,16 @@ class StorageServiceFacade implements StorageProvider {
         return this.getProvider(userId).getUserAccount(userId);
     }
     
+    getSettings(userId: string): Promise<AppSettings | null> {
+        return this.getProvider(userId).getSettings(userId);
+    }
+    
     saveSettings(userId: string, settings: AppSettings): Promise<void> {
         return this.getProvider(userId).saveSettings(userId, settings);
+    }
+
+    deleteUserAndCleanup(userId: string, organizationSerialNumber: string | null): Promise<void> {
+        return this.getProvider(userId).deleteUserAndCleanup(userId, organizationSerialNumber);
     }
     
     onSettingsChange(userId: string, callback: (settings: AppSettings | null) => void): () => void {

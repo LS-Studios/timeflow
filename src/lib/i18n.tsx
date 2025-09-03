@@ -61,6 +61,7 @@ const translations: Record<Language, Translations> = {
     errorWeakPassword: "The password is too weak. Please choose a stronger one.",
     errorGeneric: "An unexpected error occurred. Please try again.",
     errorFillAllFields: "Please fill in all fields.",
+    errorRequiresRecentLogin: "This action is sensitive and requires recent authentication. Please log in again before retrying.",
 
     // Timer Page
     endDay: 'End Day',
@@ -318,6 +319,7 @@ const translations: Record<Language, Translations> = {
     errorWeakPassword: "Das Passwort ist zu schwach. Bitte wählen Sie ein stärkeres.",
     errorGeneric: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
     errorFillAllFields: "Bitte füllen Sie alle Felder aus.",
+    errorRequiresRecentLogin: "Diese Aktion ist sensibel und erfordert eine kürzliche Authentifizierung. Bitte melden Sie sich erneut an, bevor Sie es erneut versuchen.",
 
     // Timer-Seite
     endDay: 'Arbeitstag beenden',
