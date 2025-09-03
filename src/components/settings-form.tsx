@@ -37,7 +37,7 @@ import { storageService } from '@/lib/storage';
 
 export function SettingsForm() {
   const { t } = useTranslation();
-  const { settings, setMode, setTheme, setLanguage, setWorkGoals, setOrganization, setIsAdmin, timerIsActive } = useSettings();
+  const { settings, setMode, setTheme, setLanguage, setWorkGoals, setOrganization, setIsAdmin, timerIsActive, updateSettings } = useSettings();
   const { user } = useAuth();
   const [isModeChangeDialogOpen, setModeChangeDialogOpen] = useState(false);
   const [targetMode, setTargetMode] = useState<AppMode | null>(null);
@@ -69,7 +69,9 @@ export function SettingsForm() {
 
   const handleDailyGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    // Treat empty string as 0, otherwise parse. This allows deleting the value.
     const numericValue = value === '' ? 0 : parseInt(value, 10);
+    // Ensure we don't save NaN if parsing fails, fall back to current setting.
     setWorkGoals({ dailyGoal: isNaN(numericValue) ? settings.dailyGoal : numericValue });
   };
   
@@ -80,6 +82,13 @@ export function SettingsForm() {
   };
 
   const isGuest = user?.uid === 'guest';
+  
+  const handleLeaveOrganization = async () => {
+    if (!user || !settings.organizationSerialNumber) return;
+    await storageService.leaveOrganization(user.uid, settings.organizationSerialNumber);
+    // This will update the local state and save to DB
+    setOrganization(null, null);
+  };
 
 
   return (
@@ -326,13 +335,18 @@ export function SettingsForm() {
             if (org) {
               const success = await storageService.joinOrganization(user.uid, serialNumber);
               if (success) {
-                setOrganization(org.name, org.serialNumber);
+                // Settings will be updated via the onSettingsChange listener
+                // after the database is updated. Here we can just optimisticlly update.
+                updateSettings({ 
+                    organizationName: org.name, 
+                    organizationSerialNumber: serialNumber 
+                });
                 return true;
               }
             }
             return false;
           }}
-          onLeave={() => setOrganization(null, null)}
+          onLeave={handleLeaveOrganization}
         />
       )}
     </>

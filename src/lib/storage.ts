@@ -41,6 +41,7 @@ interface StorageProvider {
     onOrganizationChange(serialNumber: string, callback: (data: OrganizationData | null) => void): () => void; // Real-time listener for org data
     onOrganizationEmployeesChange(serialNumber: string, callback: (employees: EmployeeData[]) => void): () => void; // Real-time listener for employees and their data
     joinOrganization(userId: string, serialNumber: string): Promise<boolean>;
+    leaveOrganization(userId: string, serialNumber: string): Promise<void>;
     getOrganizationEmployees(serialNumber: string): Promise<string[]>;
     getOrganizationEmployeeData(serialNumber: string, employeeIds?: string[]): Promise<EmployeeData[]>;
 }
@@ -241,6 +242,11 @@ class FirebaseStorageProvider implements StorageProvider {
         await set(ref(db, `organizations/${serialNumber}/employees/${userId}`), true);
         return true;
     }
+    
+    async leaveOrganization(userId: string, serialNumber: string): Promise<void> {
+        const employeeRef = ref(db, `organizations/${serialNumber}/employees/${userId}`);
+        await set(employeeRef, null);
+    }
 
     async getOrganizationEmployees(serialNumber: string): Promise<string[]> {
         const snapshot = await get(ref(db, `organizations/${serialNumber}/employees`));
@@ -434,6 +440,11 @@ class LocalStorageProvider implements StorageProvider {
         console.warn("Organization features are not fully supported in guest mode.");
         return Promise.resolve(false);
     }
+    
+    async leaveOrganization(userId: string, serialNumber: string): Promise<void> {
+        console.warn("Organization features are not fully supported in guest mode.");
+        return Promise.resolve();
+    }
 
     async getOrganizationEmployees(serialNumber: string): Promise<string[]> {
         console.warn("Organization features are not fully supported in guest mode.");
@@ -558,6 +569,10 @@ class StorageServiceFacade implements StorageProvider {
 
     joinOrganization(userId: string, serialNumber: string): Promise<boolean> {
         return this.firebaseProvider.joinOrganization(userId, serialNumber);
+    }
+    
+    leaveOrganization(userId: string, serialNumber: string): Promise<void> {
+        return this.firebaseProvider.leaveOrganization(userId, serialNumber);
     }
 
     getOrganizationEmployees(serialNumber: string): Promise<string[]> {

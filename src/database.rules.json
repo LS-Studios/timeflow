@@ -2,14 +2,21 @@
 {
   "rules": {
     "organizations": {
+      ".indexOn": "adminUserId",
       "$serialNumber": {
         ".read": "auth != null",
-        ".write": "auth != null && (newData.child('adminUserId').val() === auth.uid || data.child('adminUserId').val() === auth.uid)"
+        ".write": "auth != null && (newData.child('adminUserId').val() === auth.uid || data.child('adminUserId').val() === auth.uid)",
+        "employees": {
+          "$uid": {
+             // Allow a user to remove themselves (write null), but not add themselves or others.
+            ".write": "auth != null && auth.uid === $uid && newData.val() === null"
+          }
+        }
       }
     },
     "users": {
       "$userId": {
-        ".read": "auth != null && (auth.uid === $userId || root.child('organizations').child(data.child('settings/organizationSerialNumber').val()).child('employees').child(auth.uid).exists())",
+        ".read": "auth != null && (auth.uid === $userId || root.child('organizations').child(data.child('settings/organizationSerialNumber').val()).child('employees').hasChild(auth.uid))",
         ".write": "auth != null && auth.uid === $userId"
       }
     }
