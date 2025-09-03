@@ -1,20 +1,21 @@
+
 {
   "rules": {
     "organizations": {
       ".indexOn": "adminUserId",
       "$serialNumber": {
-        // Any authenticated user can read org data (e.g., to get the name when joining).
         ".read": "auth != null",
-        // Write access is restricted to the user whose UID is stored in adminUserId.
-        // This includes creating, updating (name, employees), and deleting.
-        ".write": "auth != null && auth.uid === newData.child('adminUserId').val() || auth.uid === data.child('adminUserId').val()"
+        ".write": "auth != null && (newData.child('adminUserId').val() === auth.uid || data.child('adminUserId').val() === auth.uid)",
+        "employees": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && ((newData.val() === null && data.exists()) || (newData.val() === true && !data.exists()))"
+          }
+        }
       }
     },
     "users": {
       "$userId": {
-        // A user can always read and write their own data.
-        // Additionally, an admin can read the data of a user who belongs to their organization.
-        ".read": "auth != null && (auth.uid === $userId || root.child('organizations').child(root.child('users').child(auth.uid).child('settings/organizationSerialNumber').val()).child('employees').hasChild($userId))",
+        ".read": "auth != null && (auth.uid === $userId || root.child('organizations').child(data.child('settings/organizationSerialNumber').val()).child('employees').hasChild(auth.uid))",
         ".write": "auth != null && auth.uid === $userId"
       }
     }
