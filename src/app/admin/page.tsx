@@ -41,13 +41,19 @@ export default function AdminPanel() {
         if (org) {
           setOrganizationName(org.name);
         }
-      } else {
-        setSerialNumber(Math.random().toString(36).substr(2, 9).toUpperCase());
       }
     };
 
     initializeOrganization();
   }, [settings.isAdmin, settings.organizationSerialNumber, router]);
+  
+  useEffect(() => {
+    // This effect runs only on the client-side after hydration
+    if (!settings.organizationSerialNumber) {
+      setSerialNumber(Math.random().toString(36).substr(2, 9).toUpperCase());
+    }
+  }, [settings.organizationSerialNumber]);
+
 
   useEffect(() => {
     const loadEmployeeData = async () => {
