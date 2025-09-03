@@ -69,15 +69,14 @@ export function SettingsForm() {
 
   const handleDailyGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Treat empty string as 0, otherwise parse as number
     const numericValue = value === '' ? 0 : parseInt(value, 10);
-    setWorkGoals({ dailyGoal: isNaN(numericValue) ? undefined : numericValue });
+    setWorkGoals({ dailyGoal: isNaN(numericValue) ? settings.dailyGoal : numericValue });
   };
   
   const handleWeeklyGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     const numericValue = value === '' ? 0 : parseInt(value, 10);
-    setWorkGoals({ weeklyGoal: isNaN(numericValue) ? undefined : numericValue });
+    setWorkGoals({ weeklyGoal: isNaN(numericValue) ? settings.weeklyGoal : numericValue });
   };
 
   const isGuest = user?.uid === 'guest';
