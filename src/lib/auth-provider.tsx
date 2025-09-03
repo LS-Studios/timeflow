@@ -120,19 +120,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
-
         const newUserAccount: UserAccount = { name: name, email: email };
         await set(ref(db, `users/${firebaseUser.uid}/account`), newUserAccount);
-
-        // Explicitly set the user state to log the user in immediately
-        setUser({
-          uid: firebaseUser.uid,
-          name: name,
-          email: email
-        });
-
+        // We no longer call setUser here. onAuthStateChanged is the single source of truth.
         return { success: true, message: 'Registration successful' };
     } catch (error: any) {
+        console.error("AuthProvider: Registration failed.", error);
         return { success: false, message: mapFirebaseError(error.code) };
     }
   }, []);
