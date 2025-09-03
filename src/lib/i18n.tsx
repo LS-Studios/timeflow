@@ -209,7 +209,7 @@ const translations: Record<Language, Translations> = {
     // Allgemeine UI
     pomodoro: 'Pomodoro',
     stopwatch: 'Stoppuhr',
-    custom: 'Benutzerdef.',
+    custom: 'Benutzerdefiniert',
     start: 'Start',
     pause: 'Pause',
     resume: 'Fortsetzen',
@@ -269,7 +269,7 @@ const translations: Record<Language, Translations> = {
     saveNote: "Notiz speichern",
     breakCoffee: "Kaffeepause",
     breakToilet: "Toilettenpause",
-    breakFreshAir: "Frische Luft schnappen",
+    breakFreshAir: "Frische Luft",
     breakSmoking: "Raucherpause",
     breakOther: "Anderes...",
     
@@ -328,7 +328,7 @@ const translations: Record<Language, Translations> = {
     learningGoalPlaceholder: "z.B. Next.js App Router meistern",
     learningObjectives: "Spezifische Lernziele",
     addObjectivePlaceholder: "Lernziel eingeben und Enter drücken...",
-    topics: "Themen / Labels",
+    topics: "Themen / Schlagwörter",
     addTopicPlaceholder: "Thema hinzufügen oder suchen...",
     startLearning: "Lernen starten",
     endLearningSession: "Lernsitzung beenden",
@@ -340,8 +340,8 @@ const translations: Record<Language, Translations> = {
     saveAndEnd: "Speichern & Sitzung beenden",
 
     // Admin Einstellungen
-    adminSettings: "Admin Einstellungen",
-    adminSettingsDescription: "Admin-Berechtigung und Zugang zu Verwaltungsfunktionen konfigurieren.",
+    adminSettings: "Admin-Einstellungen",
+    adminSettingsDescription: "Admin-Berechtigungen und Zugang zu Verwaltungsfunktionen konfigurieren.",
     enableAdminMode: "Admin-Modus aktivieren",
 
     // Analyse-Seite
@@ -369,11 +369,11 @@ const translations: Record<Language, Translations> = {
     learningHistoryDescription: "Ein Protokoll all Ihrer Lernsitzungen. Klicken Sie auf einen Eintrag für Details.",
     searchHistoryLearning: "Nach Ziel, Lernziel oder Thema suchen...",
     goal: "Ziel",
-    completion: "Erreicht",
+    completion: "Zielerreichung",
     learningFocus: "Lernfokus",
     completionOverTime: "Zielerreichung im Zeitverlauf",
     averageSessionSuccess: "Ø Sitzungserfolg",
-    averageSessionSuccessDescription: "Durchschnittlicher Abschlussgrad aller Sitzungen.",
+    averageSessionSuccessDescription: "Durchschnittliche Zielerreichung über alle Sitzungen.",
     noTopicsYet: "Noch keine Themen erfasst. Füge welche in deiner nächsten Sitzung hinzu!",
     
     // Detail-Dialoge
