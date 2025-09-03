@@ -9,6 +9,7 @@ import type { AppMode, AppSettings, AppTheme } from '@/lib/types';
 import { storageService } from './storage';
 import { Language, useTranslation } from './i18n';
 import { useAuth } from './auth-provider';
+import { useToast } from '@/hooks/use-toast';
 
 type TimerResetCallback = () => void;
 type EndCurrentSessionCallback = () => void;
@@ -43,8 +44,9 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoaded, setIsLoaded] = useState(false);
   const { setTheme: applyTheme } = useTheme();
-  const { setLanguage: applyLanguage } = useTranslation();
+  const { t, setLanguage: applyLanguage } = useTranslation();
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const [timerIsActive, setTimerIsActive] = useState(false);
   const timerResetCallbackRef = React.useRef<TimerResetCallback | null>(null);
@@ -76,6 +78,7 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
         
         let finalSettings = newSettings;
         if (newSettings && newSettings.organizationSerialNumber) {
+            const oldOrgName = settings.organizationName; // Capture old name for toast
             // Data consistency check: If user is part of an org, but it was deleted, clean up.
             const orgExists = await storageService.getOrganization(newSettings.organizationSerialNumber);
             if (!orgExists) {
@@ -86,6 +89,12 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
                     organizationSerialNumber: null,
                 };
                 storageService.saveSettings(user.uid, finalSettings);
+                if (oldOrgName) {
+                    toast({
+                        title: "Organization Update",
+                        description: `You have been removed from the organization: "${oldOrgName}".`
+                    });
+                }
             }
         }
         
@@ -104,7 +113,7 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
       // Clean up the listener when the user changes or component unmounts
       return () => unsubscribe();
     }
-  }, [user, applyTheme, applyLanguage]);
+  }, [user, applyTheme, applyLanguage, toast, settings.organizationName]);
   
   useEffect(() => {
     const orgSerial = searchParams.get('organisation');
@@ -125,6 +134,10 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
               organizationName: orgData.name,
               organizationSerialNumber: orgSerial,
             });
+            toast({
+                title: "Organization Joined",
+                description: `You have successfully joined "${orgData.name}".`
+            });
           }
         }
         // Clean up URL only after attempting to join.
@@ -133,7 +146,7 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
 
       joinOrg();
     }
-  }, [searchParams, user, isLoaded, settings.organizationSerialNumber, updateSettings, router]);
+  }, [searchParams, user, isLoaded, settings.organizationSerialNumber, updateSettings, router, toast]);
 
 
   // Listen for live updates to the organization name
