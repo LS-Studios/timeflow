@@ -81,6 +81,7 @@ class FirebaseStorageProvider implements StorageProvider {
     }
 
     private parseSessions(rawSessions: any[]): Session[] {
+        if (!Array.isArray(rawSessions)) return [];
         return rawSessions.map((s: any) => ({
             ...s,
             start: s.start ? new Date(s.start) : new Date(),
@@ -196,14 +197,18 @@ class FirebaseStorageProvider implements StorageProvider {
         const orgData: OrganizationData = orgSnapshot.val();
         const employeeIds = orgData.employees || [];
 
-        // Clean up settings for each employee
-        const cleanupPromises = employeeIds.map(userId => {
-            const settingsRef = ref(db, `users/${userId}/settings`);
-            return set(settingsRef, {
-                organizationName: null,
-                organizationSerialNumber: null,
-            });
+        // Clean up settings for each employee by setting org properties to null
+        const cleanupPromises = employeeIds.map(async (userId) => {
+            const userSettingsRef = ref(db, `users/${userId}/settings`);
+            const snapshot = await get(userSettingsRef);
+            if (snapshot.exists()) {
+                const settings = snapshot.val();
+                settings.organizationName = null;
+                settings.organizationSerialNumber = null;
+                return set(userSettingsRef, settings);
+            }
         });
+
 
         await Promise.all(cleanupPromises);
         
@@ -226,10 +231,10 @@ class FirebaseStorageProvider implements StorageProvider {
     onOrganizationEmployeesChange(serialNumber: string, callback: (employees: EmployeeData[]) => void): () => void {
         const employeesRef = ref(db, `organizations/${serialNumber}/employees`);
         let employeeListeners: { [userId: string]: () => void } = {};
-        let employeeData: { [userId: string]: EmployeeData } = {};
+        let employeeDataCache: { [userId: string]: EmployeeData } = {};
 
         const updateCallback = () => {
-            callback(Object.values(employeeData));
+            callback(Object.values(employeeDataCache));
         };
         
         const employeeListListener = onValue(employeesRef, (snapshot) => {
@@ -241,7 +246,7 @@ class FirebaseStorageProvider implements StorageProvider {
                 if (!newEmployeeIds.includes(userId)) {
                     employeeListeners[userId](); // Unsubscribe
                     delete employeeListeners[userId];
-                    delete employeeData[userId];
+                    delete employeeDataCache[userId];
                 }
             });
 
@@ -251,7 +256,7 @@ class FirebaseStorageProvider implements StorageProvider {
                     const userRef = ref(db, `users/${userId}`);
                     const userListener = onValue(userRef, (userSnapshot) => {
                         const userData = userSnapshot.val();
-                        employeeData[userId] = {
+                        employeeDataCache[userId] = {
                             userId,
                             account: userData?.account || null,
                             workSessions: this.parseSessions(userData?.workSessions || []),
@@ -291,17 +296,17 @@ class FirebaseStorageProvider implements StorageProvider {
 
     async getOrganizationEmployeeData(serialNumber: string): Promise<EmployeeData[]> {
         const employeeIds = await this.getOrganizationEmployees(serialNumber);
-        const employeeData = await Promise.all(
-            employeeIds.map(async (userId) => {
-                const [account, workSessions, learningSessions] = await Promise.all([
-                    this.getUserAccount(userId),
-                    this.getSessions(userId, 'work'),
-                    this.getSessions(userId, 'learning')
-                ]);
-                return { userId, account, workSessions, learningSessions };
-            })
-        );
-        return employeeData;
+        const employeeDataPromises = employeeIds.map(async (userId) => {
+            const userSnapshot = await get(ref(db, `users/${userId}`));
+            const userData = userSnapshot.val();
+            return {
+                userId,
+                account: userData?.account || null,
+                workSessions: this.parseSessions(userData?.workSessions || []),
+                learningSessions: this.parseSessions(userData?.learningSessions || []),
+            };
+        });
+        return Promise.all(employeeDataPromises);
     }
 }
 
