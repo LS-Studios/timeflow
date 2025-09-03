@@ -23,6 +23,7 @@ type AuthResult = {
 
 interface AuthContextType {
   user: User | null;
+  isDeleting: boolean;
   login: (email: string, password: string) => Promise<AuthResult>;
   register: (name: string, email: string, password: string) => Promise<AuthResult>;
   logout: () => void;
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isProfileDialogOpen, setProfileDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Use onAuthStateChanged to manage user session
   useEffect(() => {
@@ -153,41 +155,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const deleteAccount = useCallback(async (password: string): Promise<AuthResult> => {
       const currentUser = auth.currentUser;
-      const localUser = user; // Capture the user object before setting it to null
+      const localUser = user;
 
       if (!currentUser || !currentUser.email || !localUser) {
           return { success: false, message: 'errorGeneric' };
       }
-      
+
+      setIsDeleting(true);
       try {
           // 1. Re-authenticate for security. This is the gatekeeper.
           const credential = EmailAuthProvider.credential(currentUser.email, password);
           await reauthenticateWithCredential(currentUser, credential);
           
-          // Set user to null immediately to prevent race conditions with other effects
-          setUser(null);
-
-          // Perform cleanup async without blocking the UI update
-          const performCleanup = async () => {
-            try {
-              // 2. ONLY if re-authentication succeeds, proceed with data deletion.
-              const userSettings = await storageService.getSettings(localUser.uid);
-              await storageService.deleteUserAndCleanup(localUser.uid, userSettings?.organizationSerialNumber || null);
-              
-              // 3. Finally, delete the Firebase auth user.
-              await deleteUser(currentUser);
-            } catch(cleanupError) {
-                console.error("AuthProvider: Error during account cleanup: ", cleanupError);
-            }
-          }
+          // 2. ONLY if re-authentication succeeds, proceed with data deletion.
+          const userSettings = await storageService.getSettings(localUser.uid);
+          await storageService.deleteUserAndCleanup(localUser.uid, userSettings?.organizationSerialNumber || null);
           
-          performCleanup();
+          // 3. Finally, delete the Firebase auth user. This will trigger onAuthStateChanged.
+          await deleteUser(currentUser);
 
           return { success: true, message: 'Account deleted successfully' };
       } catch(error: any) {
           // This will catch re-authentication errors (like wrong password) and any other issues.
           console.error("AuthProvider: Error deleting account: ", error);
           return { success: false, message: mapFirebaseError(error.code) };
+      } finally {
+          setIsDeleting(false);
       }
   }, [user]);
 
@@ -197,13 +190,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const value = useMemo(() => ({
     user,
+    isDeleting,
     login,
     register,
     logout,
     deleteAccount,
     loginAsGuest,
     openProfileDialog,
-  }), [user, login, register, logout, deleteAccount, loginAsGuest, openProfileDialog]);
+  }), [user, isDeleting, login, register, logout, deleteAccount, loginAsGuest, openProfileDialog]);
   
   const isLoginRequesting = !user && !isLoading;
 

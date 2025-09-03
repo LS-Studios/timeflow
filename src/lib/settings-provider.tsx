@@ -29,7 +29,7 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const { setTheme: applyTheme } = useTheme();
   const { t, setLanguage: applyLanguage } = useTranslation();
-  const { user } = useAuth();
+  const { user, isDeleting } = useAuth();
   const { toast } = useToast();
 
   const [timerIsActive, setTimerIsActive] = useState(false);
@@ -41,7 +41,7 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
 
   // When settings are changed by the user, save them to storage
   const updateSettings = useCallback((newSettings: Partial<AppSettings>) => {
-      if (user) {
+      if (user && !isDeleting) {
           setSettings(prev => {
               const updated = {...prev, ...newSettings};
               // Check prevents infinite loops from listeners
@@ -51,11 +51,11 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
               return updated;
           });
       }
-  }, [user]);
+  }, [user, isDeleting]);
 
   // Load settings from storage on user change and listen for real-time updates
   useEffect(() => {
-    if (user) {
+    if (user && !isDeleting) {
       setIsLoaded(false);
       // Set up a real-time listener for settings
       const unsubscribe = storageService.onSettingsChange(user.uid, async (newSettings) => {
@@ -97,12 +97,12 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
       // Clean up the listener when the user changes or component unmounts
       return () => unsubscribe();
     }
-  }, [user, applyTheme, applyLanguage, toast, settings.organizationName]);
+  }, [user, applyTheme, applyLanguage, toast, settings.organizationName, isDeleting]);
   
   useEffect(() => {
     const orgSerial = searchParams.get('organisation');
     // Only proceed if the parameter exists and we have a logged-in, non-guest user whose settings are loaded.
-    if (orgSerial && user && user.uid !== 'guest' && isLoaded) {
+    if (orgSerial && user && user.uid !== 'guest' && isLoaded && !isDeleting) {
       // If user is already in this org, just clean the URL and stop.
       if (settings.organizationSerialNumber === orgSerial) {
           router.replace('/settings', { scroll: false });
@@ -130,12 +130,12 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
 
       joinOrg();
     }
-  }, [searchParams, user, isLoaded, settings.organizationSerialNumber, updateSettings, router, toast]);
+  }, [searchParams, user, isLoaded, settings.organizationSerialNumber, updateSettings, router, toast, isDeleting]);
 
 
   // Listen for live updates to the organization name
   useEffect(() => {
-    if (user && user.uid !== 'guest' && settings.organizationSerialNumber) {
+    if (user && user.uid !== 'guest' && settings.organizationSerialNumber && !isDeleting) {
         const unsubscribe = storageService.onOrganizationChange(settings.organizationSerialNumber, (orgData) => {
             if (orgData && orgData.name !== settings.organizationName) {
                 updateSettings({ organizationName: orgData.name });
@@ -144,7 +144,7 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
 
         return () => unsubscribe();
     }
-  }, [user, settings.organizationSerialNumber, settings.organizationName, updateSettings]);
+  }, [user, settings.organizationSerialNumber, settings.organizationName, updateSettings, isDeleting]);
 
 
 
