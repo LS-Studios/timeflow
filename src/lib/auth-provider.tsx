@@ -37,7 +37,6 @@ const mapFirebaseError = (errorCode: string): string => {
   switch (errorCode) {
     case 'auth/invalid-email':
       return 'errorInvalidEmail';
-    case 'auth/user-not-found':
     case 'auth/wrong-password':
     case 'auth/invalid-credential':
       return 'errorInvalidCredential';
@@ -154,7 +153,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const deleteAccount = useCallback(async (password: string): Promise<AuthResult> => {
       const currentUser = auth.currentUser;
-      if (!currentUser || !currentUser.email) {
+      const localUser = user; // Capture the user object before setting it to null
+
+      if (!currentUser || !currentUser.email || !localUser) {
           return { success: false, message: 'errorGeneric' };
       }
       
@@ -163,13 +164,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const credential = EmailAuthProvider.credential(currentUser.email, password);
           await reauthenticateWithCredential(currentUser, credential);
           
-          // 2. ONLY if re-authentication succeeds, proceed with data deletion.
-          const userSettings = await storageService.getSettings(currentUser.uid);
-          await storageService.deleteUserAndCleanup(currentUser.uid, userSettings?.organizationSerialNumber || null);
+          // Set user to null immediately to prevent race conditions with other effects
+          setUser(null);
+
+          // Perform cleanup async without blocking the UI update
+          const performCleanup = async () => {
+            try {
+              // 2. ONLY if re-authentication succeeds, proceed with data deletion.
+              const userSettings = await storageService.getSettings(localUser.uid);
+              await storageService.deleteUserAndCleanup(localUser.uid, userSettings?.organizationSerialNumber || null);
+              
+              // 3. Finally, delete the Firebase auth user.
+              await deleteUser(currentUser);
+            } catch(cleanupError) {
+                console.error("AuthProvider: Error during account cleanup: ", cleanupError);
+            }
+          }
           
-          // 3. Finally, delete the Firebase auth user.
-          await deleteUser(currentUser);
-          // onAuthStateChanged will handle setting user to null.
+          performCleanup();
 
           return { success: true, message: 'Account deleted successfully' };
       } catch(error: any) {
@@ -177,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error("AuthProvider: Error deleting account: ", error);
           return { success: false, message: mapFirebaseError(error.code) };
       }
-  }, []);
+  }, [user]);
 
   const openProfileDialog = useCallback(() => {
     setProfileDialogOpen(true);
