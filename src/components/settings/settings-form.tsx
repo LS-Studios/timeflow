@@ -35,6 +35,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import { OrganizationDialog } from "@/components/dialogs/organization-dialog";
 import { storageService } from '@/lib/storage';
+import { analyticsService } from '@/lib/analytics';
 
 export function SettingsForm() {
   const { t } = useTranslation();
@@ -91,6 +92,7 @@ export function SettingsForm() {
   const handleLeaveOrganization = async () => {
     if (!user || !settings.organizationSerialNumber) return;
     await storageService.leaveOrganization(user.uid, settings.organizationSerialNumber);
+    analyticsService.trackOrganizationLeft();
     updateSettings({ organizationName: null, organizationSerialNumber: null });
   };
   
@@ -381,6 +383,7 @@ export function SettingsForm() {
                     organizationName: org.name, 
                     organizationSerialNumber: serialNumber 
                 });
+                analyticsService.trackOrganizationJoined();
                 return true;
               }
             }

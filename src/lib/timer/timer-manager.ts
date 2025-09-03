@@ -2,6 +2,7 @@
 import type { Session, LearningObjective, AppMode } from "@/lib/types";
 import { workTimerHandler } from './work-timer-handler';
 import { learningTimerHandler } from './learning-timer-handler';
+import { analyticsService } from "../analytics";
 
 // --- Type Definitions for Handler Arguments ---
 
@@ -116,6 +117,7 @@ export const timerManager = {
     handleStart: async (args: StartHandlerArgs) => {
         const { mode, allSessions, currentSession, isPaused, callbacks } = args;
 
+        analyticsService.trackTimerStart(mode);
         if (mode === 'learning') {
             await learningTimerHandler.handleStart({ allSessions, currentSession, isPaused, callbacks });
         } else {
@@ -155,6 +157,9 @@ export const timerManager = {
     handleEnd: (args: EndHandlerArgs) => {
         if (!args.currentSession) return;
         
+        const durationSeconds = (Date.now() - new Date(args.currentSession.start).getTime()) / 1000;
+        analyticsService.trackTimerEnd(args.mode, durationSeconds);
+
         if (args.mode === 'learning') {
             learningTimerHandler.handleEnd(args);
         } else {

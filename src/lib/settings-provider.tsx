@@ -9,6 +9,7 @@ import { storageService } from './storage';
 import { Language, useTranslation } from './i18n';
 import { useAuth } from './auth-provider';
 import { useToast } from '@/hooks/use-toast';
+import { analyticsService } from './analytics';
 
 type TimerResetCallback = () => void;
 type EndCurrentSessionCallback = () => void;
@@ -120,6 +121,7 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
               organizationName: orgData.name,
               organizationSerialNumber: orgSerial,
             });
+            analyticsService.trackOrganizationJoined();
             toast({
                 title: "Organization Joined",
                 description: `You have successfully joined "${orgData.name}".`
@@ -154,10 +156,12 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
     if (timerResetCallbackRef.current) {
         timerResetCallbackRef.current();
     }
+    analyticsService.trackModeChanged(mode);
     updateSettings({ mode });
   }, [settings.mode, updateSettings]);
 
   const setTheme = useCallback((theme: AppTheme) => {
+    analyticsService.trackThemeChanged(theme);
     updateSettings({ theme });
   }, [updateSettings]);
 
@@ -177,6 +181,7 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
   }, [updateSettings]);
 
   const setIsAdmin = useCallback((isAdmin: boolean) => {
+    analyticsService.trackAdminModeToggled(isAdmin);
     updateSettings({ isAdmin });
   }, [updateSettings]);
 

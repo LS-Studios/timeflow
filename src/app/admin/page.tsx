@@ -26,6 +26,7 @@ import { useAuth } from "@/lib/auth-provider";
 import { storageService, type UserAccount } from "@/lib/storage";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Session } from "@/lib/types";
+import { analyticsService } from "@/lib/analytics";
 
 
 interface EmployeeDisplayData {
@@ -184,6 +185,8 @@ export default function AdminPanel() {
     try {
         const newSerial = Math.random().toString(36).substring(2, 11).toUpperCase();
         await storageService.createOrganization(user.uid, newSerial, newOrganizationName);
+        
+        analyticsService.trackOrganizationCreated();
         
         // This will update the user's local settings and trigger the main view to render
         updateSettings({ organizationSerialNumber: newSerial, organizationName: newOrganizationName });

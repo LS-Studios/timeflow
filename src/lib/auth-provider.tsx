@@ -10,6 +10,7 @@ import { storageService, type UserAccount } from './storage';
 import { ref, set } from "firebase/database";
 import { useSettings } from './settings-provider';
 import { useToast } from '@/hooks/use-toast';
+import { analyticsService } from './analytics';
 
 type User = {
   uid: string;
@@ -59,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isProfileDialogOpen, setProfileDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
 
   // Use onAuthStateChanged to manage user session
   useEffect(() => {
@@ -110,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string): Promise<AuthResult> => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      analyticsService.trackLogin('password');
       // onAuthStateChanged will handle setting the user state
       return { success: true, message: 'Login successful' };
     } catch (error: any) {
@@ -124,6 +127,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const firebaseUser = userCredential.user;
         const newUserAccount: UserAccount = { name: name, email: email };
         await set(ref(db, `users/${firebaseUser.uid}/account`), newUserAccount);
+        
+        analyticsService.trackSignUp();
+
         // The user is created, but they will be signed out to force a manual login.
         await signOut(auth);
         return { success: true, message: 'Registration successful, please log in.' };
@@ -137,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const guestUser: User = { uid: 'guest', name: 'Guest User', email: 'guest@local.storage' };
     storageService.saveGuestUser(guestUser);
     setUser(guestUser);
+    analyticsService.trackLogin('guest');
   }, []);
 
   const logout = useCallback(async () => {
@@ -164,20 +171,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setIsDeleting(true);
       try {
-          // 1. Re-authenticate for security. This is the gatekeeper.
           const credential = EmailAuthProvider.credential(currentUser.email, password);
           await reauthenticateWithCredential(currentUser, credential);
           
-          // 2. ONLY if re-authentication succeeds, proceed with data deletion.
-          const userSettings = await storageService.getSettings(localUser.uid);
-          await storageService.deleteUserAndCleanup(localUser.uid, userSettings?.organizationSerialNumber || null);
+          await storageService.deleteUserAndCleanup(localUser.uid, null); // Org cleanup is handled client-side
           
-          // 3. Finally, delete the Firebase auth user. This will trigger onAuthStateChanged.
           await deleteUser(currentUser);
+          analyticsService.trackAccountDeleted();
 
           return { success: true, message: 'Account deleted successfully' };
       } catch(error: any) {
-          // This will catch re-authentication errors (like wrong password) and any other issues.
           console.error("AuthProvider: Error deleting account: ", error);
           return { success: false, message: mapFirebaseError(error.code) };
       } finally {
