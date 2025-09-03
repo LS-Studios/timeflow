@@ -12,9 +12,9 @@ import type { Session, LearningObjective } from "@/lib/types";
 
 import { TimerDisplay } from "@/components/timer-display";
 import { TimerControls } from "@/components/timer-controls";
-import { PauseNoteDialog } from "@/components/pause-note-dialog";
-import { StartLearningDialog } from "@/components/start-learning-dialog";
-import { EndLearningDialog } from "@/components/end-learning-dialog";
+import { PauseNoteDialog } from "@/components/dialogs/pause-note-dialog";
+import { StartLearningDialog } from "@/components/dialogs/learning/start-learning-dialog";
+import { EndLearningDialog } from "@/components/dialogs/learning/end-learning-dialog";
 import { CollapsibleTimeline } from "@/components/collapsible-timeline";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";

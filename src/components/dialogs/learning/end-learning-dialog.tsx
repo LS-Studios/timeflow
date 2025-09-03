@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { useTranslation } from "@/lib/i18n.tsx";
 import type { LearningObjective, Session } from "@/lib/types";
 import { Target, CheckCircle2 } from "lucide-react";
-import { Separator } from "./ui/separator";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Slider } from "@/components/ui/slider";
 

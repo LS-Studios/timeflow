@@ -4,11 +4,12 @@
 import React, { createContext, useState, useContext, ReactNode, useMemo, useEffect, useCallback } from 'react';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, type User as FirebaseUser, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { auth, db } from './firebase';
-import { LoginDialog } from '@/components/login-dialog';
-import { ProfileDialog } from '@/components/profile-dialog';
+import { LoginDialog } from '@/components/dialogs/login-dialog';
+import { ProfileDialog } from '@/components/dialogs/profile-dialog';
 import { storageService, type UserAccount } from './storage';
 import { ref, set } from "firebase/database";
 import { useSettings } from './settings-provider';
+import { useToast } from '@/hooks/use-toast';
 
 type User = {
   uid: string;
@@ -199,15 +200,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     openProfileDialog,
   }), [user, isDeleting, login, register, logout, deleteAccount, loginAsGuest, openProfileDialog]);
   
-  const isLoginRequesting = !user && !isLoading;
+  const isLoginRequired = !user && !isLoading;
 
   return (
     <AuthContext.Provider value={value}>
-      <div className={isLoginRequesting ? "blur-sm pointer-events-none" : ""}>
+      <div className={isLoginRequired ? "blur-sm pointer-events-none" : ""}>
         {children}
       </div>
       
-      {isLoginRequesting && <LoginDialog />}
+      {isLoginRequired && <LoginDialog />}
       
       {user && (
         <ProfileDialog 

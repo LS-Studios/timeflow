@@ -1,20 +1,14 @@
 
-
 "use client";
 import { ref, get, set, onValue, off, query, orderByChild, equalTo, limitToLast } from "firebase/database";
 import { db } from "./firebase";
-import type { AppSettings, Session, SessionStep, AppMode, OrganizationData } from "./types";
+import type { AppSettings, Session, SessionStep, AppMode, OrganizationData, UserAccount, EmployeeData } from "./types";
 
 const LOCAL_SETTINGS_KEY = 'timeflow_guest_settings';
 const LOCAL_SESSIONS_PREFIX = 'timeflow_guest_sessions_';
 const GUEST_USER_KEY = 'timeflow_guest_user';
 
-export interface UserAccount {
-    name: string;
-    email: string;
-}
-
-type EmployeeData = { userId: string; account: UserAccount | null; workSessions: Session[]; learningSessions: Session[]; };
+export type { UserAccount } from './types'
 
 /**
  * Defines the contract for any data persistence service.

@@ -14,12 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, AtSign, KeyRound, User, HardDrive, AlertTriangle, Loader2 } from "lucide-react";
-import { Logo } from "./logo";
+import { Logo } from "@/components/logo";
 import { useTranslation } from "@/lib/i18n";
-import { Separator } from "./ui/separator";
+import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth-provider";
-import { Alert, AlertDescription } from "./ui/alert";
-import { PasswordStrength } from "./password-strength";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PasswordStrength } from "@/components/password-strength";
 import { useToast } from "@/hooks/use-toast";
 
 export function LoginDialog() {

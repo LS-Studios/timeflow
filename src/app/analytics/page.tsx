@@ -35,9 +35,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { EditLearningDialog } from "@/components/edit-learning-dialog";
-import { WorkDayDetailDialog } from "@/components/work-day-detail-dialog";
-import { LearningSessionDetailDialog } from "@/components/learning-session-detail-dialog";
+import { EditLearningDialog } from "@/components/dialogs/learning/edit-learning-dialog";
+import { WorkDayDetailDialog } from "@/components/dialogs/work/work-day-detail-dialog";
+import { LearningSessionDetailDialog } from "@/components/dialogs/learning/learning-session-detail-dialog";
 import { useToast } from "@/hooks/use-toast";
 
 

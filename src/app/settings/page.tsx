@@ -1,7 +1,7 @@
 
 "use client";
 
-import { SettingsForm } from "@/components/settings-form";
+import { SettingsForm } from "@/components/settings/settings-form";
 import { useSettings } from "@/lib/settings-provider";
 import { useTranslation } from "@/lib/i18n";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";

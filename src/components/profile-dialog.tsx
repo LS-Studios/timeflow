@@ -1,52 +1,51 @@
-
 "use client";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { LogOut, User } from "lucide-react";
+import { SettingsForm } from "@/components/settings/settings-form";
+import { useSettings } from "@/lib/settings-provider";
 import { useTranslation } from "@/lib/i18n";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
-interface ProfileDialogProps {
-  isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
-  user: { name: string; email: string };
-  onLogout: () => void;
-}
-
-export function ProfileDialog({
-  isOpen,
-  onOpenChange,
-  user,
-  onLogout,
-}: ProfileDialogProps) {
+export default function SettingsPage() {
   const { t } = useTranslation();
+  const { isLoaded } = useSettings();
+
+  const SettingsSkeleton = () => (
+     <div className="grid gap-6">
+        <Card>
+          <CardHeader><Skeleton className="h-6 w-1/4" /><Skeleton className="h-4 w-1/2 mt-2" /></CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-28 w-full" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><Skeleton className="h-6 w-1/4" /><Skeleton className="h-4 w-1/2 mt-2" /></CardHeader>
+          <CardContent className="grid grid-cols-3 gap-4">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><Skeleton className="h-6 w-1/4" /><Skeleton className="h-4 w-1/2 mt-2" /></CardHeader>
+          <CardContent><Skeleton className="h-10 w-[180px]" /></CardContent>
+        </Card>
+         <Card>
+          <CardHeader><Skeleton className="h-6 w-1/4" /><Skeleton className="h-4 w-1/2 mt-2" /></CardHeader>
+          <CardContent><Skeleton className="h-10 w-48" /></CardContent>
+        </Card>
+     </div>
+  )
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader className="items-center text-center space-y-4">
-            <div className="p-3 bg-muted rounded-full">
-              <User className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <div className="space-y-1">
-              <DialogTitle>{user.name}</DialogTitle>
-              <DialogDescription>{user.email}</DialogDescription>
-            </div>
-        </DialogHeader>
-
-        <div className="flex flex-col gap-2 pt-6 px-4 pb-4">
-            <Button variant="destructive" onClick={onLogout} className="w-full">
-              <LogOut className="mr-2 h-4 w-4" />
-              {t('logout')}
-            </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <div className="container max-w-2xl py-8 mx-auto px-4 sm:px-0">
+      <h1 className="text-2xl font-bold mb-2">{t('settings')}</h1>
+      <p className="text-muted-foreground mb-8">
+        {t('settingsDescription')}
+      </p>
+      
+      {!isLoaded ? <SettingsSkeleton /> : <SettingsForm />}
+    </div>
   );
 }
