@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,22 @@ import { useTranslation } from "@/lib/i18n";
 import { Copy, Building, Users, TrendingUp, AlertTriangle, Award, Brain, Clock, BookOpen, BarChart2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-provider";
-import { storageService } from "@/lib/storage";
+import { storageService, type UserAccount } from "@/lib/storage";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Session } from "@/lib/types";
+
+
+interface EmployeeDisplayData {
+  id: string;
+  name: string;
+  email: string;
+  totalHours: number;
+  efficiency?: number;
+  lastActive?: string;
+  avgCompletion?: number;
+  sessionCount?: number;
+  topTopic?: string;
+}
 
 export default function AdminPanel() {
   const { settings, updateSettings } = useSettings();
@@ -25,8 +39,59 @@ export default function AdminPanel() {
   const [organizationName, setOrganizationName] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [employeeData, setEmployeeData] = useState<any[]>([]);
+  const [employeeData, setEmployeeData] = useState<EmployeeDisplayData[]>([]);
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
+
+  const processEmployeeData = useCallback((rawData: { userId: string; account: UserAccount | null; workSessions: Session[]; learningSessions: Session[]; }[]): EmployeeDisplayData[] => {
+      if (settings.mode === 'work') {
+          return rawData.map(emp => {
+              const allSessions = emp.workSessions || [];
+              const totalWorkTime = allSessions.reduce((total, session) => total + (session.totalWorkTime || 0), 0);
+              const totalHours = Math.round(totalWorkTime / (1000 * 60 * 60));
+              
+              const completedSessions = allSessions.filter(s => s.isCompleted).length;
+              const totalSessions = allSessions.length;
+              const efficiency = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
+              
+              const lastSession = [...allSessions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+              const lastActive = lastSession ? lastSession.date : "Never";
+
+              return {
+                  id: emp.userId,
+                  name: emp.account?.name || 'Unknown User',
+                  email: emp.account?.email || '',
+                  totalHours,
+                  efficiency: Math.min(100, Math.max(0, efficiency)),
+                  lastActive,
+              };
+          });
+      } else { // Learning Mode
+          return rawData.map(emp => {
+              const allSessions = emp.learningSessions || [];
+              const totalLearningTime = allSessions.reduce((total, session) => total + (session.totalWorkTime || 0), 0);
+              const totalHours = Math.round(totalLearningTime / (1000 * 60 * 60));
+
+              const totalCompletion = allSessions.reduce((sum, s) => sum + (s.completionPercentage || 0), 0);
+              const avgCompletion = allSessions.length > 0 ? Math.round(totalCompletion / allSessions.length) : 0;
+              
+              const allTopics = allSessions.flatMap(s => s.topics || []);
+              const topTopic = allTopics.length > 0 ? 
+                  Object.entries(allTopics.reduce((acc, topic) => { acc[topic] = (acc[topic] || 0) + 1; return acc; }, {} as Record<string, number>))
+                  .sort((a, b) => b[1] - a[1])[0][0] 
+                  : 'None';
+
+              return {
+                  id: emp.userId,
+                  name: emp.account?.name || 'Unknown User',
+                  email: emp.account?.email || '',
+                  totalHours,
+                  avgCompletion,
+                  sessionCount: allSessions.length,
+                  topTopic,
+              };
+          });
+      }
+  }, [settings.mode]);
 
   useEffect(() => {
     if (!settings.isAdmin) {
@@ -48,84 +113,41 @@ export default function AdminPanel() {
   }, [settings.isAdmin, settings.organizationSerialNumber, router]);
   
   useEffect(() => {
+    if (!settings.isAdmin) return;
+    
     // This effect runs only on the client-side after hydration
     if (!settings.organizationSerialNumber) {
-      setSerialNumber(Math.random().toString(36).substr(2, 9).toUpperCase());
+        const newSerial = Math.random().toString(36).substring(2, 11).toUpperCase();
+        setSerialNumber(newSerial);
     }
-  }, [settings.organizationSerialNumber]);
+  }, [settings.isAdmin, settings.organizationSerialNumber]);
 
 
   useEffect(() => {
-    const loadEmployeeData = async () => {
-      if (settings.organizationSerialNumber) {
-        setIsLoadingEmployees(true);
-        try {
-          const data = await storageService.getOrganizationEmployeeData(settings.organizationSerialNumber);
-          
-          if (settings.mode === 'work') {
-            const processedEmployees = data.map(emp => {
-              const allSessions = emp.workSessions || []; // Only use work sessions
-              const totalWorkTime = allSessions.reduce((total, session) => total + (session.totalWorkTime || 0), 0);
-              const totalHours = Math.round(totalWorkTime / (1000 * 60 * 60));
-              
-              const completedSessions = allSessions.filter(s => s.isCompleted).length;
-              const totalSessions = allSessions.length;
-              const efficiency = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
-              
-              const lastSession = allSessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-              const lastActive = lastSession ? lastSession.date : "Never";
-
-              return {
-                id: emp.userId,
-                name: emp.account?.name || 'Unknown User',
-                email: emp.account?.email || '',
-                totalHours,
-                efficiency: Math.min(100, Math.max(0, efficiency)),
-                lastActive,
-              };
-            });
-            setEmployeeData(processedEmployees);
-          } else { // Learning Mode
-            const processedEmployees = data.map(emp => {
-              const allSessions = emp.learningSessions || []; // Only use learning sessions
-              const totalLearningTime = allSessions.reduce((total, session) => total + (session.totalWorkTime || 0), 0);
-              const totalHours = Math.round(totalLearningTime / (1000 * 60 * 60));
-
-              const totalCompletion = allSessions.reduce((sum, s) => sum + (s.completionPercentage || 0), 0);
-              const avgCompletion = allSessions.length > 0 ? Math.round(totalCompletion / allSessions.length) : 0;
-              
-              const allTopics = allSessions.flatMap(s => s.topics || []);
-              const topTopic = allTopics.length > 0 ? 
-                Object.entries(allTopics.reduce((acc, topic) => { acc[topic] = (acc[topic] || 0) + 1; return acc; }, {} as Record<string, number>))
-                  .sort((a, b) => b[1] - a[1])[0][0] 
-                : 'None';
-
-              return {
-                id: emp.userId,
-                name: emp.account?.name || 'Unknown User',
-                totalHours,
-                avgCompletion,
-                sessionCount: allSessions.length,
-                topTopic,
-              };
-            });
-            setEmployeeData(processedEmployees);
-          }
-
-        } catch (error) {
-          console.error('Error loading employee data:', error);
-          setEmployeeData([]);
-        } finally {
-          setIsLoadingEmployees(false);
+    if (!settings.organizationSerialNumber) {
+      setEmployeeData([]);
+      setIsLoadingEmployees(false);
+      return;
+    }
+    
+    setIsLoadingEmployees(true);
+    
+    const unsubscribe = storageService.onOrganizationEmployeesChange(
+        settings.organizationSerialNumber,
+        (data) => {
+            const processed = processEmployeeData(data);
+            setEmployeeData(processed);
+            setIsLoadingEmployees(false);
         }
-      } else {
-        setEmployeeData([]);
-        setIsLoadingEmployees(false);
-      }
-    };
+    );
 
-    loadEmployeeData();
-  }, [settings.organizationSerialNumber, settings.mode]);
+    return () => {
+        if (unsubscribe) {
+            unsubscribe();
+        }
+    };
+  }, [settings.organizationSerialNumber, settings.mode, processEmployeeData]);
+  
 
   const copySerialNumber = () => {
     navigator.clipboard.writeText(serialNumber);
@@ -168,12 +190,12 @@ export default function AdminPanel() {
   if (!settings.isAdmin) return null;
 
   const renderWorkAnalytics = () => {
-    const topPerformers = employeeData.filter(emp => emp.efficiency > 90).sort((a, b) => b.efficiency - a.efficiency).slice(0, 3);
-    const lowPerformers = employeeData.filter(emp => emp.efficiency < 75).sort((a, b) => a.efficiency - b.efficiency).slice(0, 3);
+    const topPerformers = employeeData.filter(emp => emp.efficiency! > 90).sort((a, b) => b.efficiency! - a.efficiency!).slice(0, 3);
+    const lowPerformers = employeeData.filter(emp => emp.efficiency! < 75).sort((a, b) => a.efficiency! - b.efficiency!).slice(0, 3);
     const companyStats = {
       totalEmployees: employeeData.length,
       avgHoursPerWeek: employeeData.length > 0 ? Math.round(employeeData.reduce((sum, emp) => sum + emp.totalHours, 0) / employeeData.length) : 0,
-      avgEfficiency: employeeData.length > 0 ? Math.round(employeeData.reduce((sum, emp) => sum + emp.efficiency, 0) / employeeData.length) : 0,
+      avgEfficiency: employeeData.length > 0 ? Math.round(employeeData.reduce((sum, emp) => sum + (emp.efficiency || 0), 0) / employeeData.length) : 0,
     };
 
     return (
@@ -188,7 +210,7 @@ export default function AdminPanel() {
             <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" />Employee Overview</CardTitle></CardHeader>
             <CardContent>
               {isLoadingEmployees ? <Skeleton className="h-24 w-full" /> : employeeData.length === 0 ? <div className="text-muted-foreground">No employees found.</div> : (
-                <div className="space-y-3">{employeeData.map((employee) => (<div key={employee.id} className="flex items-center justify-between p-3 border rounded-lg"><div><div className="font-medium">{employee.name}</div><div className="text-sm text-muted-foreground">Last active: {employee.lastActive}</div></div><div className="text-right"><div className="font-medium">{employee.totalHours}h total</div><div className={`text-sm ${employee.efficiency >= 80 ? 'text-green-600' : employee.efficiency >= 65 ? 'text-yellow-600' : 'text-red-600'}`}>{employee.efficiency}% efficiency</div></div></div>))}</div>
+                <div className="space-y-3">{employeeData.map((employee) => (<div key={employee.id} className="flex items-center justify-between p-3 border rounded-lg"><div><div className="font-medium">{employee.name}</div><div className="text-sm text-muted-foreground">Last active: {employee.lastActive}</div></div><div className="text-right"><div className="font-medium">{employee.totalHours}h total</div><div className={`text-sm ${employee.efficiency! >= 80 ? 'text-green-600' : employee.efficiency! >= 65 ? 'text-yellow-600' : 'text-red-600'}`}>{employee.efficiency}% efficiency</div></div></div>))}</div>
               )}
             </CardContent>
           </Card>
@@ -209,14 +231,14 @@ export default function AdminPanel() {
 
   const renderLearningAnalytics = () => {
     const totalLearningHours = employeeData.reduce((sum, emp) => sum + emp.totalHours, 0);
-    const totalSessions = employeeData.reduce((sum, emp) => sum + emp.sessionCount, 0);
-    const avgCompletion = employeeData.length > 0 ? Math.round(employeeData.reduce((sum, emp) => sum + emp.avgCompletion, 0) / employeeData.length) : 0;
+    const totalSessions = employeeData.reduce((sum, emp) => sum + (emp.sessionCount || 0), 0);
+    const avgCompletion = employeeData.length > 0 ? Math.round(employeeData.reduce((sum, emp) => sum + (emp.avgCompletion || 0), 0) / employeeData.length) : 0;
     
     const allTopics = employeeData.flatMap(emp => emp.topTopic !== 'None' ? emp.topTopic : []);
-    const topicCounts = allTopics.reduce((acc, topic) => { acc[topic] = (acc[topic] || 0) + 1; return acc; }, {} as Record<string, number>);
+    const topicCounts = allTopics.reduce((acc, topic) => { acc[topic as string] = (acc[topic as string] || 0) + 1; return acc; }, {} as Record<string, number>);
     const topTopics = Object.entries(topicCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(item => item[0]);
 
-    const topLearners = employeeData.sort((a, b) => b.totalHours - a.totalHours).slice(0, 3);
+    const topLearners = [...employeeData].sort((a, b) => b.totalHours - a.totalHours).slice(0, 3);
 
     return (
       <div className="grid gap-6">
@@ -231,7 +253,7 @@ export default function AdminPanel() {
             <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" />Employee Learning Overview</CardTitle></CardHeader>
             <CardContent>
               {isLoadingEmployees ? <Skeleton className="h-24 w-full" /> : employeeData.length === 0 ? <div className="text-muted-foreground">No employees found.</div> : (
-                <div className="space-y-3">{employeeData.map((employee) => (<div key={employee.id} className="flex items-center justify-between p-3 border rounded-lg"><div><div className="font-medium">{employee.name}</div><div className="text-sm text-muted-foreground">Top Topic: {employee.topTopic}</div></div><div className="text-right"><div className="font-medium">{employee.totalHours}h learned</div><div className={`text-sm ${employee.avgCompletion >= 80 ? 'text-green-600' : employee.avgCompletion >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>{employee.avgCompletion}% success rate</div></div></div>))}</div>
+                <div className="space-y-3">{employeeData.map((employee) => (<div key={employee.id} className="flex items-center justify-between p-3 border rounded-lg"><div><div className="font-medium">{employee.name}</div><div className="text-sm text-muted-foreground">Top Topic: {employee.topTopic}</div></div><div className="text-right"><div className="font-medium">{employee.totalHours}h learned</div><div className={`text-sm ${employee.avgCompletion! >= 80 ? 'text-green-600' : employee.avgCompletion! >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>{employee.avgCompletion}% success rate</div></div></div>))}</div>
               )}
             </CardContent>
           </Card>
@@ -283,3 +305,5 @@ export default function AdminPanel() {
     </div>
   );
 }
+
+    

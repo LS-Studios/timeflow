@@ -14,6 +14,8 @@ export interface UserAccount {
     email: string;
 }
 
+type EmployeeData = { userId: string; account: UserAccount | null; workSessions: Session[]; learningSessions: Session[]; };
+
 /**
  * Defines the contract for any data persistence service.
  * Both Firebase and LocalStorage providers will implement this.
@@ -36,9 +38,10 @@ interface StorageProvider {
     getOrganization(serialNumber: string): Promise<OrganizationData | null>;
     updateOrganizationName(serialNumber: string, name: string): Promise<void>;
     onOrganizationChange(serialNumber: string, callback: (data: OrganizationData | null) => void): () => void; // Real-time listener for org data
+    onOrganizationEmployeesChange(serialNumber: string, callback: (employees: EmployeeData[]) => void): () => void; // Real-time listener for employees and their data
     joinOrganization(userId: string, serialNumber: string): Promise<boolean>;
     getOrganizationEmployees(serialNumber: string): Promise<string[]>;
-    getOrganizationEmployeeData(serialNumber: string): Promise<{ userId: string; account: UserAccount | null; workSessions: Session[]; learningSessions: Session[]; }[]>;
+    getOrganizationEmployeeData(serialNumber: string): Promise<EmployeeData[]>;
 }
 
 /**
@@ -68,20 +71,24 @@ class FirebaseStorageProvider implements StorageProvider {
             let sessions: Session[] = [];
             if (snapshot.exists()) {
                 const rawSessions = snapshot.val() || [];
-                sessions = rawSessions.map((s: any) => ({
-                    ...s,
-                    start: s.start ? new Date(s.start) : new Date(),
-                    end: s.end ? new Date(s.end) : null,
-                    steps: (s.steps || []).map((step: any) => ({
-                        ...step,
-                        start: step.start ? new Date(step.start) : new Date(),
-                        end: step.end ? new Date(step.end) : null,
-                    })),
-                }));
+                sessions = this.parseSessions(rawSessions);
             }
             callback(sessions);
         });
         return () => off(sessionsRef, 'value', listener);
+    }
+
+    private parseSessions(rawSessions: any[]): Session[] {
+        return rawSessions.map((s: any) => ({
+            ...s,
+            start: s.start ? new Date(s.start) : new Date(),
+            end: s.end ? new Date(s.end) : null,
+            steps: (s.steps || []).map((step: any) => ({
+                ...step,
+                start: step.start ? new Date(step.start) : new Date(),
+                end: step.end ? new Date(step.end) : null,
+            })),
+        }));
     }
 
     async saveSessions(userId: string, mode: AppMode, sessions: Session[]): Promise<void> {
@@ -117,17 +124,7 @@ class FirebaseStorageProvider implements StorageProvider {
     private async getSessions(userId: string, mode: AppMode): Promise<Session[]> {
         const snapshot = await get(ref(db, `users/${userId}/${mode}Sessions`));
         if (snapshot.exists()) {
-            const sessions = snapshot.val() || [];
-            return sessions.map((s: any) => ({
-                ...s,
-                start: s.start ? new Date(s.start) : new Date(),
-                end: s.end ? new Date(s.end) : null,
-                steps: (s.steps || []).map((step: any) => ({
-                    ...step,
-                    start: step.start ? new Date(step.start) : new Date(),
-                    end: step.end ? new Date(step.end) : null,
-                })),
-            }));
+            return this.parseSessions(snapshot.val() || []);
         }
         return [];
     }
@@ -193,6 +190,55 @@ class FirebaseStorageProvider implements StorageProvider {
         });
         return () => off(orgRef, 'value', listener);
     }
+    
+    onOrganizationEmployeesChange(serialNumber: string, callback: (employees: EmployeeData[]) => void): () => void {
+        const employeesRef = ref(db, `organizations/${serialNumber}/employees`);
+        let employeeListeners: { [userId: string]: () => void } = {};
+        let employeeData: { [userId: string]: EmployeeData } = {};
+
+        const updateCallback = () => {
+            callback(Object.values(employeeData));
+        };
+        
+        const employeeListListener = onValue(employeesRef, (snapshot) => {
+            const newEmployeeIds: string[] = snapshot.exists() ? snapshot.val() : [];
+            const oldEmployeeIds = Object.keys(employeeListeners);
+            
+            // Remove listeners for employees who left
+            oldEmployeeIds.forEach(userId => {
+                if (!newEmployeeIds.includes(userId)) {
+                    employeeListeners[userId](); // Unsubscribe
+                    delete employeeListeners[userId];
+                    delete employeeData[userId];
+                }
+            });
+
+            // Add listeners for new employees
+            newEmployeeIds.forEach(userId => {
+                if (!oldEmployeeIds.includes(userId)) {
+                    const userRef = ref(db, `users/${userId}`);
+                    const userListener = onValue(userRef, (userSnapshot) => {
+                        const userData = userSnapshot.val();
+                        employeeData[userId] = {
+                            userId,
+                            account: userData?.account || null,
+                            workSessions: this.parseSessions(userData?.workSessions || []),
+                            learningSessions: this.parseSessions(userData?.learningSessions || []),
+                        };
+                        updateCallback();
+                    });
+                    employeeListeners[userId] = () => off(userRef, 'value', userListener);
+                }
+            });
+            updateCallback();
+        });
+
+        // Return a function that unsubscribes from all listeners
+        return () => {
+            off(employeesRef, 'value', employeeListListener);
+            Object.values(employeeListeners).forEach(unsubscribe => unsubscribe());
+        };
+    }
 
     async joinOrganization(userId: string, serialNumber: string): Promise<boolean> {
         const orgSnapshot = await get(ref(db, `organizations/${serialNumber}`));
@@ -211,7 +257,7 @@ class FirebaseStorageProvider implements StorageProvider {
         return snapshot.exists() ? snapshot.val() : [];
     }
 
-    async getOrganizationEmployeeData(serialNumber: string): Promise<{ userId: string; account: UserAccount | null; workSessions: Session[]; learningSessions: Session[]; }[]> {
+    async getOrganizationEmployeeData(serialNumber: string): Promise<EmployeeData[]> {
         const employeeIds = await this.getOrganizationEmployees(serialNumber);
         const employeeData = await Promise.all(
             employeeIds.map(async (userId) => {
@@ -399,6 +445,11 @@ class LocalStorageProvider implements StorageProvider {
        return () => {};
     }
 
+    onOrganizationEmployeesChange(serialNumber: string, callback: (employees: EmployeeData[]) => void): () => void {
+        // Not implemented for local storage
+        return () => {};
+    }
+
     async joinOrganization(userId: string, serialNumber: string): Promise<boolean> {
         if (typeof window === 'undefined') return Promise.resolve(false);
         
@@ -423,7 +474,7 @@ class LocalStorageProvider implements StorageProvider {
         return Promise.resolve(orgData.employees);
     }
 
-    async getOrganizationEmployeeData(serialNumber: string): Promise<{ userId: string; account: UserAccount | null; workSessions: Session[]; learningSessions: Session[]; }[]> {
+    async getOrganizationEmployeeData(serialNumber: string): Promise<EmployeeData[]> {
         if (typeof window === 'undefined') return Promise.resolve([]);
         
         const employeeIds = await this.getOrganizationEmployees(serialNumber);
@@ -542,6 +593,10 @@ class StorageServiceFacade implements StorageProvider {
     onOrganizationChange(serialNumber: string, callback: (data: OrganizationData | null) => void): () => void {
         return this.firebaseProvider.onOrganizationChange(serialNumber, callback);
     }
+    
+    onOrganizationEmployeesChange(serialNumber: string, callback: (employees: EmployeeData[]) => void): () => void {
+        return this.firebaseProvider.onOrganizationEmployeesChange(serialNumber, callback);
+    }
 
     joinOrganization(userId: string, serialNumber: string): Promise<boolean> {
         return this.firebaseProvider.joinOrganization(userId, serialNumber);
@@ -551,7 +606,7 @@ class StorageServiceFacade implements StorageProvider {
         return this.firebaseProvider.getOrganizationEmployees(serialNumber);
     }
 
-    getOrganizationEmployeeData(serialNumber: string): Promise<{ userId: string; account: UserAccount | null; workSessions: Session[]; learningSessions: Session[]; }[]> {
+    getOrganizationEmployeeData(serialNumber: string): Promise<EmployeeData[]> {
         // Always use Firebase for organization data since organizations are shared
         return this.firebaseProvider.getOrganizationEmployeeData(serialNumber);
     }
