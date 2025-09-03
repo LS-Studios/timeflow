@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSettings } from "@/lib/settings-provider";
 import { useTranslation } from "@/lib/i18n";
-import { Copy, Building, Users, TrendingUp, AlertTriangle, Award, Brain, Clock, BookOpen, BarChart2, Trash2 } from "lucide-react";
+import { Copy, Building, Users, TrendingUp, AlertTriangle, Award, Brain, Clock, BookOpen, BarChart2, Trash2, Share2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -129,10 +129,7 @@ export default function AdminPanel() {
         setOrganizationName(existingOrg.name);
         await updateSettings({ organizationName: existingOrg.name, organizationSerialNumber: existingOrg.serialNumber });
       } else {
-        // No existing org found, create a new one
-        const newSerial = Math.random().toString(36).substring(2, 11).toUpperCase();
-        setSerialNumber(newSerial);
-        // The organization name will be set by the user and saved via saveOrganizationName
+        // No existing org found, create a new one using a client-side-only effect
         setOrganizationName(""); 
       }
       setIsLoading(false);
@@ -141,6 +138,14 @@ export default function AdminPanel() {
     initializeOrRestoreOrganization();
 
   }, [settings.isAdmin, user, router, updateSettings]);
+
+  useEffect(() => {
+    // This effect runs only on the client to avoid hydration mismatch
+    if (settings.isAdmin && user && !settings.organizationSerialNumber && !isLoading) {
+        const newSerial = Math.random().toString(36).substring(2, 11).toUpperCase();
+        setSerialNumber(newSerial);
+    }
+  }, [settings.isAdmin, user, settings.organizationSerialNumber, isLoading]);
 
 
   useEffect(() => {
@@ -174,6 +179,15 @@ export default function AdminPanel() {
     toast({
       title: "Serial Number Copied",
       description: "The organization serial number has been copied to your clipboard.",
+    });
+  };
+
+  const copyShareLink = () => {
+    const shareUrl = `https://timeflo.leshift.de?organisation=${serialNumber}`;
+    navigator.clipboard.writeText(shareUrl);
+    toast({
+      title: "Share Link Copied",
+      description: "The invitation link has been copied to your clipboard.",
     });
   };
 
@@ -328,9 +342,10 @@ export default function AdminPanel() {
                 <Label>Organization Serial Number</Label>
                 <div className="flex gap-2">
                   <Input value={serialNumber} readOnly className="font-mono" />
-                  <Button onClick={copySerialNumber} size="sm" variant="outline"><Copy className="h-4 w-4" /></Button>
+                  <Button onClick={copySerialNumber} size="icon" variant="outline"><Copy className="h-4 w-4" /></Button>
+                  <Button onClick={copyShareLink} size="icon" variant="outline"><Share2 className="h-4 w-4" /></Button>
                 </div>
-                <p className="text-xs text-muted-foreground">Share this serial number with employees to join your organization</p>
+                <p className="text-xs text-muted-foreground">Share this link with employees to have them join your organization</p>
               </div>
             </div>
             {settings.organizationSerialNumber && (
