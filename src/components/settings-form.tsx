@@ -68,13 +68,16 @@ export function SettingsForm() {
   }
 
   const handleDailyGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.valueAsNumber;
-    setWorkGoals({ dailyGoal: isNaN(value) ? undefined : value });
+    const value = e.target.value;
+    // Treat empty string as 0, otherwise parse as number
+    const numericValue = value === '' ? 0 : parseInt(value, 10);
+    setWorkGoals({ dailyGoal: isNaN(numericValue) ? undefined : numericValue });
   };
   
   const handleWeeklyGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.valueAsNumber;
-    setWorkGoals({ weeklyGoal: isNaN(value) ? undefined : value });
+    const value = e.target.value;
+    const numericValue = value === '' ? 0 : parseInt(value, 10);
+    setWorkGoals({ weeklyGoal: isNaN(numericValue) ? undefined : numericValue });
   };
 
   const isGuest = user?.uid === 'guest';
@@ -121,9 +124,10 @@ export function SettingsForm() {
                   <Input 
                     id="daily-goal" 
                     type="number" 
-                    value={settings.dailyGoal || ''}
+                    value={settings.dailyGoal ?? ''}
                     onChange={handleDailyGoalChange}
-                    className="w-24" 
+                    className="w-24"
+                    placeholder="0"
                   />
                 </div>
                 <div className="flex items-center justify-between">
@@ -131,9 +135,10 @@ export function SettingsForm() {
                   <Input 
                     id="weekly-goal" 
                     type="number" 
-                    value={settings.weeklyGoal || ''}
+                    value={settings.weeklyGoal ?? ''}
                     onChange={handleWeeklyGoalChange}
-                    className="w-24" 
+                    className="w-24"
+                    placeholder="0"
                   />
                 </div>
               </CardContent>
