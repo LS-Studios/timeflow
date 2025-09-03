@@ -230,51 +230,21 @@ class FirebaseStorageProvider implements StorageProvider {
     
     onOrganizationEmployeesChange(serialNumber: string, callback: (employees: EmployeeData[]) => void): () => void {
         const employeesRef = ref(db, `organizations/${serialNumber}/employees`);
-        let employeeListeners: { [userId: string]: () => void } = {};
-        let employeeDataCache: { [userId: string]: EmployeeData } = {};
 
-        const updateCallback = () => {
-            callback(Object.values(employeeDataCache));
-        };
-        
-        const employeeListListener = onValue(employeesRef, (snapshot) => {
-            const newEmployeeIds: string[] = snapshot.exists() ? snapshot.val() : [];
-            const oldEmployeeIds = Object.keys(employeeListeners);
-            
-            // Remove listeners for employees who left
-            oldEmployeeIds.forEach(userId => {
-                if (!newEmployeeIds.includes(userId)) {
-                    employeeListeners[userId](); // Unsubscribe
-                    delete employeeListeners[userId];
-                    delete employeeDataCache[userId];
-                }
-            });
-
-            // Add listeners for new employees
-            newEmployeeIds.forEach(userId => {
-                if (!oldEmployeeIds.includes(userId)) {
-                    const userRef = ref(db, `users/${userId}`);
-                    const userListener = onValue(userRef, (userSnapshot) => {
-                        const userData = userSnapshot.val();
-                        employeeDataCache[userId] = {
-                            userId,
-                            account: userData?.account || null,
-                            workSessions: this.parseSessions(userData?.workSessions || []),
-                            learningSessions: this.parseSessions(userData?.learningSessions || []),
-                        };
-                        updateCallback();
-                    });
-                    employeeListeners[userId] = () => off(userRef, 'value', userListener);
-                }
-            });
-            updateCallback();
+        const listener = onValue(employeesRef, async (snapshot) => {
+            if (snapshot.exists()) {
+                const employeeIds: string[] = snapshot.val();
+                // When the employee list changes, fetch all data for all employees.
+                const allEmployeeData = await this.getOrganizationEmployeeData(serialNumber, employeeIds);
+                callback(allEmployeeData);
+            } else {
+                // No employees, return empty array.
+                callback([]);
+            }
         });
-
-        // Return a function that unsubscribes from all listeners
-        return () => {
-            off(employeesRef, 'value', employeeListListener);
-            Object.values(employeeListeners).forEach(unsubscribe => unsubscribe());
-        };
+    
+        // Return the unsubscriber function
+        return () => off(employeesRef, 'value', listener);
     }
 
     async joinOrganization(userId: string, serialNumber: string): Promise<boolean> {
@@ -294,8 +264,12 @@ class FirebaseStorageProvider implements StorageProvider {
         return snapshot.exists() ? snapshot.val() : [];
     }
 
-    async getOrganizationEmployeeData(serialNumber: string): Promise<EmployeeData[]> {
-        const employeeIds = await this.getOrganizationEmployees(serialNumber);
+    async getOrganizationEmployeeData(serialNumber: string, employeeIds?: string[]): Promise<EmployeeData[]> {
+        if (!employeeIds) {
+            employeeIds = await this.getOrganizationEmployees(serialNumber);
+        }
+        if (!employeeIds || employeeIds.length === 0) return [];
+
         const employeeDataPromises = employeeIds.map(async (userId) => {
             const userSnapshot = await get(ref(db, `users/${userId}`));
             const userData = userSnapshot.val();
@@ -616,8 +590,8 @@ class StorageServiceFacade implements StorageProvider {
         return this.firebaseProvider.getOrganizationEmployees(serialNumber);
     }
 
-    getOrganizationEmployeeData(serialNumber: string): Promise<EmployeeData[]> {
-        return this.firebaseProvider.getOrganizationEmployeeData(serialNumber);
+    getOrganizationEmployeeData(serialNumber: string, employeeIds?: string[]): Promise<EmployeeData[]> {
+        return this.firebaseProvider.getOrganizationEmployeeData(serialNumber, employeeIds);
     }
 }
 
