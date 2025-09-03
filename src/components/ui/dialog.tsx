@@ -117,7 +117,7 @@ const DialogScrollableContent = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-4 py-2",
+      "flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-8 py-2",
       className
     )}
     {...props}

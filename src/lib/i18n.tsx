@@ -138,9 +138,17 @@ const translations: Record<Language, Translations> = {
     addTopicPlaceholder: "Add or find a topic...",
     startLearning: "Start Learning",
     endLearningSession: "End Learning Session",
-    endLearningSessionDescription: "Check off your objectives and rate your progress.",
+    endLearningSessionDescription: "Rate how much you accomplished of what you originally planned.",
+    noLearningObjectives: "No learning objectives were set for this session.",
+    generalProgress: "How much did you accomplish?",
+    generalProgressDescription: "Rate how much you accomplished of what you originally planned.",
     totalCompletion: "Total Completion",
     saveAndEnd: "Save & End Session",
+
+    // Admin Settings
+    adminSettings: "Admin Settings",
+    adminSettingsDescription: "Configure admin privileges and access to management features.",
+    enableAdminMode: "Enable Admin Mode",
 
     // Analytics Page
     analytics: "Analytics",
@@ -324,9 +332,17 @@ const translations: Record<Language, Translations> = {
     addTopicPlaceholder: "Thema hinzufügen oder suchen...",
     startLearning: "Lernen starten",
     endLearningSession: "Lernsitzung beenden",
-    endLearningSessionDescription: "Hake deine Ziele ab und bewerte deinen Fortschritt.",
+    endLearningSessionDescription: "Bewerte, wie viel du von dem geschafft hast, was du dir ursprünglich vorgenommen hattest.",
+    noLearningObjectives: "Für diese Sitzung wurden keine Lernziele festgelegt.",
+    generalProgress: "Wie viel hast du geschafft?",
+    generalProgressDescription: "Bewerte, wie viel du von dem geschafft hast, was du dir ursprünglich vorgenommen hattest.",
     totalCompletion: "Gesamterfolg",
     saveAndEnd: "Speichern & Sitzung beenden",
+
+    // Admin Einstellungen
+    adminSettings: "Admin Einstellungen",
+    adminSettingsDescription: "Admin-Berechtigung und Zugang zu Verwaltungsfunktionen konfigurieren.",
+    enableAdminMode: "Admin-Modus aktivieren",
 
     // Analyse-Seite
     analytics: "Analyse",

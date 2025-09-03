@@ -21,6 +21,8 @@ interface SettingsContextType {
   setLanguage: (language: Language) => void;
   setWorkGoals: (goals: { dailyGoal?: number; weeklyGoal?: number }) => void;
   setOrganization: (name: string | null) => void;
+  setIsAdmin: (isAdmin: boolean) => void;
+  updateSettings: (newSettings: Partial<AppSettings>) => void;
   setTimerResetCallback: (callback: TimerResetCallback) => void;
   setTimerIsActiveCallback: (isActive: boolean) => void;
   setEndCurrentSessionCallback: (callback: EndCurrentSessionCallback) => void;
@@ -114,6 +116,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     updateSettings({ organizationName: name || undefined });
   }, [updateSettings]);
 
+  const setIsAdmin = useCallback((isAdmin: boolean) => {
+    updateSettings({ isAdmin });
+  }, [updateSettings]);
+
   const setTimerResetCallback = useCallback((callback: TimerResetCallback) => {
     timerResetCallbackRef.current = callback;
   }, []);
@@ -136,10 +142,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setLanguage,
     setWorkGoals,
     setOrganization,
+    setIsAdmin,
+    updateSettings,
     setTimerResetCallback,
     setTimerIsActiveCallback,
     setEndCurrentSessionCallback
-  }), [settings, isLoaded, timerIsActive, setMode, setTheme, setLanguage, setWorkGoals, setOrganization, setTimerResetCallback, setTimerIsActiveCallback, setEndCurrentSessionCallback]);
+  }), [settings, isLoaded, timerIsActive, setMode, setTheme, setLanguage, setWorkGoals, setOrganization, setIsAdmin, updateSettings, setTimerResetCallback, setTimerIsActiveCallback, setEndCurrentSessionCallback]);
   
 
   return (

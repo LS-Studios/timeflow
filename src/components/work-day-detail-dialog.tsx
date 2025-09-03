@@ -134,7 +134,7 @@ export function WorkDayDetailDialog({ isOpen, onOpenChange, day, onSave, onReque
             </Alert>
           )}
 
-          <div className="py-4 max-h-[60vh] overflow-y-auto">
+          <div className="py-4 max-h-[60vh] md:max-h-none overflow-y-auto md:overflow-visible">
             <div className="relative left-3">
                  <Timeline 
                     sessions={pendingSessions} 

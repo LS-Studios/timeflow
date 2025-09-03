@@ -36,7 +36,7 @@ import { OrganizationDialog } from "./organization-dialog";
 
 export function SettingsForm() {
   const { t } = useTranslation();
-  const { settings, setMode, setTheme, setLanguage, setWorkGoals, setOrganization, timerIsActive } = useSettings();
+  const { settings, setMode, setTheme, setLanguage, setWorkGoals, setOrganization, setIsAdmin, timerIsActive } = useSettings();
   const { user } = useAuth();
   const [isModeChangeDialogOpen, setModeChangeDialogOpen] = useState(false);
   const [targetMode, setTargetMode] = useState<AppMode | null>(null);
@@ -209,6 +209,26 @@ export function SettingsForm() {
                   <SelectItem value="de">Deutsch</SelectItem>
                 </SelectContent>
               </Select>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('adminSettings')}</CardTitle>
+            <CardDescription>{t('adminSettingsDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="admin-toggle"
+                checked={settings.isAdmin || false}
+                onChange={(e) => setIsAdmin(e.target.checked)}
+                className="rounded border-gray-300"
+                disabled={isGuest}
+              />
+              <Label htmlFor="admin-toggle">{t('enableAdminMode')}</Label>
+            </div>
           </CardContent>
         </Card>
 

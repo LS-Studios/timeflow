@@ -13,6 +13,11 @@ import { AuthProvider } from "@/lib/auth-provider";
 export const metadata: Metadata = {
   title: "Timeflow",
   description: "A high-quality timer for work and study.",
+  icons: {
+    icon: "/Icon-No-BG.png",
+    shortcut: "/Icon-No-BG.png",
+    apple: "/Icon-No-BG.png",
+  },
 };
 
 export default function RootLayout({

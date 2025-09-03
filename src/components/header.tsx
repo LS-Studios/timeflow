@@ -2,14 +2,16 @@
 "use client";
 
 import Link from "next/link";
-import { Settings, BarChartHorizontal, User } from "lucide-react";
+import { Settings, BarChartHorizontal, User, Shield } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-provider";
+import { useSettings } from "@/lib/settings-provider";
 import { useTranslation } from "@/lib/i18n";
 
 export function Header() {
   const { openProfileDialog, user } = useAuth();
+  const { settings } = useSettings();
   const { t } = useTranslation();
   
   if (!user) {
@@ -44,6 +46,14 @@ export function Header() {
                 <span className="hidden lg:inline">{t('analytics')}</span>
               </Button>
             </Link>
+            {settings.isAdmin && (
+              <Link href="/admin">
+                <Button variant="ghost" className="gap-2" aria-label="Admin Panel">
+                  <Shield className="h-5 w-5" />
+                  <span className="hidden lg:inline">Admin</span>
+                </Button>
+              </Link>
+            )}
             <Link href="/settings">
               <Button variant="ghost" className="gap-2" aria-label={t('settings')}>
                 <Settings className="h-5 w-5" />

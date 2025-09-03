@@ -172,7 +172,7 @@ export function EditLearningDialog({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid gap-6 py-4 max-h-[60vh] overflow-y-auto pr-2">
+        <div className="grid gap-6 p-4 max-h-[60vh] overflow-y-auto">
            <div className="space-y-2">
                 <Label htmlFor="goal">{t('learningGoal')}</Label>
                 <Input
@@ -249,7 +249,7 @@ export function EditLearningDialog({
         
         <Separator />
 
-        <div className="flex justify-between items-center p-3 rounded-lg bg-muted mt-2">
+        <div className="flex justify-between items-center pt-4 px-4 rounded-lg">
             <span className="font-semibold">{t('totalCompletion')}</span>
             <span className="text-2xl font-bold text-primary">{totalCompletion}%</span>
         </div>

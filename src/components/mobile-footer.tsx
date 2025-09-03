@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Settings, BarChartHorizontal, User, Clock } from "lucide-react";
+import { Settings, BarChartHorizontal, User, Clock, Shield } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useTranslation } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-provider";
+import { useSettings } from "@/lib/settings-provider";
 import { usePathname } from "next/navigation";
 
 export function MobileFooter() {
   const { t } = useTranslation();
   const { openProfileDialog, user } = useAuth();
+  const { settings } = useSettings();
   const pathname = usePathname();
   
   if (!user) {
@@ -18,7 +20,7 @@ export function MobileFooter() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background border-t">
-      <nav className="flex items-center justify-around h-16 px-4">
+      <nav className={`flex items-center h-16 px-4 ${settings.isAdmin ? 'justify-between' : 'justify-around'}`}>
         <Link href="/" className="flex flex-col items-center gap-1">
           <Clock className={`h-5 w-5 ${pathname === '/' ? 'text-primary' : 'text-muted-foreground'}`} />
           <span className={`text-xs ${pathname === '/' ? 'text-primary' : 'text-muted-foreground'}`}>Timer</span>
@@ -27,13 +29,19 @@ export function MobileFooter() {
           <BarChartHorizontal className={`h-5 w-5 ${pathname === '/analytics' ? 'text-primary' : 'text-muted-foreground'}`} />
           <span className={`text-xs ${pathname === '/analytics' ? 'text-primary' : 'text-muted-foreground'}`}>{t('analytics')}</span>
         </Link>
+        {settings.isAdmin && (
+          <Link href="/admin" className="flex flex-col items-center gap-1">
+            <Shield className={`h-5 w-5 ${pathname === '/admin' ? 'text-primary' : 'text-muted-foreground'}`} />
+            <span className={`text-xs ${pathname === '/admin' ? 'text-primary' : 'text-muted-foreground'}`}>Admin</span>
+          </Link>
+        )}
         <Link href="/settings" className="flex flex-col items-center gap-1">
           <Settings className={`h-5 w-5 ${pathname === '/settings' ? 'text-primary' : 'text-muted-foreground'}`} />
           <span className={`text-xs ${pathname === '/settings' ? 'text-primary' : 'text-muted-foreground'}`}>{t('settings')}</span>
         </Link>
         <button onClick={openProfileDialog} className="flex flex-col items-center gap-1">
           <User className="h-5 w-5 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">{t('profile')}</span>
+          <span className={`text-xs text-muted-foreground`}>{t('profile')}</span>
         </button>
       </nav>
     </div>

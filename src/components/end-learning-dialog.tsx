@@ -24,6 +24,7 @@ import type { LearningObjective, Session } from "@/lib/types";
 import { Target, CheckCircle2 } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { cn } from "@/lib/utils";
+import { Slider } from "@/components/ui/slider";
 
 interface EndLearningDialogProps {
   isOpen: boolean;
@@ -40,11 +41,15 @@ export function EndLearningDialog({
 }: EndLearningDialogProps) {
   const { t } = useTranslation();
   const [internalObjectives, setInternalObjectives] = useState<LearningObjective[]>([]);
+  const [generalProgress, setGeneralProgress] = useState<number>(0);
 
   useEffect(() => {
     // When the dialog opens with a valid session, initialize its internal state
     if (isOpen && session?.learningObjectives) {
       setInternalObjectives(session.learningObjectives.map(obj => ({ ...obj })));
+    }
+    if (isOpen) {
+      setGeneralProgress(0);
     }
   }, [isOpen, session]);
 
@@ -61,10 +66,10 @@ export function EndLearningDialog({
   }
 
   const totalCompletion = useMemo(() => {
-    if (internalObjectives.length === 0) return 0;
+    if (internalObjectives.length === 0) return generalProgress;
     const sum = internalObjectives.reduce((acc, obj) => acc + obj.completed, 0);
     return Math.round(sum / internalObjectives.length);
-  }, [internalObjectives]);
+  }, [internalObjectives, generalProgress]);
 
   const handleEnd = () => {
     onEnd(internalObjectives, totalCompletion);
@@ -74,13 +79,15 @@ export function EndLearningDialog({
     if (!open) {
        // Reset internal state when closing
        setInternalObjectives([]);
+       setGeneralProgress(0);
     }
     onOpenChange(open);
   };
   
   const hasMadeProgress = useMemo(() => {
+    if (internalObjectives.length === 0) return generalProgress > 0;
     return internalObjectives.some(obj => obj.completed > 0);
-  }, [internalObjectives]);
+  }, [internalObjectives, generalProgress]);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -97,7 +104,29 @@ export function EndLearningDialog({
         
         <DialogScrollableContent>
           <div className="space-y-3">
-            {internalObjectives.map((obj, index) => (
+            {internalObjectives.length === 0 ? (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <Label htmlFor="general-progress">{t('generalProgress')}</Label>
+                  <div className="space-y-2">
+                    <Slider
+                      id="general-progress"
+                      value={[generalProgress]}
+                      onValueChange={(value) => setGeneralProgress(value[0])}
+                      max={100}
+                      step={5}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>0%</span>
+                      <span className="font-medium text-primary">{generalProgress}%</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              internalObjectives.map((obj, index) => (
               <div 
                 key={index} 
                 className={cn(
@@ -133,7 +162,8 @@ export function EndLearningDialog({
                     </SelectContent>
                 </Select>
               </div>
-            ))}
+              ))
+            )}
           </div>
           
           <Separator className="my-4" />

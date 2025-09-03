@@ -110,7 +110,7 @@ export function OrganizationDialog({
           </div>
         ) : (
           <>
-            <div className="grid gap-4 py-4">
+            <div className="grid gap-4 p-4">
               <div className="space-y-2">
                 <Label htmlFor="serial-number">{t('serialNumber')}</Label>
                 <Input

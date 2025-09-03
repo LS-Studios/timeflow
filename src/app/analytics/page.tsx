@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EditLearningDialog } from "@/components/edit-learning-dialog";
 import { WorkDayDetailDialog } from "@/components/work-day-detail-dialog";
+import { LearningSessionDetailDialog } from "@/components/learning-session-detail-dialog";
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -683,46 +684,9 @@ export default function AnalyticsPage() {
       </>
   )};
 
-  const LearningSessionDetailDialog = () => {
-    if (!selectedSession) return null;
-
-    const { learningGoal, learningObjectives = [], completionPercentage } = selectedSession;
-
-    const handleEditClick = () => {
-      setSessionToEdit(selectedSession);
-      setSelectedSession(null);
-    }
-
-    return (
-      <Dialog open={!!selectedSession} onOpenChange={() => setSelectedSession(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{learningGoal}</DialogTitle>
-            <DialogDescription>{t('learningSessionDetails')}</DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-3">
-             {learningObjectives.map((obj, index) => (
-                <div key={index} className="flex items-center gap-3">
-                    {obj.completed === 100 ? <CheckCircle className="h-5 w-5 text-green-500" /> : <Circle className="h-5 w-5 text-yellow-500" />}
-                    <span className="flex-1">{obj.text}</span>
-                    <Badge variant="outline">{obj.completed}%</Badge>
-                </div>
-             ))}
-          </div>
-          <div className="flex justify-between items-center p-3 rounded-lg bg-muted mt-4">
-            <span className="font-semibold">{t('totalCompletion')}</span>
-            <span className="text-xl font-bold text-primary">{completionPercentage}%</span>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleEditClick}>
-              <Edit className="mr-2 h-4 w-4" />
-              {t('edit')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    )
-  }
+  const handleSessionEdit = (session: Session) => {
+    setSessionToEdit(session);
+  };
 
   return (
     <div className="container max-w-5xl py-8 mx-auto px-4">
@@ -739,7 +703,12 @@ export default function AnalyticsPage() {
         renderLearningAnalytics()
       )}
       
-      <LearningSessionDetailDialog />
+      <LearningSessionDetailDialog
+        session={selectedSession}
+        isOpen={!!selectedSession}
+        onOpenChange={(open) => !open && setSelectedSession(null)}
+        onEditClick={handleSessionEdit}
+      />
       <EditLearningDialog
         isOpen={!!sessionToEdit}
         onOpenChange={(isOpen) => !isOpen && setSessionToEdit(null)}

@@ -2,7 +2,7 @@
 "use client";
 import { ref, get, set, onValue, off } from "firebase/database";
 import { db } from "./firebase";
-import type { AppSettings, Session, SessionStep, AppMode } from "./types";
+import type { AppSettings, Session, SessionStep, AppMode, OrganizationData } from "./types";
 
 const LOCAL_SETTINGS_KEY = 'timeflow_guest_settings';
 const LOCAL_SESSIONS_PREFIX = 'timeflow_guest_sessions_';
@@ -30,6 +30,13 @@ interface StorageProvider {
     getGuestUser(): { uid: string; name: string; email: string } | null;
     saveGuestUser(user: { uid: string; name: string; email: string }): void;
     clearGuestUser(): void;
+    // Organization management
+    createOrganization(adminUserId: string, serialNumber: string, name: string): Promise<void>;
+    getOrganization(serialNumber: string): Promise<OrganizationData | null>;
+    updateOrganizationName(serialNumber: string, name: string): Promise<void>;
+    joinOrganization(userId: string, serialNumber: string): Promise<boolean>;
+    getOrganizationEmployees(serialNumber: string): Promise<string[]>;
+    getOrganizationEmployeeData(serialNumber: string): Promise<{ userId: string; account: UserAccount | null; workSessions: Session[]; learningSessions: Session[]; }[]>;
 }
 
 /**
@@ -148,6 +155,66 @@ class FirebaseStorageProvider implements StorageProvider {
     getGuestUser(): null { return null; }
     saveGuestUser(): void {}
     clearGuestUser(): void {}
+
+    // Organization management for Firebase
+    async createOrganization(adminUserId: string, serialNumber: string, name: string): Promise<void> {
+        const orgData: OrganizationData = {
+            serialNumber,
+            name,
+            adminUserId,
+            createdAt: new Date().toISOString(),
+            employees: [adminUserId]
+        };
+        console.log('Creating organization in Firebase:', orgData);
+        await set(ref(db, `organizations/${serialNumber}`), orgData);
+        console.log('Organization created successfully');
+    }
+
+    async getOrganization(serialNumber: string): Promise<OrganizationData | null> {
+        console.log('Getting organization from Firebase:', serialNumber);
+        const snapshot = await get(ref(db, `organizations/${serialNumber}`));
+        const result = snapshot.exists() ? snapshot.val() : null;
+        console.log('Organization data retrieved:', result);
+        return result;
+    }
+
+    async updateOrganizationName(serialNumber: string, name: string): Promise<void> {
+        console.log('Updating organization name in Firebase:', serialNumber, name);
+        await set(ref(db, `organizations/${serialNumber}/name`), name);
+        console.log('Organization name updated successfully');
+    }
+
+    async joinOrganization(userId: string, serialNumber: string): Promise<boolean> {
+        const orgSnapshot = await get(ref(db, `organizations/${serialNumber}`));
+        if (!orgSnapshot.exists()) return false;
+        
+        const org: OrganizationData = orgSnapshot.val();
+        if (!org.employees.includes(userId)) {
+            const updatedEmployees = [...org.employees, userId];
+            await set(ref(db, `organizations/${serialNumber}/employees`), updatedEmployees);
+        }
+        return true;
+    }
+
+    async getOrganizationEmployees(serialNumber: string): Promise<string[]> {
+        const snapshot = await get(ref(db, `organizations/${serialNumber}/employees`));
+        return snapshot.exists() ? snapshot.val() : [];
+    }
+
+    async getOrganizationEmployeeData(serialNumber: string): Promise<{ userId: string; account: UserAccount | null; workSessions: Session[]; learningSessions: Session[]; }[]> {
+        const employeeIds = await this.getOrganizationEmployees(serialNumber);
+        const employeeData = await Promise.all(
+            employeeIds.map(async (userId) => {
+                const [account, workSessions, learningSessions] = await Promise.all([
+                    this.getUserAccount(userId),
+                    this.getSessions(userId, 'work'),
+                    this.getSessions(userId, 'learning')
+                ]);
+                return { userId, account, workSessions, learningSessions };
+            })
+        );
+        return employeeData;
+    }
 }
 
 
@@ -283,6 +350,81 @@ class LocalStorageProvider implements StorageProvider {
         return () => {};
     }
 
+    async createOrganization(adminUserId: string, serialNumber: string, name: string): Promise<void> {
+        if (typeof window === 'undefined') return Promise.resolve();
+        
+        const orgData: OrganizationData = {
+            serialNumber,
+            name,
+            adminUserId,
+            createdAt: new Date().toISOString(),
+            employees: [adminUserId]
+        };
+        
+        localStorage.setItem(`timeflow_organization_${serialNumber}`, JSON.stringify(orgData));
+        return Promise.resolve();
+    }
+
+    async getOrganization(serialNumber: string): Promise<OrganizationData | null> {
+        if (typeof window === 'undefined') return Promise.resolve(null);
+        
+        const orgJson = localStorage.getItem(`timeflow_organization_${serialNumber}`);
+        return Promise.resolve(orgJson ? JSON.parse(orgJson) : null);
+    }
+
+    async updateOrganizationName(serialNumber: string, name: string): Promise<void> {
+        if (typeof window === 'undefined') return Promise.resolve();
+        
+        const orgJson = localStorage.getItem(`timeflow_organization_${serialNumber}`);
+        if (orgJson) {
+            const orgData = JSON.parse(orgJson);
+            orgData.name = name;
+            localStorage.setItem(`timeflow_organization_${serialNumber}`, JSON.stringify(orgData));
+        }
+        return Promise.resolve();
+    }
+
+    async joinOrganization(userId: string, serialNumber: string): Promise<boolean> {
+        if (typeof window === 'undefined') return Promise.resolve(false);
+        
+        const orgJson = localStorage.getItem(`timeflow_organization_${serialNumber}`);
+        if (!orgJson) return Promise.resolve(false);
+        
+        const orgData: OrganizationData = JSON.parse(orgJson);
+        if (!orgData.employees.includes(userId)) {
+            orgData.employees.push(userId);
+            localStorage.setItem(`timeflow_organization_${serialNumber}`, JSON.stringify(orgData));
+        }
+        return Promise.resolve(true);
+    }
+
+    async getOrganizationEmployees(serialNumber: string): Promise<string[]> {
+        if (typeof window === 'undefined') return Promise.resolve([]);
+        
+        const orgJson = localStorage.getItem(`timeflow_organization_${serialNumber}`);
+        if (!orgJson) return Promise.resolve([]);
+        
+        const orgData: OrganizationData = JSON.parse(orgJson);
+        return Promise.resolve(orgData.employees);
+    }
+
+    async getOrganizationEmployeeData(serialNumber: string): Promise<{ userId: string; account: UserAccount | null; workSessions: Session[]; learningSessions: Session[]; }[]> {
+        if (typeof window === 'undefined') return Promise.resolve([]);
+        
+        const employeeIds = await this.getOrganizationEmployees(serialNumber);
+        const employeeData = await Promise.all(
+            employeeIds.map(async (userId) => {
+                const [account, workSessions, learningSessions] = await Promise.all([
+                    this.getUserAccount(userId),
+                    this.getSessions(userId, 'work'),
+                    this.getSessions(userId, 'learning')
+                ]);
+                return { userId, account, workSessions, learningSessions };
+            })
+        );
+        return employeeData;
+    }
+
     getGuestUser() {
         if (typeof window === 'undefined') return null;
         const userJson = localStorage.getItem(GUEST_USER_KEY);
@@ -367,6 +509,32 @@ class StorageServiceFacade implements StorageProvider {
 
     clearGuestUser() {
         this.localProvider.clearGuestUser();
+    }
+
+    // Organization management - always use Firebase for shared organization data
+    createOrganization(adminUserId: string, serialNumber: string, name: string): Promise<void> {
+        return this.firebaseProvider.createOrganization(adminUserId, serialNumber, name);
+    }
+
+    getOrganization(serialNumber: string): Promise<OrganizationData | null> {
+        return this.firebaseProvider.getOrganization(serialNumber);
+    }
+
+    updateOrganizationName(serialNumber: string, name: string): Promise<void> {
+        return this.firebaseProvider.updateOrganizationName(serialNumber, name);
+    }
+
+    joinOrganization(userId: string, serialNumber: string): Promise<boolean> {
+        return this.firebaseProvider.joinOrganization(userId, serialNumber);
+    }
+
+    getOrganizationEmployees(serialNumber: string): Promise<string[]> {
+        return this.firebaseProvider.getOrganizationEmployees(serialNumber);
+    }
+
+    getOrganizationEmployeeData(serialNumber: string): Promise<{ userId: string; account: UserAccount | null; workSessions: Session[]; learningSessions: Session[]; }[]> {
+        // Always use Firebase for organization data since organizations are shared
+        return this.firebaseProvider.getOrganizationEmployeeData(serialNumber);
     }
 }
 
