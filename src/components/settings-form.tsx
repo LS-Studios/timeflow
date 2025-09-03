@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Monitor, Moon, Sun, Trash2, Brain, Briefcase, Building } from "lucide-react";
+import { Monitor, Moon, Sun, Trash2, Brain, Briefcase, Building, KeyRound, AlertTriangle } from "lucide-react";
 import { useTranslation, type Language } from "@/lib/i18n.tsx";
 import { useSettings } from "@/lib/settings-provider";
 import { useAuth } from "@/lib/auth-provider";
@@ -29,6 +29,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -46,6 +47,11 @@ export function SettingsForm() {
   const [targetMode, setTargetMode] = useState<AppMode | null>(null);
   const [isOrganizationDialogOpen, setOrganizationDialogOpen] = useState(false);
   
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+
   const appModeOptions = [
     { id: "work", label: t('modeWork'), icon: Briefcase },
     { id: "learning", label: t('modeLearning'), icon: Brain },
@@ -72,9 +78,7 @@ export function SettingsForm() {
 
   const handleDailyGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Treat empty string as 0, otherwise parse. This allows deleting the value.
     const numericValue = value === '' ? 0 : parseInt(value, 10);
-    // Ensure we don't save NaN if parsing fails, fall back to current setting.
     setWorkGoals({ dailyGoal: isNaN(numericValue) ? settings.dailyGoal : numericValue });
   };
   
@@ -89,20 +93,31 @@ export function SettingsForm() {
   const handleLeaveOrganization = async () => {
     if (!user || !settings.organizationSerialNumber) return;
     await storageService.leaveOrganization(user.uid, settings.organizationSerialNumber);
-    // This will update the local state and save to DB
-    setOrganization(null, null);
+    updateSettings({ organizationName: null, organizationSerialNumber: null });
   };
   
   const handleDeleteAccount = async () => {
-      const result = await deleteAccount();
-      if (!result.success) {
-          toast({
-              title: t('error'),
-              description: t(result.message),
-              variant: "destructive",
-          })
+      if (!deletePassword) {
+        setDeleteError("Please enter your password.");
+        return;
       }
+      setIsDeleting(true);
+      setDeleteError(null);
+      const result = await deleteAccount(deletePassword);
+      if (!result.success) {
+          setDeleteError(t(result.message));
+      }
+      setIsDeleting(false);
       // On success, auth provider will handle logout and redirect.
+      // If it fails, dialog stays open to show error.
+  }
+  
+  const onOpenDeleteDialog = (open: boolean) => {
+    if(!open) {
+      setDeletePassword("");
+      setDeleteError(null);
+      setIsDeleting(false);
+    }
   }
 
 
@@ -293,7 +308,7 @@ export function SettingsForm() {
             <CardDescription>{t('dangerZoneDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <AlertDialog>
+            <AlertDialog onOpenChange={onOpenDeleteDialog}>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" disabled={isGuest}>
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -307,13 +322,36 @@ export function SettingsForm() {
                     {t('deleteAccountConfirmation')}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
+                <div className="p-2 space-y-4">
+                   <div className="space-y-2">
+                     <Label htmlFor="password">{t('password')}</Label>
+                     <div className="relative">
+                       <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                       <Input
+                          id="password"
+                          type="password"
+                          placeholder="••••••••"
+                          value={deletePassword}
+                          onChange={(e) => setDeletePassword(e.target.value)}
+                          className="pl-9"
+                        />
+                     </div>
+                   </div>
+                   {deleteError && (
+                      <Alert variant="destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>{deleteError}</AlertDescription>
+                      </Alert>
+                    )}
+                </div>
                 <AlertDialogFooter>
                   <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleDeleteAccount}
+                    disabled={!deletePassword || isDeleting}
                     className="bg-destructive hover:bg-destructive/90"
                   >
-                    {t('confirmDelete')}
+                    {isDeleting ? t('deleting') : t('confirmDelete')}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -349,8 +387,6 @@ export function SettingsForm() {
             if (org) {
               const success = await storageService.joinOrganization(user.uid, serialNumber);
               if (success) {
-                // Settings will be updated via the onSettingsChange listener
-                // after the database is updated. Here we can just optimisticlly update.
                 updateSettings({ 
                     organizationName: org.name, 
                     organizationSerialNumber: serialNumber 

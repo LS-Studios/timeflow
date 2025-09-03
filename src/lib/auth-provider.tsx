@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useState, useContext, ReactNode, useMemo, useEffect, useCallback } from 'react';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, type User as FirebaseUser, deleteUser } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, type User as FirebaseUser, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { LoginDialog } from '@/components/login-dialog';
 import { ProfileDialog } from '@/components/profile-dialog';
@@ -26,7 +26,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<AuthResult>;
   register: (name: string, email: string, password: string) => Promise<AuthResult>;
   logout: () => void;
-  deleteAccount: () => Promise<AuthResult>;
+  deleteAccount: (password: string) => Promise<AuthResult>;
   loginAsGuest: () => void;
   openProfileDialog: () => void;
 }
@@ -146,17 +146,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const deleteAccount = useCallback(async (): Promise<AuthResult> => {
+  const deleteAccount = useCallback(async (password: string): Promise<AuthResult> => {
       const currentUser = auth.currentUser;
-      if (!currentUser) return { success: false, message: 'errorGeneric' };
+      if (!currentUser || !currentUser.email) {
+          return { success: false, message: 'errorGeneric' };
+      }
       
-      const userSettings = await storageService.getSettings(currentUser.uid);
-
       try {
-          // 1. Clean up database entries (including organization membership)
+          // 1. Re-authenticate for security
+          const credential = EmailAuthProvider.credential(currentUser.email, password);
+          await reauthenticateWithCredential(currentUser, credential);
+          
+          // 2. Clean up database entries (including organization membership)
+          const userSettings = await storageService.getSettings(currentUser.uid);
           await storageService.deleteUserAndCleanup(currentUser.uid, userSettings?.organizationSerialNumber || null);
           
-          // 2. Delete the Firebase auth user
+          // 3. Delete the Firebase auth user
           await deleteUser(currentUser);
 
           return { success: true, message: 'Account deleted successfully' };
