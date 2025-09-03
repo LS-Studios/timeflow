@@ -84,7 +84,7 @@ export function OrganizationDialog({
         </DialogHeader>
 
         {currentOrganization ? (
-          <div className="py-4">
+          <div className="p-4">
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" className="w-full">
