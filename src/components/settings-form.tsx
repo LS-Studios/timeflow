@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import { OrganizationDialog } from "./organization-dialog";
+import { storageService } from '@/lib/storage';
 
 export function SettingsForm() {
   const { t } = useTranslation();
@@ -311,20 +312,23 @@ export function SettingsForm() {
         </AlertDialogContent>
       </AlertDialog>
       
-      {!isGuest && (
+      {!isGuest && user && (
         <OrganizationDialog
           isOpen={isOrganizationDialogOpen}
           onOpenChange={setOrganizationDialogOpen}
           currentOrganization={settings.organizationName}
-          onJoin={(serialNumber) => {
-            // Mock logic: any serial number joins "Musterfirma GmbH"
-            if (serialNumber) {
-              setOrganization("Musterfirma GmbH");
-              return true;
+          onJoin={async (serialNumber) => {
+            const org = await storageService.getOrganization(serialNumber);
+            if (org) {
+              const success = await storageService.joinOrganization(user.uid, serialNumber);
+              if (success) {
+                setOrganization(org.name, org.serialNumber);
+                return true;
+              }
             }
             return false;
           }}
-          onLeave={() => setOrganization(null)}
+          onLeave={() => setOrganization(null, null)}
         />
       )}
     </>

@@ -4,6 +4,7 @@
 
 import React, { createContext, useState, useContext, ReactNode, useMemo, useEffect, useCallback } from 'react';
 import { useTheme } from 'next-themes';
+import { useSearchParams, useRouter } from 'next/navigation';
 import type { AppMode, AppSettings, AppTheme } from '@/lib/types';
 import { storageService } from './storage';
 import { Language, useTranslation } from './i18n';
@@ -20,7 +21,7 @@ interface SettingsContextType {
   setTheme: (theme: AppTheme) => void;
   setLanguage: (language: Language) => void;
   setWorkGoals: (goals: { dailyGoal?: number; weeklyGoal?: number }) => void;
-  setOrganization: (name: string | null) => void;
+  setOrganization: (name: string | null, serial: string | null) => void;
   setIsAdmin: (isAdmin: boolean) => void;
   updateSettings: (newSettings: Partial<AppSettings>) => void;
   setTimerResetCallback: (callback: TimerResetCallback) => void;
@@ -38,7 +39,7 @@ const defaultSettings: AppSettings = {
     weeklyGoal: 40,
 };
 
-export function SettingsProvider({ children }: { children: ReactNode }) {
+function SettingsProviderInternal({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoaded, setIsLoaded] = useState(false);
   const { setTheme: applyTheme } = useTheme();
@@ -48,6 +49,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [timerIsActive, setTimerIsActive] = useState(false);
   const timerResetCallbackRef = React.useRef<TimerResetCallback | null>(null);
   const endCurrentSessionCallbackRef = React.useRef<EndCurrentSessionCallback | null>(null);
+  
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Load settings from storage on user change and listen for real-time updates
   useEffect(() => {
@@ -71,6 +75,34 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       return () => unsubscribe();
     }
   }, [user, applyTheme, applyLanguage]);
+  
+  useEffect(() => {
+    const orgSerial = searchParams.get('organisation');
+    if (orgSerial && user && user.uid !== 'guest' && isLoaded) {
+      // If user is already in an org, or in this one, do nothing.
+      if (settings.organizationSerialNumber === orgSerial) {
+          router.replace('/settings', { scroll: false });
+          return;
+      }
+
+      const joinOrg = async () => {
+        const orgData = await storageService.getOrganization(orgSerial);
+        if (orgData) {
+          const success = await storageService.joinOrganization(user.uid, orgSerial);
+          if (success) {
+            updateSettings({
+              organizationName: orgData.name,
+              organizationSerialNumber: orgSerial,
+            });
+          }
+        }
+        // Clean up URL
+        router.replace('/settings', { scroll: false });
+      };
+
+      joinOrg();
+    }
+  }, [searchParams, user, isLoaded, settings.organizationSerialNumber, router]);
 
 
   // When settings are changed by the user, save them to storage
@@ -112,8 +144,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     });
   }, [settings.dailyGoal, settings.weeklyGoal, updateSettings]);
 
-  const setOrganization = useCallback((name: string | null) => {
-    updateSettings({ organizationName: name || undefined });
+  const setOrganization = useCallback((name: string | null, serial: string | null) => {
+    updateSettings({ organizationName: name || undefined, organizationSerialNumber: serial || undefined });
   }, [updateSettings]);
 
   const setIsAdmin = useCallback((isAdmin: boolean) => {
@@ -155,6 +187,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       {children}
     </SettingsContext.Provider>
   );
+}
+
+export function SettingsProvider({ children }: { children: ReactNode }) {
+  return (
+    <React.Suspense fallback={<div>Loading...</div>}>
+      <SettingsProviderInternal>{children}</SettingsProviderInternal>
+    </React.Suspense>
+  )
 }
 
 export function useSettings() {
