@@ -7,7 +7,7 @@ export default function NotFound() {
   return (
     <div className="flex flex-col items-center justify-center min-h-full text-center p-8 relative overflow-hidden">
         <div 
-            className="absolute -top-1/4 -left-1/4 text-[400px] font-black text-secondary/50 -z-10 select-none"
+            className="absolute inset-0 flex items-center justify-center text-[400px] font-black text-secondary/50 -z-10 select-none"
             aria-hidden="true"
         >
             404
