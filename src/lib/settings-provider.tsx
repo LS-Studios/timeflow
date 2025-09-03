@@ -53,6 +53,20 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // When settings are changed by the user, save them to storage
+  const updateSettings = useCallback((newSettings: Partial<AppSettings>) => {
+      if (user) {
+          setSettings(prev => {
+              const updated = {...prev, ...newSettings};
+              // Check prevents infinite loops from listeners
+              if (JSON.stringify(prev) !== JSON.stringify(updated)) {
+                 storageService.saveSettings(user.uid, updated);
+              }
+              return updated;
+          });
+      }
+  }, [user]);
+
   // Load settings from storage on user change and listen for real-time updates
   useEffect(() => {
     if (user) {
@@ -106,16 +120,20 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
   }, [searchParams, user, isLoaded, settings.organizationSerialNumber, updateSettings, router]);
 
 
-  // When settings are changed by the user, save them to storage
-  const updateSettings = useCallback((newSettings: Partial<AppSettings>) => {
-      if (user) {
-          setSettings(prev => {
-              const updated = {...prev, ...newSettings};
-              storageService.saveSettings(user.uid, updated);
-              return updated;
-          });
-      }
-  }, [user]);
+  // Listen for live updates to the organization name
+  useEffect(() => {
+    if (user && user.uid !== 'guest' && settings.organizationSerialNumber) {
+        const unsubscribe = storageService.onOrganizationChange(settings.organizationSerialNumber, (orgData) => {
+            if (orgData && orgData.name !== settings.organizationName) {
+                updateSettings({ organizationName: orgData.name });
+            }
+        });
+
+        return () => unsubscribe();
+    }
+  }, [user, settings.organizationSerialNumber, settings.organizationName, updateSettings]);
+
+
 
   const setMode = useCallback((mode: AppMode) => {
     if (settings.mode === mode) return;

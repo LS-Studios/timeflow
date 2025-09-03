@@ -1,4 +1,5 @@
 
+
 "use client";
 import { ref, get, set, onValue, off } from "firebase/database";
 import { db } from "./firebase";
@@ -34,6 +35,7 @@ interface StorageProvider {
     createOrganization(adminUserId: string, serialNumber: string, name: string): Promise<void>;
     getOrganization(serialNumber: string): Promise<OrganizationData | null>;
     updateOrganizationName(serialNumber: string, name: string): Promise<void>;
+    onOrganizationChange(serialNumber: string, callback: (data: OrganizationData | null) => void): () => void; // Real-time listener for org data
     joinOrganization(userId: string, serialNumber: string): Promise<boolean>;
     getOrganizationEmployees(serialNumber: string): Promise<string[]>;
     getOrganizationEmployeeData(serialNumber: string): Promise<{ userId: string; account: UserAccount | null; workSessions: Session[]; learningSessions: Session[]; }[]>;
@@ -182,6 +184,14 @@ class FirebaseStorageProvider implements StorageProvider {
         console.log('Updating organization name in Firebase:', serialNumber, name);
         await set(ref(db, `organizations/${serialNumber}/name`), name);
         console.log('Organization name updated successfully');
+    }
+
+    onOrganizationChange(serialNumber: string, callback: (data: OrganizationData | null) => void): () => void {
+        const orgRef = ref(db, `organizations/${serialNumber}`);
+        const listener = onValue(orgRef, (snapshot) => {
+            callback(snapshot.exists() ? snapshot.val() : null);
+        });
+        return () => off(orgRef, 'value', listener);
     }
 
     async joinOrganization(userId: string, serialNumber: string): Promise<boolean> {
@@ -383,6 +393,11 @@ class LocalStorageProvider implements StorageProvider {
         }
         return Promise.resolve();
     }
+    
+    onOrganizationChange(serialNumber: string, callback: (data: OrganizationData | null) => void): () => void {
+       // Not implemented for local storage as it's not a shared environment
+       return () => {};
+    }
 
     async joinOrganization(userId: string, serialNumber: string): Promise<boolean> {
         if (typeof window === 'undefined') return Promise.resolve(false);
@@ -522,6 +537,10 @@ class StorageServiceFacade implements StorageProvider {
 
     updateOrganizationName(serialNumber: string, name: string): Promise<void> {
         return this.firebaseProvider.updateOrganizationName(serialNumber, name);
+    }
+    
+    onOrganizationChange(serialNumber: string, callback: (data: OrganizationData | null) => void): () => void {
+        return this.firebaseProvider.onOrganizationChange(serialNumber, callback);
     }
 
     joinOrganization(userId: string, serialNumber: string): Promise<boolean> {
