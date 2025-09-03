@@ -72,11 +72,27 @@ function SettingsProviderInternal({ children }: { children: ReactNode }) {
     if (user) {
       setIsLoaded(false);
       // Set up a real-time listener for settings
-      const unsubscribe = storageService.onSettingsChange(user.uid, (newSettings) => {
-        if (newSettings) {
-           setSettings(prev => ({...prev, ...newSettings}));
-           applyTheme(newSettings.theme);
-           applyLanguage(newSettings.language);
+      const unsubscribe = storageService.onSettingsChange(user.uid, async (newSettings) => {
+        
+        let finalSettings = newSettings;
+        if (newSettings && newSettings.organizationSerialNumber) {
+            // Data consistency check: If user is part of an org, but it was deleted, clean up.
+            const orgExists = await storageService.getOrganization(newSettings.organizationSerialNumber);
+            if (!orgExists) {
+                console.log("SettingsProvider: Stale organization found, cleaning up.");
+                finalSettings = {
+                    ...newSettings,
+                    organizationName: null,
+                    organizationSerialNumber: null,
+                };
+                storageService.saveSettings(user.uid, finalSettings);
+            }
+        }
+        
+        if (finalSettings) {
+           setSettings(prev => ({...prev, ...finalSettings}));
+           applyTheme(finalSettings.theme);
+           applyLanguage(finalSettings.language);
         } else {
            // No settings in DB, use defaults and save them
            setSettings(defaultSettings);

@@ -180,28 +180,9 @@ class FirebaseStorageProvider implements StorageProvider {
     
     async deleteOrganizationAndCleanup(serialNumber: string): Promise<void> {
         const orgRef = ref(db, `organizations/${serialNumber}`);
-        const orgSnapshot = await get(orgRef);
-        if (!orgSnapshot.exists()) return;
-
-        const orgData: OrganizationData = orgSnapshot.val();
-        const employeeIds = Object.keys(orgData.employees || {});
-
-        // Clean up settings for each employee by setting org properties to null
-        const cleanupPromises = employeeIds.map(async (userId) => {
-            const userSettingsRef = ref(db, `users/${userId}/settings`);
-            const snapshot = await get(userSettingsRef);
-            if (snapshot.exists()) {
-                const settings = snapshot.val();
-                settings.organizationName = null;
-                settings.organizationSerialNumber = null;
-                return set(userSettingsRef, settings);
-            }
-        });
-
-
-        await Promise.all(cleanupPromises);
-        
-        // Finally, delete the organization itself
+        // The cleanup for employees is now handled on the client-side
+        // in the SettingsProvider to avoid permission issues.
+        // We just delete the organization node.
         await set(orgRef, null);
     }
 

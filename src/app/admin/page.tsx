@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSettings } from "@/lib/settings-provider";
 import { useTranslation } from "@/lib/i18n";
-import { Copy, Building, Users, TrendingUp, AlertTriangle, Award, Brain, Clock, BookOpen, BarChart2, Trash2, Share2 } from "lucide-react";
+import { Copy, Building, Users, TrendingUp, AlertTriangle, Award, Brain, Clock, BookOpen, BarChart2, Trash2, Share2, PlusCircle } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,6 +49,8 @@ export default function AdminPanel() {
   
   const [organizationName, setOrganizationName] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
+  const [newOrganizationName, setNewOrganizationName] = useState("");
+
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [employeeData, setEmployeeData] = useState<EmployeeDisplayData[]>([]);
@@ -107,6 +109,8 @@ export default function AdminPanel() {
 
   // Handle initialization and admin mode changes
   useEffect(() => {
+    if (!settings.isLoaded) return;
+    
     if (!settings.isAdmin) {
       if (settings.organizationSerialNumber) {
         updateSettings({ organizationName: null, organizationSerialNumber: null });
@@ -116,31 +120,18 @@ export default function AdminPanel() {
       router.push('/');
       return;
     }
-    if (!user) return;
+    
+    // If an organization is already defined in settings, use it.
+    if (settings.organizationSerialNumber && settings.organizationName) {
+        setSerialNumber(settings.organizationSerialNumber);
+        setOrganizationName(settings.organizationName);
+    } else {
+        // Clear any old state if settings don't have an org
+        setSerialNumber("");
+        setOrganizationName("");
+    }
 
-    const initializeOrRestoreOrganization = async () => {
-        setIsLoading(true);
-        // If an organization is already defined in settings, use it.
-        if (settings.organizationSerialNumber && settings.organizationName) {
-            setSerialNumber(settings.organizationSerialNumber);
-            setOrganizationName(settings.organizationName);
-        } else {
-            // Otherwise, create a new one. This will only run once.
-            const newSerial = Math.random().toString(36).substring(2, 11).toUpperCase();
-            const newName = `${user.name}'s Organization`;
-            setSerialNumber(newSerial);
-            setOrganizationName(newName);
-            
-            // Create in DB and save to current user's settings.
-            await storageService.createOrganization(user.uid, newSerial, newName);
-            updateSettings({ organizationSerialNumber: newSerial, organizationName: newName });
-        }
-        setIsLoading(false);
-    };
-
-    initializeOrRestoreOrganization();
-
-  }, [settings.isAdmin, user, router, updateSettings, settings.organizationSerialNumber, settings.organizationName]);
+  }, [settings.isLoaded, settings.isAdmin, settings.organizationSerialNumber, settings.organizationName, router, updateSettings]);
 
 
   useEffect(() => {
@@ -168,6 +159,29 @@ export default function AdminPanel() {
     };
   }, [settings.organizationSerialNumber, settings.mode, processEmployeeData, settings.isAdmin]);
   
+  const handleCreateOrganization = async () => {
+    if (!user || !newOrganizationName.trim()) {
+      toast({ title: "Error", description: "Please enter an organization name", variant: "destructive" });
+      return;
+    }
+    setIsLoading(true);
+    try {
+        const newSerial = Math.random().toString(36).substring(2, 11).toUpperCase();
+        await storageService.createOrganization(user.uid, newSerial, newOrganizationName);
+        
+        // This will update the user's local settings and trigger the main view to render
+        updateSettings({ organizationSerialNumber: newSerial, organizationName: newOrganizationName });
+        
+        setNewOrganizationName("");
+        toast({ title: "Organization Created", description: `"${newOrganizationName}" is ready.` });
+
+    } catch (error) {
+        console.error('Error creating organization:', error);
+        toast({ title: "Error", description: "Failed to create organization", variant: "destructive" });
+    } finally {
+        setIsLoading(false);
+    }
+  }
 
   const copySerialNumber = () => {
     navigator.clipboard.writeText(serialNumber);
@@ -194,7 +208,7 @@ export default function AdminPanel() {
     setIsLoading(true);
     try {
         await storageService.updateOrganizationName(serialNumber, organizationName);
-        // The onOrganizationChange listener in settings-provider will update the local state.
+        updateSettings({ organizationName });
         toast({ title: "Organization Name Updated", description: `Organization name changed to "${organizationName}"` });
     } catch (error) {
       console.error('Error saving organization:', error);
@@ -210,10 +224,7 @@ export default function AdminPanel() {
     try {
         await storageService.deleteOrganizationAndCleanup(settings.organizationSerialNumber);
         toast({ title: "Organization Deleted", description: "The organization and all associated employee links have been removed." });
-        
-        // This will clear the current user's org settings and trigger the useEffect to create a new org.
         updateSettings({ organizationName: null, organizationSerialNumber: null });
-
     } catch (error) {
         console.error("Error deleting organization:", error);
         toast({ title: "Deletion Failed", description: "Could not delete the organization.", variant: "destructive" });
@@ -304,14 +315,32 @@ export default function AdminPanel() {
     );
   };
 
-  return (
-    <div className="container max-w-6xl py-8 mx-auto px-4">
-      <div className="flex items-center gap-2 mb-8">
-        <Building className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-bold">Admin Panel</h1>
-      </div>
+  const renderCreateOrganizationView = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Building className="h-5 w-5" />Create Your Organization</CardTitle>
+        <CardDescription>Give your organization a name to get started. You can invite employees after creation.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="new-org-name">Organization Name</Label>
+          <Input 
+            id="new-org-name" 
+            value={newOrganizationName} 
+            onChange={(e) => setNewOrganizationName(e.target.value)} 
+            placeholder="e.g., My Awesome Company" 
+          />
+        </div>
+        <Button onClick={handleCreateOrganization} disabled={isLoading || !newOrganizationName.trim()}>
+          <PlusCircle className="mr-2 h-4 w-4" />
+          {isLoading ? "Creating..." : "Create Organization"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
 
-      <div className="grid gap-6">
+  const renderDashboardView = () => (
+    <>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Building className="h-5 w-5" />Organization Management</CardTitle>
@@ -334,38 +363,47 @@ export default function AdminPanel() {
                 <p className="text-xs text-muted-foreground">Share this link with employees to have them join your organization</p>
               </div>
             </div>
-            {settings.organizationSerialNumber && (
-              <div className="border-t pt-4 mt-4">
-                 <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" disabled={isDeleting}>
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      {isDeleting ? "Deleting..." : "Delete Organization"}
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the organization 
-                        and remove all employees from it. Employee time data will remain, but the
-                        organization link will be gone forever.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDeleteOrganization} className="bg-destructive hover:bg-destructive/90">
-                        Yes, delete organization
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            )}
+            <div className="border-t pt-4 mt-4">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={isDeleting}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {isDeleting ? "Deleting..." : "Delete Organization"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the organization.
+                      Employee time data will remain, but the organization link will be broken.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteOrganization} className="bg-destructive hover:bg-destructive/90">
+                      Yes, delete organization
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </CardContent>
         </Card>
         
         {settings.mode === 'work' ? renderWorkAnalytics() : renderLearningAnalytics()}
+    </>
+  );
+
+  return (
+    <div className="container max-w-6xl py-8 mx-auto px-4">
+      <div className="flex items-center gap-2 mb-8">
+        <Building className="h-8 w-8 text-primary" />
+        <h1 className="text-3xl font-bold">Admin Panel</h1>
+      </div>
+
+      <div className="grid gap-6">
+        {settings.organizationSerialNumber ? renderDashboardView() : renderCreateOrganizationView()}
       </div>
     </div>
   );
