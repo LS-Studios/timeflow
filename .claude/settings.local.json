@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(find:*)",
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "Read(/C:\\Users\\stubb\\Documents\\Programmieren\\Website\\timeflow\\src\\app\\analytics/**)"
     ],
     "deny": [],
     "ask": []
