@@ -47,3 +47,4 @@ firestore-debug.log
 .claude
 .idx
 .vscode
+.modified
