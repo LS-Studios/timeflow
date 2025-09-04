@@ -1,8 +1,8 @@
-# 📱 Project Name
+# Timeflow
 
 <!-- App Icon -->
 <p align="center">
-  <img src="public/Icon-BG.png.png" alt="App Icon" width="120"/>
+  <img src="public/Icon-BG.png" alt="App Icon" width="120"/>
 </p>
 
 ## 📝 Description
@@ -34,9 +34,29 @@ For **companies and educators**, Tiemflow includes an **admin feature** that all
 ---
 
 ## 🖼️ Screenshots
-| Screenshot 1 | Screenshot 2 | Screenshot 3 | Screenshot 4 | Screenshot 5 | Screenshot 6 | Screenshot 7 |
-|--------------|--------------|--------------|--------------|--------------|--------------|--------------|
-| <img src="Screenshot-Admin.png" width="200"/> | <img src="Screenshot-App-Modes.png" width="200"/> | <img src="Screenshot-End-Learning.png" width="200"/> | <img src="Screenshot-Lerning-Mode.png" width="200"/> | <img src="Screenshot-Timer.png" width="200"/> | <img src="Screenshot-Analyse-Learning.png" width="200"/> | <img src="Screenshot-Analyse-Working.png" width="200"/> |
+
+### Admin & Modes
+<p align="center">
+  <img src="Screenshot-Admin.png" width="250"/>
+  <img src="Screenshot-App-Modes.png" width="250"/>
+</p>
+
+### Learning Mode
+<p align="center">
+  <img src="Screenshot-Lerning-Mode.png" width="250"/>
+  <img src="Screenshot-End-Learning.png" width="250"/>
+</p>
+
+### Timer
+<p align="center">
+  <img src="Screenshot-Timer.png" width="250"/>
+</p>
+
+### Analytics
+<p align="center">
+  <img src="Screenshot-Analyse-Learning.png" width="250"/>
+  <img src="Screenshot-Analyse-Working.png" width="250"/>
+</p>
 
 ---
 
