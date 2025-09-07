@@ -279,7 +279,7 @@ export function SettingsForm() {
           <CardContent className="space-y-4">
             <div className="flex flex-col space-y-2">
               <a 
-                href="https://leshift.de/impressum" 
+                href="https://leshift.de/timeflow/impressum" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-sm text-primary hover:underline"
@@ -287,7 +287,7 @@ export function SettingsForm() {
                 Impressum
               </a>
               <a 
-                href="https://leshift.de/datenschutz" 
+                href="https://leshift.de/timeflow/datenschutz" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-sm text-primary hover:underline"
