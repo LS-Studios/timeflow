@@ -37,25 +37,25 @@ For **companies and educators**, Tiemflow includes an **admin feature** that all
 
 ### Timer
 <p align="center">
-  <img src="Screenshot-Timer.png" width="250"/>
+  <img src="screenshots/Screenshot-Timer.png" width="250"/>
 </p>
 
 ### Learning Mode
 <p align="center">
-  <img src="Screenshot-Lerning-Mode.png" width="250"/>
-  <img src="Screenshot-End-Learning.png" width="250"/>
+  <img src="screenshots/Screenshot-Lerning-Mode.png" width="250"/>
+  <img src="screenshots/Screenshot-End-Learning.png" width="250"/>
 </p>
 
 ### Analytics
 <p align="center">
-  <img src="Screenshot-Analyse-Learning.png" width="250"/>
-  <img src="Screenshot-Analyse-Working.png" width="250"/>
+  <img src="screenshots/Screenshot-Analyse-Learning.png" width="250"/>
+  <img src="screenshots/Screenshot-Analyse-Working.png" width="250"/>
 </p>
 
 ### Admin & Modes
 <p align="center">
-  <img src="Screenshot-Admin.png" width="250"/>
-  <img src="Screenshot-App-Modes.png" width="250"/>
+  <img src="screenshots/Screenshot-Admin.png" width="250"/>
+  <img src="screenshots/Screenshot-App-Modes.png" width="250"/>
 </p>
 
 ---
