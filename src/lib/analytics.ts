@@ -15,7 +15,21 @@ if (typeof window !== 'undefined') {
     });
 }
 
+const hasConsent = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const consent = localStorage.getItem('timeflow_analytics_consent');
+  return consent === 'accepted';
+};
+
 const track = (eventName: string, params?: { [key: string]: any }) => {
+  // Check if user has given consent
+  if (!hasConsent()) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Analytics CONSENT DENIED] Event: ${eventName}`, params || '');
+    }
+    return;
+  }
+
   if (!analytics) {
     if (process.env.NODE_ENV === 'development') {
         console.log(`[Analytics DISABLED] Event: ${eventName}`, params || '');

@@ -22,7 +22,21 @@ export function GoogleAnalytics({ gaId }: GoogleAnalyticsProps) {
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
+            
+            // Initialize consent mode
+            gtag('consent', 'default', {
+              analytics_storage: 'denied'
+            });
+            
             gtag('config', '${gaId}');
+            
+            // Check for existing consent
+            const consent = localStorage.getItem('timeflow_analytics_consent');
+            if (consent === 'accepted') {
+              gtag('consent', 'update', {
+                analytics_storage: 'granted'
+              });
+            }
           `,
         }}
       />

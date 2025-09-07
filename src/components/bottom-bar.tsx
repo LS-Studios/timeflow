@@ -13,7 +13,7 @@ export function BottomBar() {
           </a>
           <span className="text-border">|</span>
           <a 
-            href="https://leshift.de/datenschutz" 
+            href="https://leshift.de/timeflow/datenschutz" 
             target="_blank" 
             rel="noopener noreferrer"
             className="hover:text-foreground transition-colors"
